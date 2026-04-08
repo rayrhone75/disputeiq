@@ -22,6 +22,7 @@ export function SiteNav() {
           </div>
         </Link>
         <nav className="hidden items-center gap-9 text-[13px] text-[#4a4638] md:flex">
+          <Link href="/get-started" className="transition hover:text-[#0a0f1c]">Get started</Link>
           <Link href="/how-it-works" className="transition hover:text-[#0a0f1c]">Method</Link>
           <Link href="/pricing" className="transition hover:text-[#0a0f1c]">Pricing</Link>
           <Link href="/trust-center" className="transition hover:text-[#0a0f1c]">Trust center</Link>
@@ -33,13 +34,13 @@ export function SiteNav() {
           >
             Sign in
           </a>
-          <a
-            href={`${URLS.app}/sign-up`}
+          <Link
+            href="/get-started"
             className="group inline-flex items-center gap-1.5 rounded-xl bg-[#0a0f1c] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_30px_-10px_rgba(10,15,28,0.6)] transition hover:bg-[#111827]"
           >
-            Open the portal
+            Start your file
             <span className="transition group-hover:translate-x-0.5">→</span>
-          </a>
+          </Link>
         </div>
       </div>
     </header>

@@ -97,12 +97,14 @@ export default function PricingPage() {
             Investment
           </p>
           <h1 className="mx-auto mt-5 max-w-3xl font-serif text-[52px] leading-[1.05] tracking-[-0.01em] text-[#0a0f1c] sm:text-[68px]">
-            Premium tools.
+            Pay for action.
             <br />
-            <span className="italic">Honest pricing.</span>
+            <span className="italic">Not promises.</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-xl text-[16px] leading-relaxed text-[#4a4638]">
-            No long-term contracts. No hidden fees. Pay for action — not for promises.
+          <p className="mx-auto mt-6 max-w-2xl text-[16px] leading-relaxed text-[#4a4638]">
+            DisputeIQ uses action-based pricing. You open your workspace for free, review your
+            report, and only pay when you actually dispatch a letter. No subscription traps, no
+            hidden charges, no promises of outcomes nobody can guarantee.
           </p>
         </div>
       </section>

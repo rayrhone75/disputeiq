@@ -4,6 +4,7 @@ const cols = [
   {
     t: "Product",
     l: [
+      ["Get started", "/get-started"],
       ["How it works", "/how-it-works"],
       ["Pricing", "/pricing"],
       ["Trust center", "/trust-center"],
@@ -14,12 +15,14 @@ const cols = [
     l: [
       ["Method", "/how-it-works"],
       ["Trust & security", "/trust-center"],
+      ["Disclosures", "/disclosures"],
       ["Contact", "mailto:support@disputeiq.org"],
     ] as const,
   },
   {
     t: "Legal",
     l: [
+      ["Disclosures", "/disclosures"],
       ["Privacy", "/trust-center"],
       ["Terms", "/trust-center"],
       ["Compliance", "/trust-center"],
@@ -54,7 +57,7 @@ export function SiteFooter() {
               and tracking certified mailings — with audit-grade trust built into every step.
             </p>
             <p className="mt-6 text-[10px] uppercase tracking-[0.22em] text-[#8a8472]">
-              Made in the United States · Audit-grade by design
+              A Screwed Up Credit company · Made in the USA
             </p>
           </div>
 

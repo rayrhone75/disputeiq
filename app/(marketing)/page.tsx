@@ -2,21 +2,28 @@ import Link from "next/link";
 import { COMPLIANCE_NOTICE } from "@/lib/compliance";
 import { URLS } from "@/lib/urls";
 import { Section } from "@/components/marketing/Section";
+import { MYFREESCORENOW, getEnrollUrl } from "@/lib/integrations/myfreescorenow";
 
 /* ----------------------------------------------------------------------------
  * DisputeIQ — premium marketing homepage.
- * Ivory primary, selective dark drama sections.
+ * Positioning: identify · challenge · track · escalate.
+ * Primary funnel entry: MyFreeScoreNow 3-bureau report intake.
  * -------------------------------------------------------------------------- */
+
+const mfsnHome = getEnrollUrl({ campaign: "home_hero", source: "disputeiq" });
+const mfsnStart = getEnrollUrl({ campaign: "home_start_step", source: "disputeiq" });
 
 export default function HomePage() {
   return (
     <>
       <Hero />
       <PressStrip />
-      <Principles />
+      <StartHere />
+      <Positioning />
       <DarkProof />
       <Storyline />
       <AISuite />
+      <Coexistence />
       <Testimonials />
       <PricingTeaser />
       <FinalCTA />
@@ -30,7 +37,6 @@ export default function HomePage() {
 function Hero() {
   return (
     <section className="relative overflow-hidden">
-      {/* subtle warm gradient + grid */}
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute left-1/2 top-[-20%] h-[620px] w-[1200px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(99,102,241,0.14),transparent)] blur-3xl" />
         <div className="absolute right-[-14%] top-[30%] h-[460px] w-[700px] rounded-full bg-[radial-gradient(closest-side,rgba(245,158,11,0.08),transparent)] blur-3xl" />
@@ -51,35 +57,34 @@ function Hero() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/60" />
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-600" />
             </span>
-            Private beta · invitation access
+            A Screwed Up Credit company
           </span>
 
           <h1 className="mt-7 font-serif text-[56px] font-medium leading-[1.02] tracking-[-0.02em] text-[#0a0f1c] sm:text-[74px]">
-            Your credit file,
+            Identify. Challenge.
             <br />
             <span className="italic">
-              under your{" "}
+              Track.{" "}
               <span className="bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-700 bg-clip-text text-transparent">
-                command
+                Escalate.
               </span>
-              .
             </span>
           </h1>
 
           <p className="mt-7 max-w-xl text-[17px] leading-[1.65] text-[#3d3a2e]">
-            DisputeIQ is the executive workspace for reviewing your credit reports,
-            identifying potential inaccuracies, preparing dispute documents, and tracking
-            certified mailings — with audit-grade trust built into every step.
+            DisputeIQ is the executive-grade credit action platform. Turn a real 3-bureau report
+            into a disciplined workflow of disputes, certified mailings, fraud blocks, and CFPB
+            escalations — with audit-grade trust in every step.
           </p>
 
           <div className="mt-9 flex flex-wrap items-center gap-3">
-            <a
-              href={`${URLS.app}/sign-up`}
+            <Link
+              href="/get-started"
               className="group inline-flex items-center gap-2 rounded-xl bg-[#0a0f1c] px-7 py-3.5 text-[13px] font-semibold uppercase tracking-[0.12em] text-white shadow-[0_14px_40px_-14px_rgba(10,15,28,0.6)] transition hover:scale-[1.015] hover:bg-[#111827]"
             >
-              Request access
+              Start your file
               <span className="transition group-hover:translate-x-0.5">→</span>
-            </a>
+            </Link>
             <Link
               href="/how-it-works"
               className="inline-flex items-center gap-2 rounded-xl border border-[#d9d3c0] bg-white/70 px-7 py-3.5 text-[13px] font-semibold uppercase tracking-[0.12em] text-[#0a0f1c] transition hover:border-[#0a0f1c] hover:bg-white"
@@ -88,15 +93,16 @@ function Hero() {
             </Link>
           </div>
 
-          <dl className="mt-14 grid max-w-xl grid-cols-3 gap-6 border-t border-[#d9d3c0] pt-8">
+          <dl className="mt-14 grid max-w-xl grid-cols-4 gap-5 border-t border-[#d9d3c0] pt-8">
             {[
-              ["11,400+", "Items analyzed"],
-              ["$0", "Bureau contact"],
-              ["256-bit", "Encryption"],
+              ["Identify", "Cross-bureau diffs"],
+              ["Challenge", "Factual disputes"],
+              ["Track", "Certified mail"],
+              ["Escalate", "605B · CFPB"],
             ].map(([v, l]) => (
-              <div key={l}>
-                <dt className="font-serif text-[26px] text-[#0a0f1c]">{v}</dt>
-                <dd className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#8a8472]">{l}</dd>
+              <div key={v as string}>
+                <dt className="font-serif text-[20px] text-[#0a0f1c]">{v}</dt>
+                <dd className="mt-1 text-[10px] uppercase tracking-[0.16em] text-[#8a8472]">{l}</dd>
               </div>
             ))}
           </dl>
@@ -113,14 +119,13 @@ function Hero() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Dashboard mockup (dark card floating on ivory)                             */
+/*  Dashboard mockup                                                          */
 /* -------------------------------------------------------------------------- */
 function DashboardMock() {
   return (
     <div className="relative">
       <div className="absolute -inset-10 -z-10 rounded-[40px] bg-gradient-to-br from-indigo-200/70 via-violet-200/50 to-transparent blur-3xl" />
 
-      {/* Floating corner badge */}
       <div className="absolute -right-3 -top-3 z-10 hidden rotate-3 rounded-2xl border border-[#e8e4d8] bg-white/95 px-4 py-3 text-[11px] shadow-[0_20px_50px_-20px_rgba(10,15,28,0.3)] backdrop-blur sm:block">
         <div className="flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -145,9 +150,9 @@ function DashboardMock() {
 
         <div className="relative grid grid-cols-3 gap-2">
           {[
-            ["Active", "4", "+2 wk"],
-            ["Flagged", "11", "3 high"],
-            ["In transit", "2", "certified"],
+            ["Identified", "11", "3 high"],
+            ["Challenged", "4", "in flight"],
+            ["Escalations", "1", "605B"],
           ].map(([l, v, d]) => (
             <div key={l as string} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
               <p className="text-[9px] uppercase tracking-[0.18em] text-white/40">{l}</p>
@@ -166,8 +171,8 @@ function DashboardMock() {
             <span className="text-[10px] text-white/50">just now</span>
           </div>
           <p className="relative mt-2.5 text-[13px] leading-relaxed text-white/90">
-            Capital One tradeline shows a balance mismatch across two bureaus.
-            <span className="text-white/60"> Review before disputing.</span>
+            Capital One tradeline shows a $118 balance mismatch between Equifax and Experian.
+            <span className="text-white/60"> Strongest next action: factual dispute.</span>
           </p>
           <div className="relative mt-3 flex items-center gap-2">
             <span className="rounded-md bg-emerald-400/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-300">
@@ -183,9 +188,9 @@ function DashboardMock() {
           <p className="text-[10px] uppercase tracking-[0.18em] text-white/40">Activity timeline</p>
           <ol className="mt-3 space-y-2.5">
             {[
-              ["Cross-bureau audit complete", "now", "bg-indigo-400"],
+              ["Report pulled via MyFreeScoreNow", "now", "bg-indigo-400"],
+              ["Cross-bureau audit complete", "1m", "bg-violet-400"],
               ["Letter mailed via USPS certified", "1h", "bg-emerald-400"],
-              ["Report ingested & hashed", "3h", "bg-white/40"],
             ].map(([t, ts, dot]) => (
               <li key={t as string} className="flex items-center justify-between text-[12px]">
                 <span className="flex items-center gap-2.5 text-white/85">
@@ -219,8 +224,8 @@ function PressStrip() {
     "SOC 2-aligned",
     "Audit-grade log",
     "USPS certified mail",
+    "FCRA-literate",
     "No data sales",
-    "FCRA-literate workflows",
   ];
   return (
     <section className="relative border-y border-[#e8e4d8] bg-white/60">
@@ -242,36 +247,169 @@ function PressStrip() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Principles                                                                */
+/*  Start Here — MyFreeScoreNow funnel entry                                  */
 /* -------------------------------------------------------------------------- */
-function Principles() {
+function StartHere() {
+  return (
+    <section className="relative">
+      <div className="mx-auto max-w-7xl px-6 py-24">
+        <div className="mb-12 max-w-3xl">
+          <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-indigo-600">
+            Start here
+          </p>
+          <h2 className="mt-5 font-serif text-[36px] leading-[1.08] tracking-tight text-[#0a0f1c] sm:text-[48px]">
+            Start with your real 3-bureau credit file.
+          </h2>
+          <p className="mt-5 max-w-2xl text-[16px] leading-relaxed text-[#4a4638]">
+            You can't challenge what you can't see. Every DisputeIQ workflow begins with a live
+            3-bureau report pulled through our Screwed Up Credit intake partner,{" "}
+            <span className="font-semibold text-[#0a0f1c]">MyFreeScoreNow</span>.
+          </p>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
+          {/* Primary CTA card */}
+          <div className="relative overflow-hidden rounded-[24px] border border-white/5 bg-gradient-to-br from-[#0c1222] via-[#0a0f1c] to-[#080d18] p-10 text-white shadow-[0_40px_120px_-32px_rgba(79,70,229,0.45)] lg:p-12">
+            <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-indigo-500/30 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-violet-500/20 blur-3xl" />
+
+            <div className="relative">
+              <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-indigo-300">
+                Step 01 · Report intake
+              </p>
+              <h3 className="mt-4 font-serif text-[32px] leading-[1.1] tracking-tight sm:text-[40px]">
+                Pull your 3-bureau file
+                <br />
+                <span className="italic text-white/85">in under two minutes.</span>
+              </h3>
+              <p className="mt-5 max-w-xl text-[14px] leading-relaxed text-white/70">
+                MyFreeScoreNow delivers live Experian, Equifax, and TransUnion data so DisputeIQ
+                can run its cross-bureau analysis the moment your file lands.
+              </p>
+
+              <ul className="mt-7 grid gap-2.5 text-[13px] text-white/85 sm:grid-cols-2">
+                {[
+                  "Live tri-merge report",
+                  "Experian · Equifax · TransUnion",
+                  "Refresh on demand",
+                  "Import directly into DisputeIQ",
+                ].map((l) => (
+                  <li key={l} className="flex items-center gap-2.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    {l}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-9 flex flex-wrap items-center gap-3">
+                <a
+                  href={mfsnHome}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#0a0f1c] shadow-[0_18px_60px_-16px_rgba(255,255,255,0.55)] transition hover:scale-[1.015]"
+                >
+                  {MYFREESCORENOW.ctaLabel}
+                </a>
+                <Link
+                  href="/get-started"
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-7 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/10"
+                >
+                  See all 3 steps
+                </Link>
+              </div>
+
+              <p className="mt-7 text-[11px] leading-relaxed text-white/45">
+                MyFreeScoreNow enrollment is provided by our ecosystem partner under the
+                Screwed Up Credit umbrella. DisputeIQ does not sell credit monitoring.
+              </p>
+            </div>
+          </div>
+
+          {/* Steps card */}
+          <div className="rounded-[24px] border border-[#e8e4d8] bg-white p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_24px_48px_-24px_rgba(10,15,28,0.16)]">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#8a8472]">
+              The three-step intake
+            </p>
+            <h3 className="mt-4 font-serif text-[26px] leading-tight text-[#0a0f1c]">
+              From report to action in three steps.
+            </h3>
+            <ol className="mt-7 space-y-6">
+              {[
+                {
+                  n: "01",
+                  t: "Get your report",
+                  d: "Enroll through MyFreeScoreNow and pull your live 3-bureau file.",
+                },
+                {
+                  n: "02",
+                  t: "Return to DisputeIQ",
+                  d: "Come back to disputeiq.org to open your command center.",
+                },
+                {
+                  n: "03",
+                  t: "Upload & analyze",
+                  d: "Upload your report. AI cross-bureau analysis surfaces actionable findings.",
+                },
+              ].map((s) => (
+                <li key={s.n} className="flex items-start gap-4">
+                  <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#e8e4d8] bg-[#faf9f4] font-mono text-[11px] font-semibold text-indigo-700">
+                    {s.n}
+                  </span>
+                  <div>
+                    <p className="font-serif text-[17px] text-[#0a0f1c]">{s.t}</p>
+                    <p className="mt-1 text-[13px] leading-relaxed text-[#4a4638]">{s.d}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <div className="mt-8 border-t border-[#e8e4d8] pt-6">
+              <a
+                href={mfsnStart}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#0a0f1c] bg-[#0a0f1c] px-5 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#111827]"
+              >
+                Begin with MyFreeScoreNow →
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Positioning — identify · challenge · track · escalate                     */
+/* -------------------------------------------------------------------------- */
+function Positioning() {
   const cards = [
     {
-      k: "Principle 01",
-      t: "Accuracy over speed",
-      d: "Most tools push you to fire off disputes. DisputeIQ helps you act correctly — with a factual basis, every time.",
+      k: "01 · Identify",
+      t: "See what's actually wrong.",
+      d: "Cross-bureau diffs flag balance, status, date, and ownership inconsistencies — ranked by severity and explained in plain English.",
     },
     {
-      k: "Principle 02",
-      t: "Transparency by design",
-      d: "Every action is logged, timestamped, and exportable. You always know what happened, when, and why.",
+      k: "02 · Challenge",
+      t: "Act with factual precision.",
+      d: "Server-side document generation drafts factual disputes from the real report — no fabricated claims, no boilerplate.",
     },
     {
-      k: "Principle 03",
-      t: "You stay in control",
-      d: "Nothing is sent without your explicit confirmation. No auto-dispatch. No hidden actions.",
+      k: "03 · Track",
+      t: "Watch every packet land.",
+      d: "USPS certified mail with electronic return receipts. Delivery scans and bureau responses sync into your timeline.",
     },
     {
-      k: "Principle 04",
-      t: "Institutional security",
-      d: "AES-256 at rest, TLS 1.3 in transit, isolated document vault. We never sell or share your data.",
+      k: "04 · Escalate",
+      t: "Stronger actions when warranted.",
+      d: "Section 605B fraud blocks and CFPB complaint drafts are built-in for cases that demand escalation, not another soft letter.",
     },
   ];
   return (
     <Section
-      eyebrow="The method"
-      title="Built on four non-negotiable principles."
-      subtitle="DisputeIQ isn't another credit app. It's a disciplined workspace that treats your file with the precision a bank uses on its own books."
+      eyebrow="The DisputeIQ method"
+      title="Four disciplines. One command center."
+      subtitle="DisputeIQ is not a report viewer. It's a credit action platform — designed to turn your file into disciplined, documented, verifiable steps."
     >
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
@@ -291,7 +429,7 @@ function Principles() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Dark proof — security + trust pillars                                     */
+/*  Dark proof — security pillars                                             */
 /* -------------------------------------------------------------------------- */
 function DarkProof() {
   return (
@@ -321,8 +459,8 @@ function DarkProof() {
               </h2>
               <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-white/70">
                 DisputeIQ is engineered like a financial institution handles its own operations:
-                encrypted at rest, isolated by tenant, logged immutably, and never sold or shared
-                with third parties.
+                encrypted at rest, isolated by tenant, logged immutably, never sold or shared with
+                third parties.
               </p>
               <ul className="mt-8 grid gap-3 text-[13px] text-white/80 sm:grid-cols-2">
                 {[
@@ -369,11 +507,11 @@ function DarkProof() {
 /* -------------------------------------------------------------------------- */
 function Storyline() {
   const steps = [
-    { n: "I", t: "Upload", d: "Drop your tri-merge PDF. It's encrypted on upload and stored in an isolated vault keyed to you alone." },
+    { n: "I", t: "Upload", d: "Drop your tri-merge PDF. Encrypted on upload and stored in an isolated vault keyed to you alone." },
     { n: "II", t: "Analyze", d: "Cross-bureau diffing surfaces balance, status, date, and ownership inconsistencies — ranked by severity." },
     { n: "III", t: "Prepare", d: "Factual dispute documents are drafted server-side and held until your review. Nothing auto-sends." },
     { n: "IV", t: "Dispatch", d: "Print and mail yourself, or dispatch through our USPS certified mail integration with return receipts." },
-    { n: "V", t: "Track", d: "Delivery scans, bureau responses, and follow-ups sync into an immutable activity timeline." },
+    { n: "V", t: "Escalate", d: "605B fraud blocks and CFPB drafts are ready the moment a standard dispute isn't enough." },
   ];
   return (
     <Section
@@ -401,14 +539,14 @@ function Storyline() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  AI Suite                                                                  */
+/*  AI Suite — major product differentiator                                   */
 /* -------------------------------------------------------------------------- */
 function AISuite() {
   return (
     <Section
       eyebrow="DisputeIQ AI"
       title="An assistant that reads the fine print for you."
-      subtitle="Ask anything about your file. Understand everything. Move forward with clarity."
+      subtitle="Ask anything about your file. Understand the findings. Draft letters from real report facts. Escalate with confidence."
     >
       <div className="grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:items-center">
         <div className="relative">
@@ -439,8 +577,9 @@ function AISuite() {
                 rounding tolerance.
               </div>
               <div className="max-w-[86%] rounded-2xl rounded-tl-sm border border-white/10 bg-white/[0.05] px-4 py-3 leading-relaxed text-white/85">
-                <span className="text-emerald-300">Next step:</span> pull your last statement to confirm
-                the correct balance, then prepare a factual dispute. I can draft it for your review.
+                <span className="text-emerald-300">Next best action:</span> a factual dispute to both
+                bureaus citing the balance discrepancy. I can draft it from the actual report facts
+                for your review.
               </div>
             </div>
           </div>
@@ -448,11 +587,11 @@ function AISuite() {
 
         <ul className="space-y-6">
           {[
-            ["Explains flagged accounts", "Plain-English breakdowns of why something is suspicious — and what it isn't."],
-            ["Suggests next actions", "Actionable next steps, ranked by impact and effort. No filler."],
-            ["Identifies missing documents", "Knows what evidence each dispute type requires before you send it."],
-            ["Tracks dispute progress", "Surfaces delivery scans, status changes, and bureau responses as they happen."],
-            ["Simplifies complex reports", "Turns 60-page tri-merge reports into a clear, prioritized action list."],
+            ["Reads your report", "Pulls real facts from your tri-merge so every recommendation is grounded in the file."],
+            ["Drafts letters from facts", "Factual dispute language built from the actual tradelines — no boilerplate, no invented claims."],
+            ["Recommends the next action", "Standard dispute, 605B fraud block, or CFPB escalation — ranked by impact and evidence."],
+            ["Identifies missing documents", "Knows what evidence each escalation type requires before you send."],
+            ["Summarizes tracking events", "Plain-English status updates on certified mail, bureau responses, and deadlines."],
           ].map(([t, d]) => (
             <li key={t} className="group flex items-start gap-4 border-l-2 border-[#e0dccf] pl-5 transition hover:border-indigo-600">
               <div>
@@ -464,6 +603,72 @@ function AISuite() {
         </ul>
       </div>
     </Section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Coexistence — DisputeIQ + Screwed Up Credit explainer                     */
+/* -------------------------------------------------------------------------- */
+function Coexistence() {
+  return (
+    <section className="relative">
+      <div className="mx-auto max-w-7xl px-6 py-16">
+        <div className="rounded-[24px] border border-[#e8e4d8] bg-[#faf9f4] p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03)] lg:p-14">
+          <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-indigo-600">
+                About our ecosystem
+              </p>
+              <h2 className="mt-5 font-serif text-[32px] leading-[1.1] tracking-tight text-[#0a0f1c] sm:text-[40px]">
+                DisputeIQ is a{" "}
+                <span className="italic">Screwed Up Credit</span> company.
+              </h2>
+              <p className="mt-5 max-w-xl text-[14px] leading-relaxed text-[#4a4638]">
+                Screwed Up Credit is the parent ecosystem for our credit operations tooling.
+                DisputeIQ is the executive-grade action platform. MyFreeScoreNow is the partner
+                product we use for live 3-bureau report intake.
+              </p>
+              <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-[#4a4638]">
+                When you enroll through MyFreeScoreNow on our homepage, you're starting the
+                Screwed Up Credit customer journey that ends in your DisputeIQ command center.
+              </p>
+            </div>
+            <div className="grid gap-3">
+              {[
+                {
+                  h: "DisputeIQ",
+                  s: "Credit action platform",
+                  d: "Identify, challenge, track, escalate — your primary workspace.",
+                },
+                {
+                  h: "MyFreeScoreNow",
+                  s: "Report intake partner",
+                  d: "Live 3-bureau report pulls used by the Screwed Up Credit journey.",
+                },
+                {
+                  h: "Screwed Up Credit",
+                  s: "Parent ecosystem",
+                  d: "The umbrella brand that ties the customer journey together.",
+                },
+              ].map((b) => (
+                <div
+                  key={b.h}
+                  className="rounded-2xl border border-[#e8e4d8] bg-white p-5 shadow-[0_1px_0_0_rgba(10,15,28,0.03)]"
+                >
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="font-serif text-[17px] text-[#0a0f1c]">{b.h}</p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#8a8472]">
+                      {b.s}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-[13px] leading-relaxed text-[#4a4638]">{b.d}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -522,18 +727,20 @@ function PricingTeaser() {
   return (
     <Section
       eyebrow="Investment"
-      title="Premium tools. Honest pricing."
-      subtitle="Pay only when you take action. Cancel anytime, export everything."
+      title="You pay for action, not promises."
+      subtitle="DisputeIQ uses action-based pricing. You only pay when you actually dispatch a letter — not a monthly subscription for vague outcomes."
     >
       <div className="flex flex-col items-start justify-between gap-6 rounded-[22px] border border-[#e8e4d8] bg-white p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_24px_48px_-24px_rgba(10,15,28,0.16)] lg:flex-row lg:items-center">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-indigo-600">Action pricing</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-indigo-600">
+            Action pricing
+          </p>
           <p className="mt-3 font-serif text-[30px] leading-tight text-[#0a0f1c]">
             $19 software fee · $12.95 certified mailing
           </p>
           <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-[#4a4638]">
-            No subscription required. You only pay when you actually dispatch a letter.
-            Full pricing, tiers, and enterprise options on the pricing page.
+            You review, you confirm, you dispatch. No subscription required to use the platform.
+            Full tier comparison and enterprise options on the pricing page.
           </p>
         </div>
         <Link
@@ -565,30 +772,29 @@ function FinalCTA() {
         />
         <div className="relative">
           <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-white/60">
-            Private beta · invitation access
+            A Screwed Up Credit company
           </p>
           <h2 className="mx-auto mt-5 max-w-3xl font-serif text-[42px] leading-[1.05] tracking-tight sm:text-[58px]">
-            Move from confusion to control
+            Identify. Challenge. Track.
             <br />
-            <span className="italic text-white/85">in a single workspace.</span>
+            <span className="italic text-white/85">Escalate.</span>
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-white/70">
-            Open your portal in minutes. Cancel anytime. No bureau contact ever happens without your
-            explicit confirmation.
+            Start by pulling your live 3-bureau report. Return to DisputeIQ to turn it into action.
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-            <a
-              href={`${URLS.app}/sign-up`}
+            <Link
+              href="/get-started"
               className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#0a0f1c] shadow-[0_18px_60px_-14px_rgba(255,255,255,0.55)] transition hover:scale-[1.015]"
             >
-              Request access →
-            </a>
-            <Link
-              href="/how-it-works"
+              Start your file →
+            </Link>
+            <a
+              href={`${URLS.app}/sign-in`}
               className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-8 py-4 text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/10"
             >
-              See the method
-            </Link>
+              Sign in
+            </a>
           </div>
         </div>
       </div>
