@@ -166,6 +166,8 @@ model MailJob {
   disputeCaseId   String
   provider        MailProvider  @default(LETTERSTREAM)
   providerJobId   String?       @unique
+  trackingCode    String?       // USPS tracking number once available
+  signatureRef    String?       // storage ref for return-receipt signature image
   mode            String        // "test" | "production"
   certified       Boolean       @default(true)
   err             Boolean       @default(true)
@@ -173,11 +175,33 @@ model MailJob {
   attempts        Int           @default(0)
   lastError       String?
   rawResponseJson Json?
-  costCents       Int?          // wholesale cost we paid the provider
+  costCents       Int?
+  submittedAt     DateTime?
+  mailedAt        DateTime?
+  deliveredAt     DateTime?
+  signedAt        DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  disputeCase DisputeCase @relation(fields: [disputeCaseId], references: [id], onDelete: Cascade)
+  disputeCase DisputeCase    @relation(fields: [disputeCaseId], references: [id], onDelete: Cascade)
+  events      MailJobEvent[]
+}
+
+// Append-only history of every LetterStream event for a mail job.
+// Feeds the user timeline and the admin inspection view.
+model MailJobEvent {
+  id           String         @id @default(cuid())
+  mailJobId    String
+  kind         String         // "SUBMIT" | "STATUS" | "SCAN" | "SIGNATURE" | "ERROR" | "RETRY"
+  rawStatus    String?
+  mappedStatus MailJobStatus?
+  message      String?
+  payloadJson  Json?
+  occurredAt   DateTime       @default(now())
+
+  mailJob MailJob @relation(fields: [mailJobId], references: [id], onDelete: Cascade)
+
+  @@index([mailJobId, occurredAt])
 }
 
 model CaseAttachment {
