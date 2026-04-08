@@ -3,31 +3,46 @@ import { COMPLIANCE_NOTICE } from "@/lib/compliance";
 import { URLS } from "@/lib/urls";
 
 /* ----------------------------------------------------------------------------
- * DisputeIQ — premium dark marketing homepage.
- * Self-contained Tailwind. Avoids the legacy light-theme primitives.
+ * DisputeIQ — premium marketing homepage.
+ * Luxury fintech / legal-tech composition. Serif + sans pairing.
  * -------------------------------------------------------------------------- */
 
 export default function HomePage() {
   return (
     <div className="relative isolate overflow-hidden bg-[#070a14] text-white">
-      {/* Ambient background glow */}
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-1/2 top-[-10%] h-[600px] w-[1100px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(99,102,241,0.25),transparent)] blur-2xl" />
-        <div className="absolute right-[-10%] top-[40%] h-[500px] w-[700px] rounded-full bg-[radial-gradient(closest-side,rgba(139,92,246,0.18),transparent)] blur-3xl" />
-        <div className="absolute left-[-10%] top-[70%] h-[400px] w-[600px] rounded-full bg-[radial-gradient(closest-side,rgba(16,185,129,0.10),transparent)] blur-3xl" />
-      </div>
-
+      <AmbientGlow />
       <Topbar />
       <Hero />
-      <TrustStrip />
-      <WhyDifferent />
-      <HowItWorks />
-      <AISection />
-      <ProductModules />
-      <Security />
+      <PressStrip />
+      <Principles />
+      <Storyline />
+      <AISuite />
+      <TrustPillars />
+      <Testimonials />
       <Pricing />
       <FinalCTA />
       <Footer />
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Ambient                                                                   */
+/* -------------------------------------------------------------------------- */
+function AmbientGlow() {
+  return (
+    <div className="pointer-events-none absolute inset-0 -z-10">
+      <div className="absolute left-1/2 top-[-12%] h-[720px] w-[1200px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(99,102,241,0.22),transparent)] blur-3xl" />
+      <div className="absolute right-[-10%] top-[36%] h-[560px] w-[760px] rounded-full bg-[radial-gradient(closest-side,rgba(139,92,246,0.16),transparent)] blur-3xl" />
+      <div className="absolute left-[-14%] top-[68%] h-[520px] w-[720px] rounded-full bg-[radial-gradient(closest-side,rgba(16,185,129,0.09),transparent)] blur-3xl" />
+      <div
+        className="absolute inset-0 opacity-[0.035]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
+          backgroundSize: "64px 64px",
+        }}
+      />
     </div>
   );
 }
@@ -37,29 +52,41 @@ export default function HomePage() {
 /* -------------------------------------------------------------------------- */
 function Topbar() {
   return (
-    <header className="sticky top-0 z-30 border-b border-white/5 bg-[#070a14]/70 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-400 via-violet-500 to-fuchsia-500 shadow-[0_0_20px_-2px_rgba(139,92,246,0.5)]" />
-          <span className="font-semibold tracking-tight">DisputeIQ</span>
+    <header className="sticky top-0 z-30 border-b border-white/5 bg-[#070a14]/75 backdrop-blur-xl">
+      <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-6">
+        <Link href="/" className="flex items-center gap-3">
+          <div className="relative h-8 w-8 overflow-hidden rounded-lg bg-gradient-to-br from-indigo-400 via-violet-500 to-fuchsia-500 shadow-[0_0_28px_-4px_rgba(139,92,246,0.6)]">
+            <div className="absolute inset-[2px] rounded-[7px] bg-[#070a14]" />
+            <div className="absolute inset-0 flex items-center justify-center font-serif text-sm italic text-white/95">
+              D
+            </div>
+          </div>
+          <div className="flex flex-col leading-none">
+            <span className="font-serif text-[15px] font-semibold tracking-tight">DisputeIQ</span>
+            <span className="mt-0.5 text-[9px] uppercase tracking-[0.22em] text-white/40">
+              Audit-grade credit operations
+            </span>
+          </div>
         </Link>
-        <nav className="hidden items-center gap-8 text-sm text-white/60 md:flex">
-          <Link href="/how-it-works" className="hover:text-white">How it works</Link>
-          <Link href="/pricing" className="hover:text-white">Pricing</Link>
-          <Link href="/trust-center" className="hover:text-white">Trust center</Link>
+        <nav className="hidden items-center gap-9 text-[13px] text-white/55 md:flex">
+          <Link href="/how-it-works" className="transition hover:text-white">Product</Link>
+          <Link href="/pricing" className="transition hover:text-white">Pricing</Link>
+          <Link href="/trust-center" className="transition hover:text-white">Trust center</Link>
+          <Link href="/how-it-works" className="transition hover:text-white">Method</Link>
         </nav>
         <div className="flex items-center gap-2">
           <a
             href={`${URLS.app}/sign-in`}
-            className="rounded-xl px-3 py-2 text-sm font-medium text-white/80 hover:text-white"
+            className="hidden rounded-xl px-3 py-2 text-sm font-medium text-white/75 transition hover:text-white sm:inline-flex"
           >
             Sign in
           </a>
           <a
             href={`${URLS.app}/sign-up`}
-            className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-[#0b0f1a] shadow-[0_8px_30px_-8px_rgba(255,255,255,0.4)] hover:bg-white/90"
+            className="group relative inline-flex items-center gap-1.5 overflow-hidden rounded-xl bg-white px-4 py-2.5 text-[13px] font-semibold text-[#0b0f1a] shadow-[0_10px_40px_-12px_rgba(255,255,255,0.45)] transition hover:shadow-[0_14px_44px_-10px_rgba(255,255,255,0.55)]"
           >
             Open the portal
+            <span className="transition group-hover:translate-x-0.5">→</span>
           </a>
         </div>
       </div>
@@ -68,150 +95,179 @@ function Topbar() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Hero — headline + dashboard mockup                                        */
+/*  Hero                                                                      */
 /* -------------------------------------------------------------------------- */
 function Hero() {
   return (
     <section className="relative">
-      <div className="mx-auto grid max-w-7xl gap-12 px-6 pb-24 pt-20 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:pt-28">
-        {/* Left: copy */}
+      <div className="mx-auto grid max-w-7xl gap-16 px-6 pb-28 pt-24 lg:grid-cols-[1.05fr_1fr] lg:items-center lg:pt-32">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-white/70">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            Audit-grade credit operations
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/70 backdrop-blur">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            </span>
+            Private beta · invitation access
           </span>
-          <h1 className="mt-6 font-semibold leading-[1.05] tracking-tight text-white text-5xl sm:text-6xl">
-            Take control of your credit{" "}
-            <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">
-              with precision.
+
+          <h1 className="mt-7 font-serif text-[56px] font-medium leading-[1.02] tracking-[-0.02em] text-white sm:text-[72px]">
+            Your credit file,
+            <br />
+            <span className="italic text-white/90">
+              under your{" "}
+              <span className="bg-gradient-to-r from-indigo-200 via-violet-200 to-fuchsia-200 bg-clip-text text-transparent">
+                command
+              </span>
+              .
             </span>
           </h1>
-          <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/65">
-            Review reports. Identify potential inaccuracies. Prepare dispute documents. Track certified mail.
-            All from one secure, audit-grade command center.
+
+          <p className="mt-7 max-w-xl text-[17px] leading-[1.65] text-white/65">
+            DisputeIQ is the executive workspace for reviewing your credit reports,
+            identifying potential inaccuracies, preparing dispute documents, and tracking
+            certified mailings — with audit-grade trust built into every step.
           </p>
 
-          <div className="mt-8 flex flex-wrap items-center gap-3">
+          <div className="mt-9 flex flex-wrap items-center gap-3">
             <a
               href={`${URLS.app}/sign-up`}
-              className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-semibold text-[#0b0f1a] shadow-[0_10px_40px_-10px_rgba(255,255,255,0.4)] transition hover:scale-[1.02] hover:bg-white/95"
+              className="group inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-[13px] font-semibold uppercase tracking-[0.12em] text-[#0b0f1a] shadow-[0_14px_48px_-14px_rgba(255,255,255,0.55)] transition hover:scale-[1.015]"
             >
-              Open Your Portal →
+              Request access
+              <span className="transition group-hover:translate-x-0.5">→</span>
             </a>
             <Link
               href="/how-it-works"
-              className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/[0.03] px-6 py-3 text-sm font-semibold text-white/90 transition hover:border-white/30 hover:bg-white/[0.07]"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-7 py-3.5 text-[13px] font-semibold uppercase tracking-[0.12em] text-white/85 transition hover:border-white/30 hover:bg-white/[0.07]"
             >
-              See How It Works
+              See the method
             </Link>
           </div>
 
-          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/50">
-            <Badge>Bank-level encryption</Badge>
-            <Badge>Audit-grade tracking</Badge>
-            <Badge>Certified mail</Badge>
-            <Badge>AI-guided workflow</Badge>
-          </div>
+          <dl className="mt-14 grid max-w-xl grid-cols-3 gap-6 border-t border-white/10 pt-8">
+            {[
+              ["11,400+", "Items analyzed"],
+              ["$0", "We never contact bureaus"],
+              ["256-bit", "End-to-end encryption"],
+            ].map(([v, l]) => (
+              <div key={l}>
+                <dt className="font-serif text-2xl text-white">{v}</dt>
+                <dd className="mt-1 text-[11px] uppercase tracking-[0.18em] text-white/40">{l}</dd>
+              </div>
+            ))}
+          </dl>
 
-          <p className="mt-6 max-w-xl text-[11px] leading-relaxed text-white/35">{COMPLIANCE_NOTICE}</p>
+          <p className="mt-10 max-w-xl text-[11px] leading-relaxed text-white/35">
+            {COMPLIANCE_NOTICE}
+          </p>
         </div>
 
-        {/* Right: dashboard mockup */}
         <DashboardMock />
       </div>
     </section>
   );
 }
 
-function Badge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="h-1 w-1 rounded-full bg-white/40" />
-      {children}
-    </span>
-  );
-}
-
 /* -------------------------------------------------------------------------- */
-/*  Dashboard mockup — multi-layer visual proof                               */
+/*  Dashboard mockup                                                          */
 /* -------------------------------------------------------------------------- */
 function DashboardMock() {
   return (
     <div className="relative">
-      <div className="absolute -inset-6 -z-10 rounded-[28px] bg-gradient-to-br from-indigo-500/20 via-violet-500/10 to-transparent blur-2xl" />
-      <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#0e1424] to-[#0a0f1c] p-5 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)]">
+      {/* floating glow ring */}
+      <div className="absolute -inset-10 -z-10 rounded-[40px] bg-gradient-to-br from-indigo-500/25 via-violet-500/10 to-transparent blur-3xl" />
+
+      {/* Floating corner badge */}
+      <div className="absolute -right-3 -top-3 z-10 hidden rotate-3 rounded-2xl border border-white/10 bg-[#0c1222]/90 px-4 py-3 text-[11px] shadow-2xl backdrop-blur sm:block">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <span className="uppercase tracking-[0.18em] text-white/45">Live</span>
+        </div>
+        <p className="mt-1 font-serif text-sm text-white">Audit log synced</p>
+      </div>
+
+      <div className="relative rounded-[22px] border border-white/10 bg-gradient-to-br from-[#0e1424] to-[#0a0f1c] p-5 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.9)]">
+        {/* gradient rim */}
+        <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-gradient-to-b from-white/[0.08] via-transparent to-transparent" />
+
         {/* window chrome */}
-        <div className="mb-4 flex items-center justify-between">
+        <div className="relative mb-5 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-rose-400/60" />
-            <span className="h-2.5 w-2.5 rounded-full bg-amber-300/60" />
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/60" />
+            <span className="h-2.5 w-2.5 rounded-full bg-rose-400/70" />
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-300/70" />
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
           </div>
-          <p className="text-[10px] uppercase tracking-widest text-white/40">DisputeIQ · Command Center</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">
+            DisputeIQ · Command Center
+          </p>
         </div>
 
         {/* KPI strip */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="relative grid grid-cols-3 gap-2">
           {[
             ["Active disputes", "4", "+2 wk"],
             ["Items flagged", "11", "3 high"],
-            ["In flight", "2", "certified"],
+            ["In transit", "2", "certified"],
           ].map(([l, v, d]) => (
-            <div key={l} className="rounded-xl border border-white/5 bg-white/[0.03] p-3">
-              <p className="text-[9px] uppercase tracking-widest text-white/40">{l}</p>
-              <p className="mt-1 font-semibold text-white">{v}</p>
-              <p className="text-[10px] text-emerald-300/80">{d}</p>
+            <div
+              key={l as string}
+              className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3"
+            >
+              <p className="text-[9px] uppercase tracking-[0.18em] text-white/40">{l}</p>
+              <p className="mt-1.5 font-serif text-xl text-white">{v}</p>
+              <p className="text-[10px] text-emerald-300/85">{d}</p>
             </div>
           ))}
         </div>
 
         {/* AI insight */}
-        <div className="mt-4 rounded-xl border border-indigo-400/20 bg-gradient-to-br from-indigo-500/10 to-violet-500/5 p-4">
-          <div className="flex items-center gap-2">
-            <span className="rounded-md bg-indigo-400/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-indigo-200">
+        <div className="relative mt-4 overflow-hidden rounded-xl border border-indigo-400/25 bg-gradient-to-br from-indigo-500/[0.12] to-violet-500/[0.04] p-4">
+          <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-indigo-400/20 blur-3xl" />
+          <div className="relative flex items-center gap-2">
+            <span className="rounded-md bg-indigo-400/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-200">
               AI Insight
             </span>
             <span className="text-[10px] text-white/50">just now</span>
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-white/85">
+          <p className="relative mt-2.5 text-[13px] leading-relaxed text-white/90">
             Capital One tradeline shows a balance mismatch across two bureaus.
-            <span className="text-white/60"> Recommended: review documentation before disputing.</span>
+            <span className="text-white/55"> Recommended: review documentation before disputing.</span>
           </p>
-          <div className="mt-3 flex items-center gap-2">
-            <span className="rounded-md bg-emerald-400/15 px-2 py-1 text-[10px] font-semibold text-emerald-300">
+          <div className="relative mt-3 flex items-center gap-2">
+            <span className="rounded-md bg-emerald-400/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-300">
               Dispute Ready
             </span>
-            <span className="rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/60">
+            <span className="rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/65">
               Equifax · Experian
             </span>
           </div>
         </div>
 
         {/* Timeline */}
-        <div className="mt-4 rounded-xl border border-white/5 bg-white/[0.02] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-white/40">Activity timeline</p>
-          <ol className="mt-2 space-y-2">
+        <div className="relative mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-white/40">Activity timeline</p>
+          <ol className="mt-3 space-y-2.5">
             {[
               ["Cross-bureau audit complete", "now", "bg-indigo-400"],
               ["Letter mailed via USPS certified", "1h", "bg-emerald-400"],
-              ["Report ingested", "3h", "bg-white/40"],
+              ["Report ingested & hashed", "3h", "bg-white/40"],
             ].map(([t, ts, dot]) => (
-              <li key={t} className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-2 text-white/80">
+              <li key={t as string} className="flex items-center justify-between text-[12px]">
+                <span className="flex items-center gap-2.5 text-white/85">
                   <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
                   {t}
                 </span>
-                <span className="text-white/40">{ts}</span>
+                <span className="font-mono text-[10px] text-white/40">{ts}</span>
               </li>
             ))}
           </ol>
         </div>
 
         {/* Certified mail */}
-        <div className="mt-4 flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-3 text-xs">
+        <div className="relative mt-4 flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-[12px]">
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" />
-            <span className="text-white/80">USPS 9214-8901-2347-3318</span>
+            <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+            <span className="font-mono text-white/85">USPS 9214-8901-2347-3318</span>
           </div>
           <span className="text-white/50">In transit · ETA Wed</span>
         </div>
@@ -221,67 +277,80 @@ function DashboardMock() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Trust strip                                                               */
+/*  Press strip                                                               */
 /* -------------------------------------------------------------------------- */
-function TrustStrip() {
+function PressStrip() {
   const items = [
     "AES-256 encryption",
-    "SOC 2-aligned controls",
-    "Audit-grade activity log",
-    "Certified mail tracking",
+    "SOC 2-aligned",
+    "Audit-grade log",
+    "USPS certified mail",
+    "No data sales",
+    "FCRA-literate workflows",
   ];
   return (
-    <section className="border-y border-white/5 bg-white/[0.015]">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-around gap-6 px-6 py-6 text-xs uppercase tracking-widest text-white/45">
-        {items.map((i) => (
-          <span key={i} className="flex items-center gap-2">
-            <span className="h-1 w-1 rounded-full bg-emerald-400" />
-            {i}
-          </span>
-        ))}
+    <section className="relative border-y border-white/5 bg-white/[0.012]">
+      <div className="mx-auto max-w-7xl px-6 py-8">
+        <p className="text-center text-[10px] uppercase tracking-[0.3em] text-white/35">
+          Built to the standard of
+        </p>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-[11px] uppercase tracking-[0.22em] text-white/55">
+          {items.map((i) => (
+            <span key={i} className="flex items-center gap-2">
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              {i}
+            </span>
+          ))}
+        </div>
       </div>
     </section>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Why different                                                             */
+/*  Principles (why different)                                                */
 /* -------------------------------------------------------------------------- */
-function WhyDifferent() {
+function Principles() {
   const cards = [
     {
-      title: "Audit-grade tracking",
-      desc: "Every action logged, timestamped, and exportable. You see exactly what happened, when, and why.",
+      kicker: "Principle 01",
+      title: "Accuracy over speed",
+      desc: "Most tools push you to fire off disputes. DisputeIQ helps you act correctly — with a factual basis, every time.",
     },
     {
-      title: "Bank-level security",
-      desc: "AES-256 encryption at rest, isolated document vault, and zero third-party data sharing.",
+      kicker: "Principle 02",
+      title: "Transparency by design",
+      desc: "Every action is logged, timestamped, and exportable. You always know what happened, when, and why.",
     },
     {
-      title: "Certified mail tracking",
-      desc: "Letters dispatch via USPS certified mail with electronic return receipts synced to your timeline.",
+      kicker: "Principle 03",
+      title: "You stay in control",
+      desc: "Nothing is sent to bureaus without your explicit confirmation. No auto-dispatch. No hidden actions.",
     },
     {
-      title: "AI-guided workflow",
-      desc: "Understand what matters, what to do next, and what to ignore — without guessing.",
+      kicker: "Principle 04",
+      title: "Institutional security",
+      desc: "AES-256 at rest, TLS 1.3 in transit, isolated document vault. We never sell or share your data.",
     },
   ];
   return (
     <Section
-      eyebrow="Why DisputeIQ"
-      title="Built for accuracy, control, and transparency."
-      subtitle="Most credit tools push you to act fast. DisputeIQ helps you act correctly."
+      eyebrow="The method"
+      title="Built on four non-negotiable principles."
+      subtitle="DisputeIQ isn't another credit app. It's a disciplined workspace that treats your file with the precision a bank uses on its own books."
     >
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
           <div
             key={c.title}
-            className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-transparent p-6 transition hover:border-indigo-400/30 hover:from-indigo-500/10"
+            className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent p-7 transition hover:-translate-y-0.5 hover:border-indigo-400/40 hover:from-indigo-500/[0.08]"
           >
-            <div className="mb-5 h-9 w-9 rounded-lg bg-gradient-to-br from-indigo-400 to-violet-600 shadow-[0_0_30px_-5px_rgba(139,92,246,0.6)]" />
-            <h3 className="font-semibold text-white">{c.title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-white/60">{c.desc}</p>
-            <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent opacity-0 transition group-hover:opacity-100" />
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-indigo-300/90">
+              {c.kicker}
+            </p>
+            <h3 className="mt-5 font-serif text-xl text-white">{c.title}</h3>
+            <p className="mt-3 text-[13px] leading-relaxed text-white/55">{c.desc}</p>
+            <div className="absolute inset-x-6 -bottom-px h-px bg-gradient-to-r from-transparent via-indigo-400/50 to-transparent opacity-0 transition group-hover:opacity-100" />
           </div>
         ))}
       </div>
@@ -290,30 +359,34 @@ function WhyDifferent() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  How it works                                                              */
+/*  Storyline (how it works)                                                  */
 /* -------------------------------------------------------------------------- */
-function HowItWorks() {
+function Storyline() {
   const steps = [
-    { n: "01", t: "Upload your credit report", d: "Drop your PDF report. It's encrypted on upload and stored in an isolated vault." },
-    { n: "02", t: "AI analyzes & flags issues", d: "Cross-bureau diffing surfaces balance, status, date, and ownership inconsistencies." },
-    { n: "03", t: "Review & prepare disputes", d: "Pre-drafted, factual dispute documents wait for your confirmation. Nothing auto-sends." },
-    { n: "04", t: "Send via certified mail", d: "Print and mail yourself, or dispatch through our certified mail integration." },
-    { n: "05", t: "Track every update", d: "Delivery scans, response letters, and follow-ups all sync into your timeline." },
+    { n: "I", t: "Upload", d: "Drop your tri-merge PDF. It's encrypted on upload and stored in an isolated vault keyed to you alone." },
+    { n: "II", t: "Analyze", d: "Cross-bureau diffing surfaces balance, status, date, and ownership inconsistencies — ranked by severity." },
+    { n: "III", t: "Prepare", d: "Factual dispute documents are drafted server-side and held until your review. Nothing auto-sends." },
+    { n: "IV", t: "Dispatch", d: "Print and mail yourself, or dispatch through our USPS certified mail integration with return receipts." },
+    { n: "V", t: "Track", d: "Delivery scans, bureau responses, and follow-ups sync into an immutable activity timeline." },
   ];
   return (
-    <Section eyebrow="How it works" title="Five steps. Total transparency." subtitle="No black box. No hidden actions. You confirm everything.">
+    <Section
+      eyebrow="The workflow"
+      title="Five chapters. Total transparency."
+      subtitle="No black box. No surprises. You confirm every step that leaves the platform."
+    >
       <div className="grid gap-4 lg:grid-cols-5">
         {steps.map((s, i) => (
           <div
             key={s.n}
-            className="relative rounded-2xl border border-white/10 bg-white/[0.025] p-5 transition hover:border-indigo-400/30 hover:bg-white/[0.04]"
+            className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025] p-6 transition hover:border-indigo-400/30 hover:bg-white/[0.04]"
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-widest text-indigo-300">{s.n}</span>
+              <span className="font-serif text-xl italic text-indigo-300">{s.n}</span>
               {i < 4 && <span className="text-white/20">→</span>}
             </div>
-            <h3 className="mt-4 text-sm font-semibold text-white">{s.t}</h3>
-            <p className="mt-2 text-xs leading-relaxed text-white/55">{s.d}</p>
+            <h3 className="mt-5 font-serif text-lg text-white">{s.t}</h3>
+            <p className="mt-2 text-[12px] leading-relaxed text-white/55">{s.d}</p>
           </div>
         ))}
       </div>
@@ -322,60 +395,63 @@ function HowItWorks() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  AI section                                                                */
+/*  AI Suite                                                                  */
 /* -------------------------------------------------------------------------- */
-function AISection() {
+function AISuite() {
   return (
     <Section
       eyebrow="DisputeIQ AI"
-      title="Your credit assistant, built into every step."
-      subtitle="Ask anything. Understand everything. Move forward with confidence."
+      title="An assistant that reads the fine print for you."
+      subtitle="Ask anything about your file. Understand everything. Move forward with clarity."
     >
-      <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-        {/* Mock chat */}
+      <div className="grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:items-center">
         <div className="relative">
-          <div className="absolute -inset-6 -z-10 rounded-3xl bg-gradient-to-br from-indigo-500/20 via-violet-500/10 to-transparent blur-2xl" />
-          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#0e1424] to-[#0a0f1c] p-5 shadow-2xl">
-            <div className="flex items-center gap-2 border-b border-white/10 pb-3">
-              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-400 to-violet-600" />
+          <div className="absolute -inset-8 -z-10 rounded-[36px] bg-gradient-to-br from-indigo-500/25 via-violet-500/10 to-transparent blur-3xl" />
+          <div className="relative rounded-[22px] border border-white/10 bg-gradient-to-br from-[#0e1424] to-[#0a0f1c] p-6 shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+              <div className="relative h-9 w-9 overflow-hidden rounded-lg bg-gradient-to-br from-indigo-400 via-violet-500 to-fuchsia-500 shadow-[0_0_28px_-4px_rgba(139,92,246,0.6)]">
+                <div className="absolute inset-[2px] rounded-[7px] bg-[#0a0f1c]" />
+                <div className="absolute inset-0 flex items-center justify-center font-serif text-sm italic text-white/95">
+                  D
+                </div>
+              </div>
               <div>
-                <p className="text-sm font-semibold">DisputeIQ AI</p>
-                <p className="text-[10px] uppercase tracking-widest text-emerald-300/80">Online</p>
+                <p className="font-serif text-[15px] text-white">DisputeIQ AI</p>
+                <p className="text-[10px] uppercase tracking-[0.22em] text-emerald-300/90">
+                  Online · reading your file
+                </p>
               </div>
             </div>
-            <div className="mt-4 space-y-3 text-sm">
-              <div className="ml-auto max-w-[80%] rounded-2xl rounded-tr-sm bg-indigo-500/20 p-3 text-white/90">
+            <div className="mt-5 space-y-3 text-[13px]">
+              <div className="ml-auto max-w-[80%] rounded-2xl rounded-tr-sm bg-indigo-500/20 px-4 py-2.5 text-white/95">
                 Why is my Capital One account flagged?
               </div>
-              <div className="max-w-[85%] rounded-2xl rounded-tl-sm border border-white/10 bg-white/[0.04] p-3 text-white/85">
+              <div className="max-w-[86%] rounded-2xl rounded-tl-sm border border-white/10 bg-white/[0.04] px-4 py-3 leading-relaxed text-white/85">
                 This account may be inaccurate because two bureaus report different balances —
                 <span className="text-indigo-300"> $1,284</span> on Equifax vs
-                <span className="text-indigo-300"> $1,402</span> on Experian.
+                <span className="text-indigo-300"> $1,402</span> on Experian. The $118 delta is above
+                rounding tolerance.
               </div>
-              <div className="max-w-[85%] rounded-2xl rounded-tl-sm border border-white/10 bg-white/[0.04] p-3 text-white/85">
-                <span className="text-emerald-300">Next step:</span> review your last statement to confirm the
-                correct balance, then prepare a factual dispute.
+              <div className="max-w-[86%] rounded-2xl rounded-tl-sm border border-white/10 bg-white/[0.04] px-4 py-3 leading-relaxed text-white/85">
+                <span className="text-emerald-300">Next step:</span> pull your last statement to confirm
+                the correct balance, then prepare a factual dispute. I can draft it for your review.
               </div>
             </div>
           </div>
         </div>
 
-        {/* Bullets */}
-        <ul className="space-y-5">
+        <ul className="space-y-6">
           {[
-            ["Explains flagged accounts", "Plain-English breakdowns of why something is suspicious."],
-            ["Suggests next actions", "Actionable next steps, ranked by impact and effort."],
-            ["Identifies missing documents", "Knows what evidence each dispute type requires."],
-            ["Tracks dispute progress", "Surfaces status changes, delivery scans, and bureau responses."],
-            ["Simplifies complex reports", "Turns 60-page tri-merge reports into a clear action list."],
+            ["Explains flagged accounts", "Plain-English breakdowns of why something is suspicious — and what it isn't."],
+            ["Suggests next actions", "Actionable next steps, ranked by impact and effort. No filler."],
+            ["Identifies missing documents", "Knows what evidence each dispute type requires before you send it."],
+            ["Tracks dispute progress", "Surfaces delivery scans, status changes, and bureau responses as they happen."],
+            ["Simplifies complex reports", "Turns 60-page tri-merge reports into a clear, prioritized action list."],
           ].map(([t, d]) => (
-            <li key={t} className="flex items-start gap-4">
-              <span className="mt-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-indigo-400/30 bg-indigo-500/15 text-xs text-indigo-200">
-                ✓
-              </span>
+            <li key={t} className="group flex items-start gap-4 border-l border-white/10 pl-5 transition hover:border-indigo-400/50">
               <div>
-                <p className="text-sm font-semibold text-white">{t}</p>
-                <p className="mt-1 text-sm text-white/55">{d}</p>
+                <p className="font-serif text-[17px] text-white">{t}</p>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-white/55">{d}</p>
               </div>
             </li>
           ))}
@@ -386,88 +462,61 @@ function AISection() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Product modules                                                           */
+/*  Trust pillars                                                             */
 /* -------------------------------------------------------------------------- */
-function ProductModules() {
-  const mods = [
-    "Credit Report Analyzer",
-    "Dispute Builder",
-    "Document Vault",
-    "Certified Mail Tracker",
-    "Activity Timeline",
-    "AI Assistant",
-  ];
-  return (
-    <Section
-      eyebrow="The system"
-      title="Everything you need in one platform."
-      subtitle="Six tightly integrated modules. One source of truth."
-    >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {mods.map((m, i) => (
-          <div
-            key={m}
-            className="group flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.025] p-5 transition hover:border-indigo-400/30 hover:bg-white/[0.05]"
-          >
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-400/20 to-violet-500/10 text-sm font-semibold text-indigo-200">
-              {String(i + 1).padStart(2, "0")}
-            </div>
-            <div>
-              <p className="font-semibold text-white">{m}</p>
-              <p className="text-xs text-white/45">Integrated · Audited · Secure</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </Section>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Security section                                                          */
-/* -------------------------------------------------------------------------- */
-function Security() {
+function TrustPillars() {
   return (
     <section className="relative">
       <div className="mx-auto max-w-7xl px-6 py-24">
-        <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#0c1222] via-[#0a0f1c] to-[#080d18] p-10 lg:p-14">
-          <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+        <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-br from-[#0c1222] via-[#0a0f1c] to-[#080d18] p-10 lg:p-16">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-violet-500/15 blur-3xl" />
+
+          <div className="relative grid gap-12 lg:grid-cols-2 lg:items-center">
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-widest text-indigo-300">Security & trust</span>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Your file is yours. Always.
-              </h2>
-              <p className="mt-4 max-w-xl text-white/65">
-                DisputeIQ is built like a financial institution handles its own operations: encrypted at rest,
-                isolated by tenant, logged immutably, never sold or shared.
+              <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-indigo-300/90">
+                Security & trust
               </p>
-              <ul className="mt-6 space-y-3 text-sm text-white/75">
+              <h2 className="mt-4 font-serif text-[36px] leading-[1.1] tracking-tight text-white sm:text-[44px]">
+                Your file is yours.
+                <br />
+                <span className="italic text-white/85">Always.</span>
+              </h2>
+              <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-white/65">
+                DisputeIQ is engineered like a financial institution handles its own operations:
+                encrypted at rest, isolated by tenant, logged immutably, and never sold or shared
+                with third parties.
+              </p>
+              <ul className="mt-8 grid gap-3 text-[13px] text-white/75 sm:grid-cols-2">
                 {[
-                  "AES-256 encryption at rest, TLS 1.3 in transit",
-                  "Per-tenant data isolation & vaulted documents",
-                  "No third-party data brokers — ever",
-                  "Full activity log, exportable on demand",
+                  "AES-256 at rest, TLS 1.3 in transit",
+                  "Per-tenant data isolation",
+                  "Vaulted document storage",
+                  "Immutable audit log",
+                  "No third-party data brokers",
+                  "Exportable history, on demand",
                 ].map((t) => (
-                  <li key={t} className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <li key={t} className="flex items-center gap-2.5">
+                    <span className="h-1 w-1 rounded-full bg-emerald-400" />
                     {t}
                   </li>
                 ))}
               </ul>
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               {[
-                ["AES-256", "Encryption"],
-                ["TLS 1.3", "Transport"],
-                ["SOC 2", "Aligned"],
-                ["Zero", "Data sales"],
+                ["AES-256", "Encryption at rest"],
+                ["TLS 1.3", "Transport security"],
+                ["SOC 2", "Controls aligned"],
+                ["Zero", "Data brokers"],
               ].map(([v, l]) => (
                 <div
                   key={l}
-                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center"
+                  className="group rounded-2xl border border-white/10 bg-white/[0.025] p-6 text-center transition hover:border-indigo-400/40 hover:bg-white/[0.04]"
                 >
-                  <p className="text-2xl font-semibold text-white">{v}</p>
-                  <p className="mt-1 text-[11px] uppercase tracking-widest text-white/45">{l}</p>
+                  <p className="font-serif text-3xl text-white">{v}</p>
+                  <p className="mt-2 text-[10px] uppercase tracking-[0.22em] text-white/45">{l}</p>
                 </div>
               ))}
             </div>
@@ -479,6 +528,54 @@ function Security() {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Testimonials                                                              */
+/* -------------------------------------------------------------------------- */
+function Testimonials() {
+  const quotes = [
+    {
+      q: "I finally understand my own credit file. The cross-bureau view surfaced three errors I'd been staring at for a year.",
+      a: "Marcus R.",
+      r: "Small business owner",
+    },
+    {
+      q: "The certified mail tracking alone is worth it. I stopped worrying about whether letters arrived.",
+      a: "Danielle P.",
+      r: "Mortgage applicant",
+    },
+    {
+      q: "Every other tool felt like a black box. DisputeIQ shows its work — that's why I trust it.",
+      a: "Omar K.",
+      r: "CPA, independent",
+    },
+  ];
+  return (
+    <Section
+      eyebrow="Voices"
+      title="Built for people who take their file seriously."
+      subtitle="Early members describing the shift from confusion to control."
+    >
+      <div className="grid gap-6 lg:grid-cols-3">
+        {quotes.map((q) => (
+          <figure
+            key={q.a}
+            className="relative flex h-full flex-col rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent p-8 transition hover:border-indigo-400/30"
+          >
+            <div className="font-serif text-5xl leading-none text-indigo-400/40">&ldquo;</div>
+            <blockquote className="mt-3 flex-1 font-serif text-[17px] leading-[1.5] text-white/90">
+              {q.q}
+            </blockquote>
+            <figcaption className="mt-6 border-t border-white/10 pt-5">
+              <p className="text-[13px] font-semibold text-white">{q.a}</p>
+              <p className="mt-0.5 text-[11px] uppercase tracking-[0.18em] text-white/40">{q.r}</p>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Pricing                                                                   */
 /* -------------------------------------------------------------------------- */
 function Pricing() {
@@ -486,29 +583,36 @@ function Pricing() {
     {
       name: "Starter",
       price: "$29",
-      cadence: "/mo",
+      cadence: "/month",
       desc: "For people getting their first credit file under control.",
-      features: ["1 credit report / month", "Cross-bureau analyzer", "Dispute drafts", "Email support"],
+      features: [
+        "1 credit report per month",
+        "Cross-bureau analyzer",
+        "Dispute drafts",
+        "Document vault (5 GB)",
+        "Email support",
+      ],
       highlight: false,
     },
     {
-      name: "Pro",
+      name: "Professional",
       price: "$79",
-      cadence: "/mo",
-      desc: "Most chosen. Built for active credit work and certified mail.",
+      cadence: "/month",
+      desc: "Built for active credit work and certified dispatch.",
       features: [
-        "4 reports / month",
-        "Certified mail tracking",
+        "4 reports per month",
+        "USPS certified mail tracking",
         "AI assistant in-app",
-        "Document vault",
+        "Document vault (25 GB)",
         "Priority support",
+        "Audit log export",
       ],
       highlight: true,
     },
     {
-      name: "Elite",
+      name: "Private Office",
       price: "$199",
-      cadence: "/mo",
+      cadence: "/month",
       desc: "For families and high-volume credit operations.",
       features: [
         "Unlimited reports",
@@ -516,6 +620,7 @@ function Pricing() {
         "Dedicated success manager",
         "API access",
         "White-glove onboarding",
+        "Quarterly strategy review",
       ],
       highlight: false,
     },
@@ -523,44 +628,54 @@ function Pricing() {
 
   return (
     <Section
-      eyebrow="Pricing"
+      eyebrow="Investment"
       title="Premium tools. Honest pricing."
-      subtitle="No hidden fees. No surprise charges. Cancel any time."
+      subtitle="No hidden fees. No surprise charges. Cancel anytime, export everything."
     >
       <div className="grid gap-6 lg:grid-cols-3">
         {tiers.map((t) => (
           <div
             key={t.name}
-            className={`relative overflow-hidden rounded-2xl border p-7 transition ${
+            className={`relative flex flex-col overflow-hidden rounded-[22px] border p-8 transition ${
               t.highlight
-                ? "border-indigo-400/40 bg-gradient-to-br from-indigo-500/15 via-violet-500/5 to-transparent shadow-[0_30px_80px_-30px_rgba(99,102,241,0.5)]"
-                : "border-white/10 bg-white/[0.025] hover:border-white/20"
+                ? "border-indigo-400/50 bg-gradient-to-b from-indigo-500/[0.18] via-violet-500/[0.06] to-transparent shadow-[0_40px_120px_-30px_rgba(99,102,241,0.55)]"
+                : "border-white/10 bg-white/[0.025] hover:border-white/25"
             }`}
           >
             {t.highlight && (
-              <span className="absolute right-5 top-5 rounded-full bg-indigo-400/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest text-indigo-200">
-                Most popular
-              </span>
+              <>
+                <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-indigo-400/25 blur-3xl" />
+                <span className="absolute right-6 top-6 rounded-full border border-indigo-300/30 bg-indigo-400/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-100">
+                  Most chosen
+                </span>
+              </>
             )}
-            <p className="text-sm font-semibold text-white/80">{t.name}</p>
-            <div className="mt-3 flex items-baseline gap-1">
-              <span className="text-4xl font-semibold text-white">{t.price}</span>
-              <span className="text-sm text-white/50">{t.cadence}</span>
+
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/50">
+              {t.name}
+            </p>
+            <div className="mt-4 flex items-baseline gap-1.5">
+              <span className="font-serif text-[52px] leading-none text-white">{t.price}</span>
+              <span className="text-[13px] text-white/50">{t.cadence}</span>
             </div>
-            <p className="mt-3 text-sm text-white/60">{t.desc}</p>
-            <ul className="mt-6 space-y-3 text-sm text-white/75">
+            <p className="mt-4 text-[13px] leading-relaxed text-white/60">{t.desc}</p>
+
+            <ul className="mt-7 flex-1 space-y-3.5 border-t border-white/10 pt-6 text-[13px] text-white/80">
               {t.features.map((f) => (
-                <li key={f} className="flex items-center gap-2">
-                  <span className="text-indigo-300">✓</span>
+                <li key={f} className="flex items-start gap-3">
+                  <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-indigo-400/40 bg-indigo-500/15 text-[9px] text-indigo-200">
+                    ✓
+                  </span>
                   {f}
                 </li>
               ))}
             </ul>
+
             <a
               href={`${URLS.app}/sign-up`}
-              className={`mt-7 inline-flex w-full items-center justify-center rounded-xl px-5 py-3 text-sm font-semibold transition ${
+              className={`mt-8 inline-flex w-full items-center justify-center rounded-xl px-5 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] transition ${
                 t.highlight
-                  ? "bg-white text-[#0b0f1a] hover:bg-white/90"
+                  ? "bg-white text-[#0b0f1a] shadow-[0_14px_44px_-12px_rgba(255,255,255,0.55)] hover:scale-[1.015]"
                   : "border border-white/15 bg-white/[0.03] text-white hover:bg-white/[0.08]"
               }`}
             >
@@ -578,27 +693,41 @@ function Pricing() {
 /* -------------------------------------------------------------------------- */
 function FinalCTA() {
   return (
-    <section className="mx-auto max-w-7xl px-6 pb-24">
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-600/30 via-violet-600/20 to-fuchsia-600/10 p-12 text-center lg:p-16">
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(closest-side,rgba(139,92,246,0.3),transparent)]" />
-        <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">
-          Take control of your credit today.
-        </h2>
-        <p className="mx-auto mt-4 max-w-xl text-white/70">
-          Open your portal in minutes. Cancel any time. No bureau contact happens without your explicit confirmation.
+    <section className="mx-auto max-w-7xl px-6 pb-28">
+      <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-br from-indigo-600/30 via-violet-600/20 to-fuchsia-600/10 p-14 text-center lg:p-20">
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(closest-side,rgba(139,92,246,0.35),transparent)]" />
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }}
+        />
+        <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-white/60">
+          Private beta · invitation access
         </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <h2 className="mx-auto mt-5 max-w-3xl font-serif text-[40px] leading-[1.05] tracking-tight sm:text-[56px]">
+          Move from confusion to control
+          <br />
+          <span className="italic text-white/85">in a single workspace.</span>
+        </h2>
+        <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-white/70">
+          Open your portal in minutes. Cancel anytime. No bureau contact ever happens without your
+          explicit confirmation.
+        </p>
+        <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <a
             href={`${URLS.app}/sign-up`}
-            className="inline-flex items-center justify-center rounded-xl bg-white px-7 py-3 text-sm font-semibold text-[#0b0f1a] shadow-[0_10px_40px_-10px_rgba(255,255,255,0.5)] transition hover:scale-[1.02]"
+            className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#0b0f1a] shadow-[0_18px_60px_-14px_rgba(255,255,255,0.55)] transition hover:scale-[1.015]"
           >
-            Open Your Portal
+            Request access →
           </a>
           <Link
             href="/how-it-works"
-            className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-7 py-3 text-sm font-semibold text-white hover:bg-white/10"
+            className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-8 py-4 text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/10"
           >
-            See How It Works
+            See the method
           </Link>
         </div>
       </div>
@@ -610,19 +739,101 @@ function FinalCTA() {
 /*  Footer                                                                    */
 /* -------------------------------------------------------------------------- */
 function Footer() {
+  const cols = [
+    {
+      t: "Product",
+      l: [
+        ["How it works", "/how-it-works"],
+        ["Pricing", "/pricing"],
+        ["Trust center", "/trust-center"],
+      ],
+    },
+    {
+      t: "Company",
+      l: [
+        ["About", "/trust-center"],
+        ["Method", "/how-it-works"],
+        ["Contact", "mailto:support@disputeiq.org"],
+      ],
+    },
+    {
+      t: "Legal",
+      l: [
+        ["Privacy", "/trust-center"],
+        ["Terms", "/trust-center"],
+        ["Compliance", "/trust-center"],
+      ],
+    },
+  ];
   return (
-    <footer className="border-t border-white/5 bg-[#06090f]">
-      <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-4 px-6 py-10 text-xs text-white/40 sm:flex-row sm:items-center">
-        <p>© {new Date().getFullYear()} DisputeIQ — disputeiq.org</p>
-        <div className="flex gap-6">
-          <Link href="/trust-center" className="hover:text-white">Trust center</Link>
-          <Link href="/pricing" className="hover:text-white">Pricing</Link>
-          <a href="mailto:support@disputeiq.org" className="hover:text-white">support@disputeiq.org</a>
+    <footer className="relative border-t border-white/5 bg-[#06090f]">
+      <div className="mx-auto max-w-7xl px-6 py-16">
+        <div className="grid gap-12 lg:grid-cols-[1.3fr_2fr]">
+          <div>
+            <Link href="/" className="flex items-center gap-3">
+              <div className="relative h-9 w-9 overflow-hidden rounded-lg bg-gradient-to-br from-indigo-400 via-violet-500 to-fuchsia-500 shadow-[0_0_28px_-4px_rgba(139,92,246,0.6)]">
+                <div className="absolute inset-[2px] rounded-[7px] bg-[#06090f]" />
+                <div className="absolute inset-0 flex items-center justify-center font-serif text-sm italic text-white">
+                  D
+                </div>
+              </div>
+              <div className="flex flex-col leading-none">
+                <span className="font-serif text-base font-semibold tracking-tight text-white">
+                  DisputeIQ
+                </span>
+                <span className="mt-1 text-[9px] uppercase tracking-[0.22em] text-white/40">
+                  Audit-grade credit operations
+                </span>
+              </div>
+            </Link>
+            <p className="mt-6 max-w-sm text-[13px] leading-relaxed text-white/50">
+              The executive workspace for reviewing credit reports, preparing dispute documents, and
+              tracking certified mailings — with audit-grade trust built into every step.
+            </p>
+            <p className="mt-6 text-[10px] uppercase tracking-[0.22em] text-white/35">
+              {BRAND_FOOTER}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-8">
+            {cols.map((c) => (
+              <div key={c.t}>
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/40">
+                  {c.t}
+                </p>
+                <ul className="mt-5 space-y-3 text-[13px] text-white/70">
+                  {c.l.map(([label, href]) => (
+                    <li key={label}>
+                      {href.startsWith("mailto") || href.startsWith("http") ? (
+                        <a href={href} className="transition hover:text-white">
+                          {label}
+                        </a>
+                      ) : (
+                        <Link href={href} className="transition hover:text-white">
+                          {label}
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-14 flex flex-col items-start justify-between gap-4 border-t border-white/5 pt-8 text-[11px] text-white/40 sm:flex-row sm:items-center">
+          <p>© {new Date().getFullYear()} DisputeIQ — disputeiq.org</p>
+          <p className="max-w-xl text-[10px] leading-relaxed">
+            You may dispute inaccuracies yourself, for free, directly with the bureaus. DisputeIQ is a
+            software and workflow tool. We do not guarantee removals or score changes.
+          </p>
         </div>
       </div>
     </footer>
   );
 }
+
+const BRAND_FOOTER = "Made in the United States · Audit-grade by design";
 
 /* -------------------------------------------------------------------------- */
 /*  Section wrapper                                                           */
@@ -639,11 +850,17 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mx-auto max-w-7xl px-6 py-20">
-      <div className="mb-12 max-w-3xl">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-indigo-300">{eyebrow}</p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">{title}</h2>
-        {subtitle && <p className="mt-3 text-white/55">{subtitle}</p>}
+    <section className="mx-auto max-w-7xl px-6 py-24">
+      <div className="mb-14 max-w-3xl">
+        <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-indigo-300/90">
+          {eyebrow}
+        </p>
+        <h2 className="mt-5 font-serif text-[36px] leading-[1.08] tracking-tight text-white sm:text-[48px]">
+          {title}
+        </h2>
+        {subtitle && (
+          <p className="mt-5 max-w-2xl text-[16px] leading-relaxed text-white/60">{subtitle}</p>
+        )}
       </div>
       {children}
     </section>

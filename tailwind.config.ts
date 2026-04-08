@@ -22,6 +22,15 @@ export default {
           "system-ui",
           "sans-serif",
         ],
+        serif: [
+          "ui-serif",
+          "Fraunces",
+          "Iowan Old Style",
+          "Baskerville",
+          "Georgia",
+          "Times New Roman",
+          "serif",
+        ],
         mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       colors: {
