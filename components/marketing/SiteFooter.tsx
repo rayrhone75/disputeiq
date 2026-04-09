@@ -22,10 +22,10 @@ const cols = [
   {
     t: "Legal",
     l: [
+      ["Terms of Service", "/terms"],
+      ["Privacy Policy", "/privacy"],
+      ["Refund Policy", "/refund-policy"],
       ["Disclosures", "/disclosures"],
-      ["Privacy", "/trust-center"],
-      ["Terms", "/trust-center"],
-      ["Compliance", "/trust-center"],
     ] as const,
   },
 ];

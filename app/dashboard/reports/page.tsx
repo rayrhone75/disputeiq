@@ -1,4 +1,5 @@
 import { Button, Chip, PageHeader, SectionHeader, Surface, TrustBanner } from "@/components/ui/primitives";
+import { ReportUploader } from "@/components/dashboard/ReportUploader";
 
 export default function ReportsPage() {
   // Polished mocked summary — replace with live report data when present.
@@ -21,18 +22,7 @@ export default function ReportsPage() {
       <section className="grid gap-6 lg:grid-cols-3">
         <Surface id="upload" className="lg:col-span-2 p-8">
           <SectionHeader title="Upload" action={<Chip tone="accent">PDF</Chip>} />
-          <form action="/api/reports/upload" method="post" encType="multipart/form-data">
-            <input type="hidden" name="userId" />
-            <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-ink-200 bg-ink-50/40 px-6 py-12 text-center transition hover:border-accent-500 hover:bg-accent-50/30">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-ink-900 to-accent-600" />
-              <p className="font-display text-base font-semibold text-ink-900">Drop your PDF report</p>
-              <p className="text-xs text-ink-500">Or browse to select. Files are encrypted on upload.</p>
-              <input type="file" name="file" accept="application/pdf" className="hidden" />
-            </label>
-            <div className="mt-6 flex justify-end">
-              <Button type="submit">Analyze report</Button>
-            </div>
-          </form>
+          <ReportUploader />
         </Surface>
 
         <Surface className="p-8">

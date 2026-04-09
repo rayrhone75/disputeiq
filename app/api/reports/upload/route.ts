@@ -4,12 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { storage } from "@/lib/storage";
 import { parseReportPdf } from "@/lib/report-parser";
 import { writeAuditLog } from "@/lib/audit";
+import { requireUser } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
+  const sessionUser = await requireUser().catch(() => null);
+  if (!sessionUser) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const userId = sessionUser.id;
   const form = await req.formData();
-  const userId = String(form.get("userId") ?? "");
   const file = form.get("file") as File | null;
-  if (!userId || !file) return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
+  if (!file) return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
 
   const buf = Buffer.from(await file.arrayBuffer());
   const hash = crypto.createHash("sha256").update(buf).digest("hex");

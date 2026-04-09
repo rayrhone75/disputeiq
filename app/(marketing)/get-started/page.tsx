@@ -50,8 +50,8 @@ const steps = [
       "AI next-best action",
       "Draft disputes from facts",
     ],
-    cta: { label: "See the method", href: "/how-it-works", external: false },
-    meta: "Powered by the DisputeIQ analysis engine",
+    cta: { label: "Upload your report →", href: `${URLS.app}/dashboard/reports`, external: true },
+    meta: "Lands directly in the tri-merge action center",
   },
 ];
 

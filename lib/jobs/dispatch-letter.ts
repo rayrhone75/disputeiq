@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { sendLetterstreamJob, type LetterstreamRecipient, type LetterstreamSender } from "@/lib/letterstream";
 import { writeAuditLog } from "@/lib/audit";
 import { decrypt } from "@/lib/encryption";
+import { queueFreezesForUser } from "@/lib/freeze";
 
 // Dispatches a paid dispute case as a real LetterStream mail job.
 // Persists a MailJob row attached to the dispute case so admin/audit can see
@@ -105,6 +106,9 @@ export async function dispatchLetter(disputeCaseId: string) {
       where: { id: disputeCase.id },
       data: { status: "MAILED", mailedAt: new Date() },
     });
+    // Auto-queue secondary freeze requests once a dispute packet has been mailed.
+    // Idempotent: skips providers the user already has a pending request with.
+    await queueFreezesForUser(disputeCase.userId, `dispatch:${disputeCase.id}`).catch(() => null);
   }
 
   await writeAuditLog({

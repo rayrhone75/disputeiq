@@ -1,0 +1,29 @@
+import Link from "next/link";
+import type { Metadata } from "next";
+import { SEO_TOPICS } from "@/lib/seo/content";
+
+export const metadata: Metadata = {
+  title: "How-To Credit Guides | DisputeIQ",
+  description: "How to dispute credit reports, remove collections, fix late payments, and more.",
+};
+
+export default function HowToIndex() {
+  return (
+    <div className="mx-auto max-w-4xl px-6 py-16">
+      <h1 className="text-4xl font-semibold tracking-tight">How-to library</h1>
+      <ul className="mt-10 grid gap-4 sm:grid-cols-2">
+        {SEO_TOPICS.map((t) => (
+          <li key={t.slug}>
+            <Link
+              href={`/how-to/${t.slug}`}
+              className="block rounded-2xl border border-[#0a0f1c]/10 bg-white p-6 hover:border-indigo-400"
+            >
+              <h2 className="text-lg font-semibold">{t.title}</h2>
+              <p className="mt-2 text-sm text-[#0a0f1c]/70">{t.hero}</p>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

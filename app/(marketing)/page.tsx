@@ -3,6 +3,8 @@ import { COMPLIANCE_NOTICE } from "@/lib/compliance";
 import { URLS } from "@/lib/urls";
 import { Section } from "@/components/marketing/Section";
 import { MYFREESCORENOW, getEnrollUrl } from "@/lib/integrations/myfreescorenow";
+import { TrustSection } from "@/components/marketing/TrustSection";
+import { LeadCaptureForm } from "@/components/marketing/LeadCaptureForm";
 
 /* ----------------------------------------------------------------------------
  * DisputeIQ — premium marketing homepage.
@@ -25,6 +27,18 @@ export default function HomePage() {
       <AISuite />
       <Coexistence />
       <Testimonials />
+      <TrustSection />
+      <section className="border-t border-[#0a0f1c]/10 bg-white py-16">
+        <div className="mx-auto max-w-2xl px-6 text-center">
+          <h2 className="text-2xl font-semibold tracking-tight">Get a free credit analysis preview</h2>
+          <p className="mt-2 text-sm text-[#0a0f1c]/65">
+            We'll email you the next steps for your situation. No spam — ever.
+          </p>
+          <div className="mt-6">
+            <LeadCaptureForm source="homepage" />
+          </div>
+        </div>
+      </section>
       <PricingTeaser />
       <FinalCTA />
     </>

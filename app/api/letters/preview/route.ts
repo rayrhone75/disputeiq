@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
 
 // Server-side rendered HTML preview only. Raw PDFs are NEVER returned to the
-// client before payment + user confirmation. After PAID/MAILED/DELIVERED the
-// preview drops the watermark but is still HTML — the actual mailing artifact
-// stays in protected storage and is only handed to LetterStream.
-async function render(disputeCaseId: string) {
+// client — even after payment. The mailable artifact stays in secure storage
+// and is only handed to LetterStream. The visible UNPAID DRAFT watermark is
+// part of the black-box model: there is no free, usable letter output.
+async function render(disputeCaseId: string, userId: string) {
   const dc = await prisma.disputeCase.findUnique({ where: { id: disputeCaseId } });
   if (!dc) return new NextResponse("Not found", { status: 404 });
+  if (dc.userId !== userId) return new NextResponse("Forbidden", { status: 403 });
 
-  const paid = dc.status === "PAID" || dc.status === "MAILED" || dc.status === "DELIVERED";
-  const watermark = paid ? "" : "UNPAID DRAFT";
+  // Always watermark — the preview is never a usable artifact, regardless of state.
+  const { DRAFT_WATERMARK } = await import("@/lib/watermark");
+  const watermark = DRAFT_WATERMARK;
 
   const html = `<!doctype html><html><body style="font-family:Arial;padding:40px;position:relative;">
     ${watermark ? `<div style="opacity:.12;transform:rotate(-18deg);position:fixed;top:40%;left:18%;font-size:64px;">${watermark}</div>` : ""}
@@ -24,13 +27,17 @@ async function render(disputeCaseId: string) {
 }
 
 export async function GET(req: NextRequest) {
+  const user = await requireUser().catch(() => null);
+  if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
-  return render(id);
+  return render(id, user.id);
 }
 
 export async function POST(req: NextRequest) {
+  const user = await requireUser().catch(() => null);
+  if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
   const { disputeCaseId } = await req.json();
   if (!disputeCaseId) return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
-  return render(disputeCaseId);
+  return render(disputeCaseId, user.id);
 }

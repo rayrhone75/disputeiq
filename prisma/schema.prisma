@@ -241,6 +241,38 @@ model ShadowStrikeRequest {
   user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model Lead {
+  id          String   @id @default(cuid())
+  email       String
+  fullName    String?
+  phone       String?
+  source      String   // "homepage" | "seo:<slug>" | "pricing" | "blog" | etc
+  topic       String?  // SEO topic when applicable
+  referralCode String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  ipHash      String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([email])
+  @@index([source])
+}
+
+model Referral {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  ownerUserId  String?
+  clicks       Int      @default(0)
+  signups      Int      @default(0)
+  conversions  Int      @default(0)
+  rewardCents  Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([ownerUserId])
+}
+
 model AuditLog {
   id           String   @id @default(cuid())
   targetUserId String?
