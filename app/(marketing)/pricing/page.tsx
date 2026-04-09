@@ -71,11 +71,13 @@ export default function PricingPage() {
           </p>
         </div>
 
-        <p className="mx-auto mt-10 max-w-2xl text-[11px] leading-relaxed text-[#0a0f1c]/50">
-          DisputeIQ does not guarantee any specific credit score change, item removal, or financial
-          outcome. Results vary by case. We do not provide legal or financial advice. We operate
-          under your existing rights as a consumer under the Fair Credit Reporting Act (FCRA, 15
-          U.S.C. §1681 et seq.).
+        <p className="mx-auto mt-10 max-w-2xl text-[11px] leading-relaxed text-[#0a0f1c]/55">
+          DisputeIQ is a self-directed software platform that helps you analyze credit report
+          data, prepare dispute packets, and track mailing and response activity. DisputeIQ is{" "}
+          <strong>not a credit repair agency, law firm, or credit bureau</strong>, and does not
+          guarantee deletions, score increases, or specific outcomes. We operate under your
+          existing rights as a consumer under the Fair Credit Reporting Act (FCRA, 15 U.S.C. §1681
+          et seq.).
         </p>
       </div>
     </div>

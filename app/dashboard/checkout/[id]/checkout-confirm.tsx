@@ -70,6 +70,9 @@ export function CheckoutConfirm({
       <p className="mt-2 text-sm text-white/60">
         By proceeding, you confirm you reviewed your dispute selections and authorize DisputeIQ to act on your behalf.
       </p>
+      <p className="mt-3 rounded-lg bg-white/5 p-3 text-[11px] leading-relaxed text-white/60 ring-1 ring-white/10">
+        DisputeIQ is DIY dispute software — <strong className="text-white/80">not a credit repair agency</strong>. You control the process, authorize each action, and no outcome is guaranteed.
+      </p>
 
       <div className="mt-6 rounded-2xl bg-white/5 p-6 ring-1 ring-white/10">
         <div className="text-xs uppercase tracking-wide text-white/50">Packet summary</div>

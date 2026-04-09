@@ -89,9 +89,12 @@ export function SiteFooter() {
 
         <div className="mt-14 flex flex-col items-start justify-between gap-4 border-t border-[#e0dccf] pt-8 text-[11px] text-[#6b6556] sm:flex-row sm:items-center">
           <p>© {new Date().getFullYear()} DisputeIQ — disputeiq.org</p>
-          <p className="max-w-xl text-[10px] leading-relaxed">
-            You may dispute inaccuracies yourself, for free, directly with the bureaus. DisputeIQ is
-            a software and workflow tool. We do not guarantee removals or score changes.
+          <p className="max-w-2xl text-[10px] leading-relaxed">
+            DisputeIQ is a self-directed software platform that helps you analyze credit report
+            data, prepare dispute packets, and track mailing and response activity. DisputeIQ is{" "}
+            <strong>not a credit repair agency, law firm, or credit bureau</strong>, and does not
+            guarantee deletions, score increases, or specific outcomes. You may dispute
+            inaccuracies yourself, for free, directly with the bureaus.
           </p>
         </div>
       </div>

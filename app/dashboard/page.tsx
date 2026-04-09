@@ -76,6 +76,71 @@ export default async function DashboardOverview() {
 
   const recentDisputes = disputes.slice(0, 5);
 
+  // Executive top rail counts — derived from real DisputeCase state.
+  // Removed         = disputes the user has marked CLOSED via the Letter Checker
+  // Remaining       = parsed tradelines that have never been included in a dispute
+  // Ready re-dispute = delivered packets the user marked failed (or auto-flagged ESCALATION_READY)
+  // Ready CFPB      = ESCALATION_READY items that have already been re-disputed at least once
+  const readyToRedispute = disputes.filter((d) => d.status === "ESCALATION_READY").length;
+  const tradelineRedisputeCounts = new Map<string, number>();
+  for (const d of disputes) {
+    if (!d.tradelineId) continue;
+    tradelineRedisputeCounts.set(
+      d.tradelineId,
+      (tradelineRedisputeCounts.get(d.tradelineId) ?? 0) + 1,
+    );
+  }
+  const readyForCfpb = disputes.filter(
+    (d) =>
+      d.status === "ESCALATION_READY" &&
+      d.tradelineId &&
+      (tradelineRedisputeCounts.get(d.tradelineId) ?? 0) >= 2,
+  ).length;
+
+  const executiveRail = [
+    {
+      label: "Removed items",
+      value: removed,
+      hint: "Marked deleted by the bureau",
+      tone: "emerald",
+      href: "#dispute-history",
+    },
+    {
+      label: "Remaining items",
+      value: remaining,
+      hint: "Parsed tradelines not yet disputed",
+      tone: "indigo",
+      href: "/dashboard/reports",
+    },
+    {
+      label: "Ready to re-dispute",
+      value: readyToRedispute,
+      hint: "Delivered, not deleted",
+      tone: "amber",
+      href: "#letter-checker",
+    },
+    {
+      label: "Ready for CFPB",
+      value: readyForCfpb,
+      hint: "Re-disputed and still unresolved",
+      tone: "rose",
+      href: "#cfpb-queue",
+    },
+  ] as const;
+
+  const toneRing: Record<string, string> = {
+    emerald: "from-emerald-500/20 to-emerald-500/5 ring-emerald-200",
+    indigo: "from-indigo-500/20 to-indigo-500/5 ring-indigo-200",
+    amber: "from-amber-500/20 to-amber-500/5 ring-amber-200",
+    rose: "from-rose-500/20 to-rose-500/5 ring-rose-200",
+  };
+  const toneText: Record<string, string> = {
+    emerald: "text-emerald-700",
+    indigo: "text-indigo-700",
+    amber: "text-amber-700",
+    rose: "text-rose-700",
+  };
+
   return (
     <div className="space-y-10">
       <PageHeader
@@ -83,6 +148,26 @@ export default async function DashboardOverview() {
         title="Your dispute overview"
         description="Live state of every report, packet, and certified mail job in your file. No estimates."
       />
+
+      {/* Executive top rail — premium high-signal status */}
+      <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        {executiveRail.map((c) => (
+          <Link
+            key={c.label}
+            href={c.href}
+            className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${toneRing[c.tone]} p-6 ring-1 transition hover:-translate-y-0.5 hover:shadow-lg`}
+          >
+            <p className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${toneText[c.tone]}`}>
+              {c.label}
+            </p>
+            <p className="mt-3 text-4xl font-semibold tracking-tight text-ink-900">{c.value}</p>
+            <p className="mt-1 text-xs text-ink-600">{c.hint}</p>
+            <span className="absolute right-4 top-4 text-xs text-ink-400 opacity-0 transition group-hover:opacity-100">
+              →
+            </span>
+          </Link>
+        ))}
+      </section>
 
       <section className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-7">
         {summaryCards.map((c) => (
@@ -93,7 +178,10 @@ export default async function DashboardOverview() {
         ))}
       </section>
 
-      <section className="rounded-2xl border border-ink-200 bg-gradient-to-br from-indigo-50 to-violet-50 p-6">
+      <section
+        id="dispute-history"
+        className="scroll-mt-20 rounded-2xl border border-ink-200 bg-gradient-to-br from-indigo-50 to-violet-50 p-6"
+      >
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-semibold text-ink-900">AI analysis</h3>
           <Link
@@ -182,6 +270,7 @@ export default async function DashboardOverview() {
         )}
       </section>
 
+      <div id="letter-checker" className="scroll-mt-20" />
       <LetterChecker
         delivered={mailJobs
           .filter((j) => j.status === "DELIVERED" && j.deliveredAt)
@@ -201,14 +290,29 @@ export default async function DashboardOverview() {
           })}
       />
 
+      <section
+        id="cfpb-queue"
+        className="scroll-mt-20 rounded-2xl border border-rose-200 bg-rose-50/50 p-6"
+      >
+        <h3 className="text-lg font-semibold text-rose-900">CFPB escalation queue</h3>
+        <p className="mt-1 text-sm text-rose-900/75">
+          {readyForCfpb === 0
+            ? "No items here yet. An item lands in this queue after it has been disputed and re-disputed without resolution."
+            : `${readyForCfpb} item(s) have been disputed twice without resolution and are eligible for a CFPB complaint. The CFPB packet generator will bundle dispute history, certified mail proofs, and any uploaded bureau responses into a complaint draft you review before submitting.`}
+        </p>
+      </section>
+
       <AssistantPanel />
 
       <FreezePanel initial={freezes.map((f) => ({ id: f.id, provider: f.provider, status: f.status }))} />
 
       <footer className="rounded-2xl border border-ink-200 bg-ink-50 p-5 text-xs leading-relaxed text-ink-600">
-        DisputeIQ does not guarantee any specific credit score change, item removal, or financial outcome.
-        Results vary by case. We do not provide legal or financial advice. We operate under your existing
-        rights as a consumer under the Fair Credit Reporting Act (FCRA, 15 U.S.C. §1681 et seq.).
+        DisputeIQ is a self-directed software platform that helps you analyze credit report data,
+        prepare dispute packets, and track mailing and response activity. DisputeIQ is{" "}
+        <strong>not a credit repair agency, law firm, or credit bureau</strong>, and does not
+        guarantee deletions, score increases, or specific outcomes. You authorize each action
+        yourself. We operate under your existing rights as a consumer under the Fair Credit
+        Reporting Act (FCRA, 15 U.S.C. §1681 et seq.).
       </footer>
     </div>
   );
