@@ -12,12 +12,20 @@ export function CheckoutConfirm({
   reason,
   totalCents,
   isGrace,
+  chargeLabel,
+  planName,
+  packetsUsed,
+  packetsIncluded,
 }: {
   disputeCaseId: string;
   creditor: string;
   reason: string;
   totalCents: number;
   isGrace: boolean;
+  chargeLabel?: string;
+  planName?: string | null;
+  packetsUsed?: number;
+  packetsIncluded?: number;
 }) {
   const [consents, setConsents] = useState<ConsentState>({
     no_guarantee: false,
@@ -81,12 +89,15 @@ export function CheckoutConfirm({
         <div className="mt-4 flex items-baseline justify-between">
           <div>
             <div className="text-xs uppercase tracking-wide text-white/50">Total</div>
-            <div className="text-3xl font-bold">{isGrace ? "$0.00" : `$${dollars}`}</div>
+            <div className="text-3xl font-bold">{totalCents === 0 ? "$0.00" : `$${dollars}`}</div>
             <div className="text-[11px] text-white/50">
-              {isGrace ? "Grace account · fee waived" : "Flat packet price · per bureau"}
+              {chargeLabel ?? (isGrace ? "Grace account · fee waived" : "Packet charge")}
             </div>
           </div>
           <div className="text-right text-xs text-white/60">
+            {planName && (
+              <div>{planName} plan · {packetsUsed ?? 0}/{packetsIncluded ?? 0} packets used</div>
+            )}
             <div>1 certified mail packet</div>
             <div>USPS Certified + ERR</div>
           </div>

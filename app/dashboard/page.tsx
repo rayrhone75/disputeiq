@@ -5,7 +5,10 @@ import { PageHeader } from "@/components/ui/primitives";
 import { FreezePanel } from "@/components/dashboard/FreezePanel";
 import { LetterChecker } from "@/components/dashboard/LetterChecker";
 import { AssistantPanel } from "@/components/dashboard/AssistantPanel";
+import { PacketMeter } from "@/components/dashboard/PacketMeter";
 import { listFreezesForUser } from "@/lib/freeze";
+import { getUserPacketUsage } from "@/lib/billing/usage";
+import { PLANS } from "@/lib/billing/plans";
 
 const PROGRESS_STEPS = [
   { key: "imported", label: "Imported" },
@@ -19,7 +22,7 @@ const PROGRESS_STEPS = [
 export default async function DashboardOverview() {
   const user = await requireUser();
 
-  const [reports, tradelines, disputes, mailJobs, freezes] = await Promise.all([
+  const [reports, tradelines, disputes, mailJobs, freezes, packetUsage] = await Promise.all([
     prisma.creditReport.findMany({
       where: { userId: user.id },
       include: { tradelines: true },
@@ -37,6 +40,7 @@ export default async function DashboardOverview() {
       take: 5,
     }),
     listFreezesForUser(user.id),
+    getUserPacketUsage(user.id),
   ]);
 
   const totalItems = tradelines.length;
@@ -168,6 +172,14 @@ export default async function DashboardOverview() {
           </Link>
         ))}
       </section>
+
+      <PacketMeter
+        planName={packetUsage.plan ? PLANS[packetUsage.plan].name : null}
+        included={packetUsage.included}
+        used={packetUsage.used}
+        remaining={packetUsage.remaining}
+        overageCents={packetUsage.overagePriceCents}
+      />
 
       <section className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-7">
         {summaryCards.map((c) => (

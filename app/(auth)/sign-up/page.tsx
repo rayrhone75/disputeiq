@@ -1,49 +1,149 @@
 "use client";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { COMPLIANCE_NOTICE } from "@/lib/compliance";
+import Link from "next/link";
+import { DISCLOSURES } from "@/lib/billing/disclosures";
 
 export default function SignUpPage() {
+  const [step, setStep] = useState<"disclosures" | "account">("disclosures");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [accept, setAccept] = useState(false);
+  const [acceptMonitoring, setAcceptMonitoring] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setErr(null);
-    const res = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        password,
-        disclosuresAccepted: true,
-        affiliateDisclosureAccepted: true,
-      }),
-    });
-    if (!res.ok) {
-      setErr("Could not create account.");
+    if (!accept || !acceptMonitoring) {
+      setErr("Please accept all required disclosures.");
       return;
     }
-    await signIn("credentials", { email, password, redirect: false });
-    window.location.href = "/dashboard";
+    setErr(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          disclosuresAccepted: true,
+          affiliateDisclosureAccepted: true,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setErr(data.error === "EMAIL_IN_USE" ? "An account with this email already exists." : "Could not create account.");
+        return;
+      }
+      await signIn("credentials", { email, password, redirect: false });
+      window.location.href = "/dashboard";
+    } catch {
+      setErr("Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <main className="mx-auto max-w-md px-6 py-16">
-      <h1 className="text-2xl font-bold">Create your account</h1>
-      <p className="mt-3 text-xs text-slate-500">{COMPLIANCE_NOTICE}</p>
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
-        <input className="w-full rounded border px-3 py-2" type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <input className="w-full rounded border px-3 py-2" type="password" placeholder="Password (min 8)" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <label className="flex items-start gap-2 text-xs text-slate-600">
-          <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} />
-          I accept the consumer disclosures and affiliate disclosure.
-        </label>
-        {err && <p className="text-sm text-red-600">{err}</p>}
-        <button disabled={!accept} className="w-full rounded bg-brand-700 px-4 py-2 text-white disabled:opacity-50">Continue</button>
-      </form>
+    <main className="mx-auto max-w-lg px-6 py-16">
+      <h1 className="text-2xl font-bold text-[#0a0f1c]">Create your account</h1>
+
+      {/* Existing customer notice */}
+      <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 text-sm">
+        <p className="font-semibold text-indigo-900">Already a Screwed Up Credit customer?</p>
+        <p className="mt-1 text-indigo-900/75">
+          If you already have an active MyFreeScoreIQ account,{" "}
+          <Link href="/sign-in" className="font-semibold underline">
+            sign in here
+          </Link>{" "}
+          instead of creating a new account.
+        </p>
+      </div>
+
+      {step === "disclosures" && (
+        <div className="mt-6 space-y-4">
+          <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-900">
+            <p className="font-semibold">Before continuing, please note:</p>
+            <ul className="mt-2 space-y-2 text-xs">
+              <li>• MyDIY Credit Repair software is billed separately from MyFreeScoreIQ.</li>
+              <li>• MyFreeScoreIQ is required for report access and monitoring.</li>
+              <li>• MyFreeScoreIQ charges $24.95/month, billed separately.</li>
+              <li>• Your chosen software plan is billed separately.</li>
+              <li>• Included packet limits reset each billing cycle.</li>
+            </ul>
+          </div>
+
+          <div className="rounded-xl border border-[#0a0f1c]/10 bg-white p-4 text-xs text-[#0a0f1c]/70">
+            <p>{DISCLOSURES.software}</p>
+            <p className="mt-2">{DISCLOSURES.separateBilling}</p>
+            <p className="mt-2">{DISCLOSURES.outcome}</p>
+          </div>
+
+          <label className="flex items-start gap-2 text-xs text-[#0a0f1c]/80">
+            <input type="checkbox" checked={acceptMonitoring} onChange={(e) => setAcceptMonitoring(e.target.checked)} className="mt-0.5" />
+            I understand MyFreeScoreIQ is required and billed separately at $24.95/month.
+          </label>
+
+          <label className="flex items-start gap-2 text-xs text-[#0a0f1c]/80">
+            <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} className="mt-0.5" />
+            I accept the consumer disclosures and understand this is DIY dispute software, not a credit repair agency.
+          </label>
+
+          <button
+            disabled={!accept || !acceptMonitoring}
+            onClick={() => setStep("account")}
+            className="w-full rounded-xl bg-[#0a0f1c] px-4 py-3 text-sm font-semibold text-white disabled:opacity-40"
+          >
+            Continue to account creation
+          </button>
+        </div>
+      )}
+
+      {step === "account" && (
+        <form onSubmit={onSubmit} className="mt-6 space-y-4">
+          <input
+            className="w-full rounded-lg border border-[#0a0f1c]/15 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none"
+            type="email"
+            placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input
+            className="w-full rounded-lg border border-[#0a0f1c]/15 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none"
+            type="password"
+            placeholder="Password (min 8 characters)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            minLength={8}
+            required
+          />
+          {err && <p className="text-sm text-rose-600">{err}</p>}
+          <button
+            type="submit"
+            disabled={busy}
+            className="w-full rounded-xl bg-[#0a0f1c] px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {busy ? "Creating account…" : "Create account"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setStep("disclosures")}
+            className="w-full text-xs text-[#0a0f1c]/60 hover:underline"
+          >
+            ← Back to disclosures
+          </button>
+        </form>
+      )}
+
+      <p className="mt-6 text-center text-xs text-[#0a0f1c]/50">
+        Already have an account?{" "}
+        <Link href="/sign-in" className="font-semibold underline">
+          Sign in
+        </Link>
+      </p>
     </main>
   );
 }

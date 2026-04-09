@@ -16,6 +16,7 @@ const NAV_DASHBOARD = [
 
 const NAV_ADMIN = [
   { href: "/admin", label: "Command Center" },
+  { href: "/admin/pricing", label: "Pricing" },
   { href: "/admin/audit-logs", label: "Audit Log" },
   { href: "/admin/mail-jobs", label: "Mail Jobs" },
   { href: "/admin/growth", label: "Growth Console" },

@@ -1,14 +1,10 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { PACKET_PRICE_CENTS } from "@/lib/pricing";
+import { getUserPacketUsage } from "@/lib/billing/usage";
+import { PLANS, formatCents } from "@/lib/billing/plans";
 import { CheckoutConfirm } from "./checkout-confirm";
 
-// Pre-payment review + consent screen. This is the gate between "Draft ready"
-// and Square checkout. We show packet count, total price, what happens next,
-// and the four required consent checkboxes. Only when all four are accepted
-// does the client call /api/payments/create-checkout with `checkoutConsents`,
-// which writes a ConsentReceipt and then issues the Square payment link.
 export default async function CheckoutPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   const { id } = await params;
@@ -18,8 +14,24 @@ export default async function CheckoutPage({ params }: { params: Promise<{ id: s
   });
   if (!dc || dc.userId !== user.id) notFound();
 
-  const isGrace = user.isGraceUser;
-  const totalCents = isGrace ? 0 : PACKET_PRICE_CENTS;
+  const usage = await getUserPacketUsage(user.id);
+  let totalCents: number;
+  let chargeLabel: string;
+
+  if (user.isGraceUser) {
+    totalCents = 0;
+    chargeLabel = "Grace account — fee waived";
+  } else if (usage.plan && usage.remaining > 0) {
+    totalCents = 0;
+    chargeLabel = `Included in your ${PLANS[usage.plan].name} plan (${usage.remaining} remaining)`;
+  } else if (usage.plan) {
+    totalCents = usage.overagePriceCents;
+    chargeLabel = `Extra packet — ${formatCents(totalCents)}`;
+  } else {
+    // No subscription — charge overage rate as one-off
+    totalCents = 1995;
+    chargeLabel = `One-time packet — ${formatCents(totalCents)}`;
+  }
 
   return (
     <div className="mx-auto max-w-2xl p-8">
@@ -28,7 +40,11 @@ export default async function CheckoutPage({ params }: { params: Promise<{ id: s
         creditor={dc.tradeline?.creditorName ?? "Packet"}
         reason={dc.aiReasonSummary}
         totalCents={totalCents}
-        isGrace={isGrace}
+        isGrace={user.isGraceUser}
+        chargeLabel={chargeLabel}
+        planName={usage.plan ? PLANS[usage.plan].name : null}
+        packetsUsed={usage.used}
+        packetsIncluded={usage.included}
       />
     </div>
   );

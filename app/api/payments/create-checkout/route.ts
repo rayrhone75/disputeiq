@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { assertCompliantAction } from "@/lib/compliance";
-import { getLetterPricing } from "@/lib/pricing";
+import { getUserPacketUsage } from "@/lib/billing/usage";
 import { createSquareCheckout } from "@/lib/square";
 import { writeAuditLog } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
@@ -55,7 +55,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const pricing = getLetterPricing({ isGraceUser: user.isGraceUser });
+  // Plan-aware pricing: included packets are free, overage costs $19.95.
+  const usage = await getUserPacketUsage(user.id);
+  let totalCents: number;
+  if (user.isGraceUser) {
+    totalCents = 0;
+  } else if (usage.plan && usage.remaining > 0) {
+    totalCents = 0; // included in plan
+  } else {
+    totalCents = usage.overagePriceCents; // $19.95 overage
+  }
+  const pricing = { total: totalCents };
 
   const payment = await prisma.paymentIntent.create({
     data: {

@@ -740,28 +740,35 @@ function Testimonials() {
 function PricingTeaser() {
   return (
     <Section
-      eyebrow="Investment"
-      title="You pay for action, not promises."
-      subtitle="DisputeIQ uses action-based pricing. You only pay when you actually dispatch a letter — not a monthly subscription for vague outcomes."
+      eyebrow="Simple pricing"
+      title="Powerful DIY credit repair tools without confusing per-item pricing"
+      subtitle="Connect your required credit monitoring, choose your monthly plan, and send dispute packets with AI-powered guidance and built-in mailing."
     >
-      <div className="flex flex-col items-start justify-between gap-6 rounded-[22px] border border-[#e8e4d8] bg-white p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_24px_48px_-24px_rgba(10,15,28,0.16)] lg:flex-row lg:items-center">
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-indigo-600">
-            Action pricing
-          </p>
-          <p className="mt-3 font-serif text-[30px] leading-tight text-[#0a0f1c]">
-            $12.95 flat per bureau packet · certified mail included
-          </p>
-          <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-[#4a4638]">
-            You review, you confirm, you dispatch. No subscription required to use the platform.
-            Full tier comparison and enterprise options on the pricing page.
-          </p>
-        </div>
+      <div className="grid gap-5 md:grid-cols-3">
+        {[
+          { name: "Starter", price: "$69/mo", packets: "1 packet/mo" },
+          { name: "Pro", price: "$99/mo", packets: "3 packets/mo", featured: true },
+          { name: "Elite", price: "$129/mo", packets: "5 packets/mo" },
+        ].map((p) => (
+          <div
+            key={p.name}
+            className={`rounded-2xl border p-6 ${p.featured ? "border-indigo-300 bg-indigo-50/60 ring-2 ring-indigo-200" : "border-[#e8e4d8] bg-white"}`}
+          >
+            <p className="text-2xl font-bold text-[#0a0f1c]">{p.price}</p>
+            <p className="mt-1 text-base font-semibold text-[#0a0f1c]">{p.name}</p>
+            <p className="mt-2 text-sm text-[#4a4638]">{p.packets} · AI drafting · certified mail</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+        <p className="text-xs text-[#4a4638]">
+          Extra packets $19.95 each · MyFreeScoreIQ $24.95/mo billed separately · Not charged per item
+        </p>
         <Link
           href="/pricing"
           className="inline-flex items-center gap-2 rounded-xl bg-[#0a0f1c] px-7 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-white shadow-[0_14px_40px_-14px_rgba(10,15,28,0.6)] transition hover:scale-[1.015] hover:bg-[#111827]"
         >
-          View full pricing →
+          See plans and packet limits →
         </Link>
       </div>
     </Section>
