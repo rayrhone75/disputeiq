@@ -94,6 +94,50 @@ function extractTradelinesFromText(text: string, bureau: ParsedTradeline["bureau
   return out;
 }
 
+// Parse raw report text directly (for paste-text import).
+// Same logic as the PDF pipeline but skips pdf-parse extraction.
+export function parseReportText(text: string): ParseResult {
+  const reviewFlags: string[] = [];
+  if (!text.trim()) {
+    reviewFlags.push("EMPTY_TEXT");
+    return { text, tradelines: [], reviewFlags };
+  }
+
+  // Try to detect all three bureaus in a tri-merge paste
+  const allBureaus: ParsedTradeline["bureau"][] = [];
+  for (const [re, name] of BUREAU_PATTERNS) if (re.test(text)) allBureaus.push(name);
+
+  if (allBureaus.length === 0) reviewFlags.push("BUREAU_NOT_IDENTIFIED");
+
+  // For tri-merge reports, try splitting by bureau sections and parsing each
+  let tradelines: ParsedTradeline[] = [];
+  if (allBureaus.length > 1) {
+    // Split text into bureau-labeled sections
+    const sectionPattern = /(experian|equifax|transunion|trans union)/gi;
+    const matches = [...text.matchAll(sectionPattern)];
+    for (let i = 0; i < matches.length; i++) {
+      const start = matches[i].index!;
+      const end = i + 1 < matches.length ? matches[i + 1].index! : text.length;
+      const section = text.slice(start, end);
+      const bureau = detectBureau(section);
+      if (bureau) {
+        tradelines.push(...extractTradelinesFromText(section, bureau));
+      }
+    }
+  }
+
+  // Fallback: treat entire text as one bureau section
+  if (tradelines.length === 0) {
+    const bureau = allBureaus[0] ?? "Experian";
+    tradelines = extractTradelinesFromText(text, bureau);
+  }
+
+  if (tradelines.length === 0 && text.length > 200) reviewFlags.push("NO_TRADELINES_DETECTED");
+  if (tradelines.some((t) => t.parseConfidence === "low")) reviewFlags.push("LOW_CONFIDENCE_ROWS");
+
+  return { text, tradelines, bureauGuess: allBureaus[0], reviewFlags };
+}
+
 export async function parseReportPdf(buf: Buffer): Promise<ParseResult> {
   let text = "";
   try {

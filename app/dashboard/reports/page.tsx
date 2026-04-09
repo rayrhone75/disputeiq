@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { PageHeader, Surface, SectionHeader } from "@/components/ui/primitives";
 import { ReportUploader } from "@/components/dashboard/ReportUploader";
+import { ReportPasteImport } from "@/components/dashboard/ReportPasteImport";
 
 export default async function ReportsPage() {
   const user = await requireUser();
@@ -21,9 +22,14 @@ export default async function ReportsPage() {
       />
 
       <section className="grid gap-6 lg:grid-cols-3">
-        <Surface className="lg:col-span-2 p-8">
-          <SectionHeader title="Upload a new report" />
-          <ReportUploader />
+        <Surface className="lg:col-span-2 p-8 space-y-8">
+          <div>
+            <SectionHeader title="Upload PDF report" />
+            <ReportUploader />
+          </div>
+          <div className="border-t border-ink-100 pt-6">
+            <ReportPasteImport />
+          </div>
         </Surface>
 
         <Surface className="p-8">
