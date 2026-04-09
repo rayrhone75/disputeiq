@@ -9,6 +9,7 @@ import { PacketMeter } from "@/components/dashboard/PacketMeter";
 import { listFreezesForUser } from "@/lib/freeze";
 import { getUserPacketUsage } from "@/lib/billing/usage";
 import { PLANS } from "@/lib/billing/plans";
+import { getOnboardingState } from "@/lib/onboarding";
 
 const PROGRESS_STEPS = [
   { key: "imported", label: "Imported" },
@@ -147,6 +148,8 @@ export default async function DashboardOverview() {
 
   return (
     <div className="space-y-10">
+      <OnboardingBanner userId={user.id} />
+
       <PageHeader
         eyebrow="Command center"
         title="Your dispute overview"
@@ -327,5 +330,57 @@ export default async function DashboardOverview() {
         Reporting Act (FCRA, 15 U.S.C. §1681 et seq.).
       </footer>
     </div>
+  );
+}
+
+async function OnboardingBanner({ userId }: { userId: string }) {
+  const state = await getOnboardingState(userId);
+  if (state.step === "ready") return null;
+
+  const msgs: Record<string, { title: string; body: string; href: string; label: string }> = {
+    profile: {
+      title: "Complete your profile",
+      body: "We need your mailing address and identity details to generate dispute letters on your behalf.",
+      href: "/dashboard/onboarding",
+      label: "Set up profile →",
+    },
+    subscription: {
+      title: "Choose a plan",
+      body: "Select Starter, Pro, or Elite to unlock your monthly dispute packets.",
+      href: "/dashboard/onboarding",
+      label: "Choose plan →",
+    },
+    report_connect: {
+      title: "Import your credit report",
+      body: "Upload your MyFreeScoreIQ tri-merge PDF so the AI can analyze your tradelines.",
+      href: "/dashboard/reports",
+      label: "Upload report →",
+    },
+    report_pending: {
+      title: "Report needs attention",
+      body: "Your report was uploaded but we couldn't parse tradelines. Try re-uploading.",
+      href: "/dashboard/reports",
+      label: "Re-upload →",
+    },
+  };
+
+  const m = msgs[state.step];
+  if (!m) return null;
+
+  return (
+    <section className="rounded-2xl border-2 border-indigo-300 bg-indigo-50/80 p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-indigo-900">{m.title}</h2>
+          <p className="mt-1 text-sm text-indigo-900/75">{m.body}</p>
+        </div>
+        <Link
+          href={m.href}
+          className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white"
+        >
+          {m.label}
+        </Link>
+      </div>
+    </section>
   );
 }

@@ -1,98 +1,85 @@
-import { Button, Chip, PageHeader, SectionHeader, Surface, TrustBanner } from "@/components/ui/primitives";
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
+import { PageHeader, Surface, SectionHeader } from "@/components/ui/primitives";
 import { ReportUploader } from "@/components/dashboard/ReportUploader";
 
-export default function ReportsPage() {
-  // Polished mocked summary — replace with live report data when present.
-  const accounts = [
-    { creditor: "Capital One", type: "Credit card", bureaus: ["EQ", "EX", "TU"], status: "Open", flag: "Balance mismatch", tone: "warning" as const },
-    { creditor: "Discover Bank", type: "Credit card", bureaus: ["EQ", "EX", "TU"], status: "Open", flag: "Clean", tone: "success" as const },
-    { creditor: "LVNV Funding", type: "Collection", bureaus: ["EX", "TU"], status: "Collection", flag: "Duplicate report", tone: "danger" as const },
-    { creditor: "Sallie Mae", type: "Student loan", bureaus: ["EQ", "EX", "TU"], status: "Open", flag: "Status mismatch", tone: "warning" as const },
-  ];
+export default async function ReportsPage() {
+  const user = await requireUser();
+  const reports = await prisma.creditReport.findMany({
+    where: { userId: user.id },
+    include: { tradelines: true },
+    orderBy: { pulledAt: "desc" },
+  });
 
   return (
     <div className="space-y-10">
       <PageHeader
         eyebrow="Reports"
         title="Your credit reports"
-        description="Upload, parse, and audit your reports. We never expose raw files publicly — uploads are encrypted at rest and accessible only inside your account."
-        actions={<Button href="#upload">Upload report</Button>}
+        description="Upload your tri-merge PDF. We parse tradelines across all three bureaus and surface what's disputable."
       />
 
       <section className="grid gap-6 lg:grid-cols-3">
-        <Surface id="upload" className="lg:col-span-2 p-8">
-          <SectionHeader title="Upload" action={<Chip tone="accent">PDF</Chip>} />
+        <Surface className="lg:col-span-2 p-8">
+          <SectionHeader title="Upload a new report" />
           <ReportUploader />
         </Surface>
 
         <Surface className="p-8">
-          <SectionHeader title="Latest snapshot" />
-          <dl className="space-y-4 text-sm">
-            <div className="flex items-center justify-between">
-              <dt className="text-ink-500">Pulled</dt>
-              <dd className="font-medium text-ink-900">2 days ago</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-ink-500">Bureau</dt>
-              <dd className="font-medium text-ink-900">All three</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-ink-500">Tradelines</dt>
-              <dd className="font-medium text-ink-900">23</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-ink-500">Flagged</dt>
-              <dd className="font-medium text-ink-900">11</dd>
-            </div>
-          </dl>
-          <div className="mt-6">
-            <Button variant="secondary" href="/dashboard/disputes">Open Heatmap</Button>
-          </div>
+          <SectionHeader title="Report history" />
+          {reports.length === 0 ? (
+            <p className="text-sm text-ink-500">
+              No reports uploaded yet. Upload your MyFreeScoreIQ tri-merge PDF to get started.
+            </p>
+          ) : (
+            <dl className="space-y-4 text-sm">
+              <div className="flex items-center justify-between">
+                <dt className="text-ink-500">Reports</dt>
+                <dd className="font-medium text-ink-900">{reports.length}</dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-ink-500">Latest</dt>
+                <dd className="font-medium text-ink-900">
+                  {reports[0].pulledAt.toLocaleDateString()}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-ink-500">Tradelines</dt>
+                <dd className="font-medium text-ink-900">
+                  {reports[0].tradelines.length}
+                </dd>
+              </div>
+            </dl>
+          )}
         </Surface>
       </section>
 
-      <Surface className="p-8">
-        <SectionHeader title="Accounts" action={<Chip tone="neutral">Last snapshot</Chip>} />
-        <div className="overflow-hidden rounded-xl border border-ink-100">
-          <table className="w-full text-sm">
-            <thead className="bg-ink-50 text-left text-[11px] font-semibold uppercase tracking-widest text-ink-400">
-              <tr>
-                <th className="px-4 py-3">Creditor</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">Bureaus</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Signal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {accounts.map((a) => (
-                <tr key={a.creditor} className="border-t border-ink-100">
-                  <td className="px-4 py-4 font-medium text-ink-900">{a.creditor}</td>
-                  <td className="px-4 py-4 text-ink-500">{a.type}</td>
-                  <td className="px-4 py-4">
-                    <div className="flex gap-1">
-                      {a.bureaus.map((b) => (
-                        <span key={b} className="rounded-md bg-ink-100 px-2 py-0.5 text-[11px] font-semibold text-ink-700">
-                          {b}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-ink-500">{a.status}</td>
-                  <td className="px-4 py-4">
-                    <Chip tone={a.tone}>{a.flag}</Chip>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Surface>
-
-      <TrustBanner>
-        Reports are stored encrypted and never exposed via public URLs. Only you and authorized support — with explicit
-        scope — can view your data.
-      </TrustBanner>
+      {reports.length > 0 && (
+        <Surface className="p-8">
+          <SectionHeader title="Your reports" />
+          <ul className="mt-4 divide-y divide-ink-100 text-sm">
+            {reports.map((r) => (
+              <li key={r.id} className="flex items-center justify-between py-3">
+                <div>
+                  <div className="font-semibold text-ink-900">
+                    {r.source === "MYFREESCORENOW" ? "MyFreeScoreIQ" : "Manual upload"}
+                  </div>
+                  <div className="text-xs text-ink-500">
+                    {r.pulledAt.toLocaleDateString()} · {r.tradelines.length} tradelines
+                  </div>
+                </div>
+                <Link
+                  href={`/dashboard/reports/${r.id}`}
+                  className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white"
+                >
+                  Analyze →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Surface>
+      )}
     </div>
   );
 }

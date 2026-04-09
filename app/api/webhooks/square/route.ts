@@ -40,6 +40,27 @@ export async function POST(req: NextRequest) {
     await enqueue({ name: "dispatch-letter", payload: { disputeCaseId: payment.disputeCaseId } });
   }
 
+  // Activate pending subscription if this payment is for a plan checkout.
+  // The description field contains the plan name if created by /api/subscriptions/create.
+  if (payment.description?.includes("plan")) {
+    const sub = await prisma.userSubscription.findUnique({
+      where: { userId: payment.userId },
+    });
+    if (sub && sub.status === "pending") {
+      await prisma.userSubscription.update({
+        where: { id: sub.id },
+        data: { status: "active" },
+      });
+      await writeAuditLog({
+        targetUserId: payment.userId,
+        action: "SUBSCRIPTION_ACTIVATED",
+        entityType: "UserSubscription",
+        entityId: sub.id,
+        metadataJson: { planCode: sub.planCode, paymentId: payment.id },
+      }).catch(() => null);
+    }
+  }
+
   await writeAuditLog({
     targetUserId: payment.userId,
     action: "PAYMENT_SUCCEEDED",

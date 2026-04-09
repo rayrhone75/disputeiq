@@ -1,116 +1,107 @@
-import { Button, Chip, KpiCard, PageHeader, SectionHeader, Surface } from "@/components/ui/primitives";
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
+import { PageHeader, Surface } from "@/components/ui/primitives";
 
-// "Purple Heatmap" lite — premium cross-bureau visualizer with severity chips.
-type Severity = "low" | "medium" | "high";
-const sevTone: Record<Severity, "neutral" | "warning" | "danger"> = {
-  low: "neutral",
-  medium: "warning",
-  high: "danger",
-};
+export default async function DisputesPage() {
+  const user = await requireUser();
+  const disputes = await prisma.disputeCase.findMany({
+    where: { userId: user.id },
+    include: { tradeline: true },
+    orderBy: { id: "desc" },
+  });
 
-const findings: Array<{
-  creditor: string;
-  account: string;
-  code: string;
-  severity: Severity;
-  detail: string;
-  bureaus: { eq?: string; ex?: string; tu?: string };
-}> = [
-  {
-    creditor: "Capital One",
-    account: "•••• 4421",
-    code: "Balance mismatch",
-    severity: "high",
-    detail: "Equifax reports a different balance than Experian and TransUnion on the same account.",
-    bureaus: { eq: "$1,284", ex: "$1,402", tu: "$1,402" },
-  },
-  {
-    creditor: "Sallie Mae",
-    account: "•••• 8839",
-    code: "Status mismatch",
-    severity: "medium",
-    detail: "TransUnion reports the account as Closed while the other bureaus report Open.",
-    bureaus: { eq: "Open", ex: "Open", tu: "Closed" },
-  },
-  {
-    creditor: "LVNV Funding",
-    account: "•••• 0021",
-    code: "Duplicate report",
-    severity: "high",
-    detail: "Same collection appears twice on Experian under slightly different identifiers.",
-    bureaus: { eq: "—", ex: "Duplicate", tu: "Reported" },
-  },
-];
+  const byStatus = (s: string[]) => disputes.filter((d) => s.includes(d.status));
+  const active = byStatus(["DRAFT", "NEEDS_USER_CONFIRMATION", "READY_FOR_PAYMENT", "PAID", "MAILED"]);
+  const delivered = byStatus(["DELIVERED", "RESPONSE_RECEIVED"]);
+  const closed = byStatus(["CLOSED", "ESCALATION_READY"]);
 
-export default function DisputesPage() {
+  const statusColor: Record<string, string> = {
+    DRAFT: "bg-ink-100 text-ink-700",
+    READY_FOR_PAYMENT: "bg-amber-100 text-amber-700",
+    PAID: "bg-indigo-100 text-indigo-700",
+    MAILED: "bg-blue-100 text-blue-700",
+    DELIVERED: "bg-emerald-100 text-emerald-700",
+    CLOSED: "bg-emerald-100 text-emerald-700",
+    ESCALATION_READY: "bg-rose-100 text-rose-700",
+  };
+
+  function DisputeRow({ d }: { d: (typeof disputes)[0] }) {
+    return (
+      <li className="flex items-center justify-between py-3">
+        <div>
+          <div className="font-semibold text-ink-900">
+            {d.tradeline?.creditorName ?? "Bureau packet"}
+          </div>
+          <div className="text-xs text-ink-500">
+            {d.letterType.replace(/_/g, " ")} · {d.aiReasonSummary.slice(0, 80)}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${statusColor[d.status] ?? "bg-ink-100 text-ink-700"}`}>
+            {d.status}
+          </span>
+          {d.status === "DRAFT" && (
+            <Link href={`/dashboard/checkout/${d.id}`} className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white">
+              Continue →
+            </Link>
+          )}
+        </div>
+      </li>
+    );
+  }
+
   return (
     <div className="space-y-10">
       <PageHeader
-        eyebrow="Heatmap"
-        title="Cross-bureau analyzer"
-        description="Every flagged item below is a factual inconsistency across bureaus. You decide which to dispute. Nothing leaves your account without confirmation."
-        actions={<Button>Open builder</Button>}
+        eyebrow="Disputes"
+        title="Your dispute cases"
+        description="Every dispute packet you've drafted, sent, or received a response on."
+        actions={
+          <Link href="/dashboard/reports" className="rounded-lg bg-ink-900 px-4 py-2 text-xs font-semibold text-white">
+            New dispute from report →
+          </Link>
+        }
       />
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Items flagged" value="11" delta="3 high" intent="down" />
-        <KpiCard label="High severity" value="3" hint="Strongest factual basis" />
-        <KpiCard label="Medium" value="5" hint="Worth a second look" />
-        <KpiCard label="Low" value="3" hint="Informational only" />
-      </section>
-
-      <Surface className="p-8">
-        <SectionHeader title="Flagged tradelines" action={<Chip tone="accent">Live snapshot</Chip>} />
-        <div className="space-y-4">
-          {findings.map((f) => (
-            <div
-              key={f.creditor + f.account}
-              className="group rounded-2xl border border-ink-100 bg-white p-6 transition hover:shadow-cardHover"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-display text-lg font-semibold text-ink-900">{f.creditor}</h3>
-                    <span className="text-xs text-ink-400">{f.account}</span>
-                  </div>
-                  <p className="mt-1 text-sm text-ink-500">{f.detail}</p>
-                </div>
-                <Chip tone={sevTone[f.severity]}>{f.code}</Chip>
-              </div>
-
-              <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                {(["eq", "ex", "tu"] as const).map((b) => {
-                  const labels = { eq: "Equifax", ex: "Experian", tu: "TransUnion" };
-                  const v = f.bureaus[b];
-                  return (
-                    <div
-                      key={b}
-                      className={`rounded-xl border p-4 ${
-                        v && v !== "—"
-                          ? "border-ink-100 bg-ink-50/40"
-                          : "border-dashed border-ink-200 bg-white"
-                      }`}
-                    >
-                      <p className="text-[11px] font-semibold uppercase tracking-widest text-ink-400">
-                        {labels[b]}
-                      </p>
-                      <p className="mt-1 font-display text-lg font-semibold text-ink-900">{v ?? "—"}</p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-5 flex items-center justify-between">
-                <p className="text-xs text-ink-400">User-confirmed factual basis only.</p>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm">View evidence</Button>
-                  <Button size="sm">Prepare dispute</Button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Surface>
+      {disputes.length === 0 ? (
+        <Surface className="p-10 text-center">
+          <h2 className="text-lg font-semibold text-ink-900">No disputes yet</h2>
+          <p className="mt-2 text-sm text-ink-600">
+            Upload a credit report, run the AI analysis, and select items to dispute. Your dispute history will appear here.
+          </p>
+          <Link href="/dashboard/reports" className="mt-4 inline-block rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white">
+            Upload a report
+          </Link>
+        </Surface>
+      ) : (
+        <>
+          {active.length > 0 && (
+            <Surface className="p-6">
+              <h2 className="text-lg font-semibold text-ink-900">Active ({active.length})</h2>
+              <ul className="mt-4 divide-y divide-ink-100 text-sm">
+                {active.map((d) => <DisputeRow key={d.id} d={d} />)}
+              </ul>
+            </Surface>
+          )}
+          {delivered.length > 0 && (
+            <Surface className="p-6">
+              <h2 className="text-lg font-semibold text-ink-900">Delivered — awaiting response ({delivered.length})</h2>
+              <ul className="mt-4 divide-y divide-ink-100 text-sm">
+                {delivered.map((d) => <DisputeRow key={d.id} d={d} />)}
+              </ul>
+            </Surface>
+          )}
+          {closed.length > 0 && (
+            <Surface className="p-6">
+              <h2 className="text-lg font-semibold text-ink-900">Resolved ({closed.length})</h2>
+              <ul className="mt-4 divide-y divide-ink-100 text-sm">
+                {closed.map((d) => <DisputeRow key={d.id} d={d} />)}
+              </ul>
+            </Surface>
+          )}
+        </>
+      )}
     </div>
   );
 }
