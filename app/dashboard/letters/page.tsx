@@ -67,7 +67,7 @@ export default function LettersPage() {
               </div>
               <div className="flex items-center justify-between">
                 <dt className="text-ink-500">Total</dt>
-                <dd className="font-display text-lg font-semibold text-ink-900">$31.95</dd>
+                <dd className="font-display text-lg font-semibold text-ink-900">$12.95</dd>
               </div>
             </dl>
           </Surface>

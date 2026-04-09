@@ -750,7 +750,7 @@ function PricingTeaser() {
             Action pricing
           </p>
           <p className="mt-3 font-serif text-[30px] leading-tight text-[#0a0f1c]">
-            $19 software fee · $12.95 certified mailing
+            $12.95 flat per bureau packet · certified mail included
           </p>
           <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-[#4a4638]">
             You review, you confirm, you dispatch. No subscription required to use the platform.
