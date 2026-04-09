@@ -16,10 +16,9 @@ const NAV_DASHBOARD = [
 
 const NAV_ADMIN = [
   { href: "/admin", label: "Command Center" },
-  { href: "/admin/users", label: "Users" },
   { href: "/admin/audit-logs", label: "Audit Log" },
-  { href: "/admin/billing", label: "Billing" },
-  { href: "/admin/shadow-strike", label: "Shadow Strike" },
+  { href: "/admin/mail-jobs", label: "Mail Jobs" },
+  { href: "/admin/growth", label: "Growth Console" },
 ];
 
 export function AppShell({
