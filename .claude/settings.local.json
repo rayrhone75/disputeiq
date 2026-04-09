@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(ls app/api/disputes/create app/api/disputes/[id] app/api/letters/preview app/api/payments/create-checkout app/api/webhooks/letterstream app/api/webhooks/square)",
+      "Bash(ls app/api/disputes/[id]/timeline)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}
