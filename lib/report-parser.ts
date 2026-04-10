@@ -59,6 +59,45 @@ const BUREAU_SHORT: Record<string, Bureau> = {
 const CREDITOR_PATTERN =
   /^([A-Z][A-Z0-9 .,'&\-/()]{2,})$/;
 
+// Strings that look like creditor names but are actually addresses, headers, or garbage.
+const REJECT_CREDITOR_PATTERNS = [
+  /^\d{1,5}\s+[A-Z]/, // street address: "123 MAIN ST"
+  /^P\.?O\.?\s*BOX/i, // PO box
+  /^(APT|SUITE|UNIT|STE|BLDG|FL)\b/i,
+  /^[A-Z]{2}\s+\d{5}/, // state + zip: "CA 90210"
+  /^\d{5}(-\d{4})?$/, // bare zip
+  /^(PERSONAL|INQUIRY|INQUIRIES|PUBLIC|ADDRESS|EMPLOYER|PHONE|EMAIL|SSN|DOB|DATE OF BIRTH)/i,
+  /^(ACCOUNT SUMMARY|CREDIT SCORE|SCORE|FICO|VANTAGE|PAYMENT HISTORY|REMARKS)/i,
+  /^(PAGE|REPORT|GENERATED|PRINTED|COPYRIGHT|DISCLAIMER|TERMS|PRIVACY)/i,
+  /^(CURRENT ADDRESS|PREVIOUS ADDRESS|MAILING ADDRESS)/i,
+  /^[A-Z ]{2,},\s*[A-Z]{2}\s*\d{5}/, // "CITY, ST 12345"
+  /^[A-Z ]+,\s*[A-Z]{2}$/, // "SOME CITY, CA"
+];
+
+function isValidCreditorName(name: string): boolean {
+  if (name.length < 3 || name.length > 60) return false;
+  for (const re of REJECT_CREDITOR_PATTERNS) {
+    if (re.test(name)) return false;
+  }
+  // Must contain at least one letter
+  if (!/[A-Z]/.test(name)) return false;
+  // Reject pure numbers
+  if (/^\d+$/.test(name.replace(/\s/g, ""))) return false;
+  return true;
+}
+
+// Minimum viable tradeline: must have creditor + at least one meaningful field
+function isViableTradeline(t: ParsedTradeline): boolean {
+  if (!isValidCreditorName(t.creditorName)) return false;
+  const hasBalance = t.balanceCents != null && t.balanceCents >= 0;
+  const hasStatus = !!t.statusLabel && t.statusLabel.length > 1;
+  const hasAccount = t.accountRefMasked !== "••••" && t.accountRefMasked.length >= 3;
+  const hasDate = !!t.openedAt || !!t.lastReportedAt || !!t.lastActivityAt;
+  const hasType = !!t.accountType;
+  // Need creditor + at least 1 meaningful attribute
+  return hasBalance || hasStatus || hasAccount || hasDate || hasType || !!t.isCollection || !!t.isMedical;
+}
+
 const ACCOUNT_TYPE_KEYWORDS: Record<string, string> = {
   "credit card": "Credit Card",
   "revolving": "Credit Card",
@@ -195,9 +234,7 @@ function parseTriMergeColumnar(text: string): ParsedTradeline[] {
     if (!trimmed) continue;
 
     // Is this an ALL-CAPS creditor name? (new account block)
-    if (CREDITOR_PATTERN.test(trimmed) && trimmed.length >= 3 && trimmed.length <= 60) {
-      // Skip if it looks like a header/label rather than a creditor
-      if (/^(ACCOUNT|BALANCE|STATUS|DATE|PAYMENT|CREDIT|PERSONAL|ADDRESS|INQUIRY)/i.test(trimmed)) continue;
+    if (CREDITOR_PATTERN.test(trimmed) && isValidCreditorName(trimmed)) {
       flushBlock();
       currentCreditor = trimmed;
       currentBlock = [];
@@ -406,7 +443,8 @@ export function parseReportText(rawText: string): ParseResult {
     tradelines = [...strategy1, ...strategy2, ...strategy3];
   }
 
-  // Deduplicate by creditor+account+bureau
+  // Filter out garbage rows, then deduplicate by creditor+account+bureau
+  tradelines = tradelines.filter(isViableTradeline);
   const seen = new Set<string>();
   tradelines = tradelines.filter((t) => {
     const key = `${t.bureau}::${t.creditorName}::${t.accountRefMasked}`;
