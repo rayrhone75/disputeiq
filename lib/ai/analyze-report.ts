@@ -203,6 +203,34 @@ function detectFindings(tls: Tradeline[]): ReportFinding[] {
     }
   }
 
+  // Detect collections not yet caught above
+  for (const t of tls) {
+    if (t.isCollection && !findings.some((f) => f.tradelineIds.includes(t.id))) {
+      findings.push({
+        tradelineIds: [t.id],
+        creditor: t.creditorName,
+        code: "Collection account",
+        severity: "medium",
+        detail: `Collection account on ${t.bureau} — verify the debt is valid and the reporting is accurate.`,
+        suggestedLetterType: "MOV_REQUEST",
+      });
+    }
+  }
+
+  // Detect charged-off accounts
+  for (const t of tls) {
+    if (t.statusLabel && /charge.?off/i.test(t.statusLabel) && !findings.some((f) => f.tradelineIds.includes(t.id) && f.code.includes("harge"))) {
+      findings.push({
+        tradelineIds: [t.id],
+        creditor: t.creditorName,
+        code: "Charged-off account",
+        severity: "medium",
+        detail: `${t.bureau} reports this account as charged off. Verify dates, balance, and whether it's still updating.`,
+        suggestedLetterType: "FACTUAL_DISPUTE",
+      });
+    }
+  }
+
   return findings;
 }
 
@@ -210,11 +238,19 @@ export async function analyzeReport(tradelines: Tradeline[]): Promise<AnalyzeRes
   const findings = detectFindings(tradelines);
   const triMerge = buildTriMerge(tradelines);
 
+  // Never say "no opportunities" if we have tradelines with potential issues.
+  // Instead distinguish: no findings vs no tradelines vs partial parse.
   if (findings.length === 0) {
+    const collections = tradelines.filter((t) => t.isCollection).length;
+    const summary = tradelines.length === 0
+      ? "No tradelines were parsed from this report. Try re-uploading or using the paste import."
+      : collections > 0
+        ? `We found ${tradelines.length} tradeline(s) including ${collections} collection account(s). Rule-based checks did not flag cross-bureau mismatches, but you may still want to review individual items manually.`
+        : `We found ${tradelines.length} tradeline(s). No automated cross-bureau mismatches were detected, but individual items may still warrant manual review.`;
     return {
       findings,
       triMerge,
-      summary: "No automated dispute opportunities detected from the parsed tradelines.",
+      summary,
       aiLive: false,
     };
   }

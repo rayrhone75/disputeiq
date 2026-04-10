@@ -57,5 +57,20 @@ export async function POST(req: NextRequest) {
     metadataJson: { hash, parsedCount: tradelines.length, reviewFlags: parsed.reviewFlags, bureauGuess: parsed.bureauGuess },
   });
 
-  return NextResponse.json({ reportId: report.id, parsedCount: tradelines.length });
+  const signalCount = tradelines.reduce((n, t) => n + (t.signalSummary?.length ?? 0), 0);
+  const parseStatus =
+    tradelines.length > 0
+      ? "parsed"
+      : parsed.reviewFlags.length > 0
+        ? "partial_needs_review"
+        : "empty";
+
+  return NextResponse.json({
+    reportId: report.id,
+    parsedCount: tradelines.length,
+    signalCount,
+    reviewFlags: parsed.reviewFlags,
+    bureausDetected: parsed.bureausDetected ?? [],
+    parseStatus,
+  });
 }
