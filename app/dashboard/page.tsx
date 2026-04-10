@@ -148,6 +148,7 @@ export default async function DashboardOverview() {
 
   return (
     <div className="space-y-10">
+      <SubscriptionBanner status={packetUsage.plan ? (await prisma.userSubscription.findUnique({ where: { userId: user.id } }))?.status ?? null : null} />
       <OnboardingBanner userId={user.id} />
 
       <PageHeader
@@ -331,6 +332,46 @@ export default async function DashboardOverview() {
       </footer>
     </div>
   );
+}
+
+function SubscriptionBanner({ status }: { status: string | null }) {
+  if (!status || status === "active") return null;
+
+  if (status === "past_due") {
+    return (
+      <section className="rounded-2xl border-2 border-rose-300 bg-rose-50 p-6">
+        <h2 className="text-lg font-semibold text-rose-900">Payment failed</h2>
+        <p className="mt-1 text-sm text-rose-900/75">
+          Your subscription payment failed. New disputes and packet sending are paused
+          until your payment method is updated.
+        </p>
+        <p className="mt-3 text-xs text-rose-900/60">
+          Your card on file may have expired or been declined. Update your payment method
+          through Square, or contact support@disputeiq.org for help.
+        </p>
+      </section>
+    );
+  }
+
+  if (status === "canceled") {
+    return (
+      <section className="rounded-2xl border border-amber-200 bg-amber-50/80 p-6">
+        <h2 className="text-lg font-semibold text-amber-900">Subscription canceled</h2>
+        <p className="mt-1 text-sm text-amber-900/75">
+          Your plan is no longer active. You can still view your history, but new disputes
+          require an active subscription.
+        </p>
+        <Link
+          href="/dashboard/onboarding"
+          className="mt-3 inline-block rounded-lg bg-amber-600 px-4 py-2 text-xs font-semibold text-white"
+        >
+          Resubscribe →
+        </Link>
+      </section>
+    );
+  }
+
+  return null;
 }
 
 async function OnboardingBanner({ userId }: { userId: string }) {
