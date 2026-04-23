@@ -18,7 +18,7 @@ export const CREDIT_MONITORING = {
   enrollUrl:
     process.env.IDIQ_AFFILIATE_URL ??
     process.env.NEXT_PUBLIC_IDIQ_AFFILIATE_URL ??
-    "https://www.identityiq.com/",
+    "https://www.identityiq.com/securepreferred.aspx?offercode=431298HW",
   disclosure:
     "IdentityIQ membership is the supported report source for DisputeIQ and is billed separately by IdentityIQ. This charge is not included in your DisputeIQ subscription.",
 } as const;

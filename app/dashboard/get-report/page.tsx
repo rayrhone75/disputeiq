@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { IdiqContinueButton } from "@/components/dashboard/IdiqContinueButton";
 import { CreditReportStatusChip } from "@/components/dashboard/CreditReportStatusChip";
+import { ConnectReportPanel } from "@/components/dashboard/ConnectReportPanel";
 import { buildIdiqEnrollUrl, IDIQ, loadIdiqConfig } from "@/lib/integrations/identityiq";
 import { loadCreditReportStatus } from "@/lib/credit-import/status";
 
@@ -9,116 +11,372 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Get your credit report — DisputeIQ",
   description:
-    "Continue into the IDIQ-connected credit report flow. DisputeIQ works best with the IDIQ report source for accurate import and dispute workflow.",
+    "Guided IdentityIQ setup for DisputeIQ — activate your monitoring, connect your 3-bureau report, and start your dispute workflow.",
 };
 
-export default async function GetReportPage() {
+const HELPFUL_DOCS = [
+  "Government-issued ID",
+  "Proof of address",
+  "Social Security verification (only if needed)",
+  "Collection letters",
+  "Credit denial letters",
+  "Medical billing records (if relevant)",
+  "Bankruptcy discharge or court paperwork",
+  "Police report / identity theft affidavit (if relevant)",
+  "Previous bureau responses",
+  "Letters already sent to bureaus or creditors",
+];
+
+const WHAT_HAPPENS_NEXT = [
+  { title: "Activate IdentityIQ", detail: "Complete your monitoring setup first." },
+  { title: "Connect your credit report", detail: "Use auto-connect or fallback upload." },
+  { title: "Upload your documents", detail: "Add proof and supporting paperwork." },
+  {
+    title: "Review negative items and opportunities",
+    detail: "DisputeIQ summarizes what needs attention.",
+  },
+  {
+    title: "Start your dispute workflow",
+    detail: "Choose what to challenge and begin tracking.",
+  },
+];
+
+// Status → which step is "current", which are "upcoming", which are "locked".
+function stepStatus(
+  kind: string,
+  stepIndex: number,
+): "current" | "upcoming" | "complete" | "locked" {
+  const stateStep =
+    kind === "not_started"
+      ? 0
+      : kind === "in_progress"
+        ? 1
+        : kind === "failed"
+          ? 1
+          : kind === "imported"
+            ? 3
+            : 0;
+  if (stepIndex < stateStep) return "complete";
+  if (stepIndex === stateStep) return "current";
+  if (stepIndex === stateStep + 1) return "upcoming";
+  return "locked";
+}
+
+export default async function GetReportPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ welcome?: string }>;
+}) {
   const user = await requireUser();
-  const config = await loadIdiqConfig();
-  const url = buildIdiqEnrollUrl({
+  const params = (await searchParams) ?? {};
+  const welcoming = params.welcome === "1";
+
+  const [config, status] = await Promise.all([loadIdiqConfig(), loadCreditReportStatus(user.id)]);
+  const idiqUrl = buildIdiqEnrollUrl({
     baseUrl: config.affiliateUrl,
     userId: user.id,
     campaign: "dashboard_get_report",
     source: "disputeiq",
   });
 
-  const status = await loadCreditReportStatus(user.id);
+  const steps: Array<{
+    n: string;
+    title: string;
+    body: string;
+    cta: string;
+    secondary?: string;
+    status: ReturnType<typeof stepStatus>;
+  }> = [
+    {
+      n: "01",
+      title: "Activate IdentityIQ",
+      body:
+        "Use your IdentityIQ link to activate monitoring and report access. When finished, return here to continue.",
+      cta: "Activate IdentityIQ",
+      secondary: "I already activated IdentityIQ",
+      status: stepStatus(status.kind, 0),
+    },
+    {
+      n: "02",
+      title: "Connect Credit Report",
+      body:
+        "Click connect to attempt automatic import. If auto-connect isn't available, upload JSON or paste report data manually.",
+      cta: "Connect Credit Report",
+      secondary: "Upload / Paste JSON",
+      status: stepStatus(status.kind, 1),
+    },
+    {
+      n: "03",
+      title: "Upload Documents",
+      body:
+        "Upload your ID, proof of address, prior bureau letters, collection notices, and any supporting evidence.",
+      cta: "Upload Documents",
+      secondary: "See recommended documents",
+      status: stepStatus(status.kind, 2),
+    },
+    {
+      n: "04",
+      title: "Review Report",
+      body:
+        "Once your report is connected, review tradelines, inquiries, collections, public records, and dispute opportunities.",
+      cta: "Review Report Summary",
+      secondary: "Go to dashboard",
+      status: stepStatus(status.kind, 3),
+    },
+  ];
+
+  const step1Status: string =
+    status.kind === "not_started"
+      ? "Waiting for IdentityIQ activation"
+      : status.kind === "in_progress"
+        ? "Awaiting report import"
+        : status.kind === "failed"
+          ? "Last import failed — try again"
+          : "Report imported";
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 p-6">
-      <header className="space-y-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-indigo-600">
-          Step · Get your credit report
-        </p>
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900 sm:text-4xl">
-          Get Started with Your Credit Report
-        </h1>
-        <p className="max-w-2xl text-base leading-relaxed text-ink-600">
-          To use DisputeIQ successfully, begin with our supported credit report provider flow.
-          We&apos;ve built the platform to work with the IDIQ-connected report experience so
-          your data imports more reliably and your dispute workflow stays accurate.
-        </p>
-      </header>
+    <div className="min-h-screen bg-neutral-50 text-slate-900">
+      <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
+        {welcoming && (
+          <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            Welcome to DisputeIQ — your account is ready. Let&apos;s get your credit report
+            connected.
+          </div>
+        )}
 
-      <CreditReportStatusChip
-        status={status}
-        notStartedCtaHref={url}
-        eyebrow="Credit Report Status"
-      />
-
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3">
-          <CreditReportStatusChip status={status} compact hideCta />
-          <p className="text-sm font-semibold text-ink-900">
-            Provider: {config.displayName || IDIQ.productName}
-          </p>
+        {/* Top migration banner */}
+        <div className="mb-6 rounded-3xl border border-violet-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="mb-2 inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-violet-700">
+                ScrewedUpCredit migration
+              </div>
+              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                Connect your credit report the right way
+              </h1>
+              <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+                DisputeIQ now uses{" "}
+                <span className="font-semibold text-slate-900">IdentityIQ</span> for report access
+                and monitoring. If you previously used ScrewedUpCredit with MyFreeScoreIQ, switch
+                to IdentityIQ, then return here to connect your report and continue onboarding.
+              </p>
+            </div>
+            <div className="grid w-full max-w-sm grid-cols-2 gap-3">
+              <IdiqContinueButton href={idiqUrl} label="Activate IdentityIQ" />
+              <Link
+                href="#connect"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+              >
+                Connect Report
+              </Link>
+            </div>
+          </div>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
-          <div>
-            <p className="text-sm font-semibold text-ink-900">Continue with IDIQ</p>
-            <p className="mt-1 text-sm text-ink-600">{IDIQ.supportedNote}</p>
-          </div>
-          <IdiqContinueButton href={url} label="Continue with IDIQ" />
-        </div>
-      </div>
+        {/* Live status + what-happens-next */}
+        <div className="mb-8 grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
+          <div className="rounded-3xl bg-slate-950 p-6 text-white shadow-xl">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <p className="text-sm uppercase tracking-[0.28em] text-violet-300">
+                  Get Report Setup
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold">Your live status</h2>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-right">
+                <div className="text-xs uppercase tracking-[0.2em] text-slate-300">Status</div>
+                <div
+                  className={`mt-1 text-sm font-semibold ${
+                    status.kind === "imported"
+                      ? "text-emerald-300"
+                      : status.kind === "failed"
+                        ? "text-rose-300"
+                        : "text-amber-300"
+                  }`}
+                >
+                  {step1Status}
+                </div>
+              </div>
+            </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {[
-          {
-            title: "Why IDIQ",
-            body:
-              "IdentityIQ delivers a clean 3-bureau file that DisputeIQ parses reliably, so your findings and dispute letters reference accurate data.",
-          },
-          {
-            title: "What happens next",
-            body:
-              "Finish the IDIQ signup, pull your report, then return here. Your DisputeIQ workspace will be ready to import and analyze the report.",
-          },
-          {
-            title: "Private by design",
-            body:
-              "Your report stays private. DisputeIQ encrypts sensitive data at rest and never shares your personal information without your confirmation.",
-          },
-        ].map((card) => (
-          <div
-            key={card.title}
-            className="rounded-2xl border border-ink-100 bg-white p-5 shadow-sm"
-          >
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink-400">
-              {card.title}
-            </p>
-            <p className="mt-2 text-sm leading-relaxed text-ink-700">{card.body}</p>
+            <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
+              <CreditReportStatusChip
+                status={status}
+                notStartedCtaHref={idiqUrl}
+                eyebrow="Credit Report Status"
+                className="!bg-transparent !border-0 !p-0 !shadow-none"
+              />
+            </div>
           </div>
-        ))}
-      </div>
 
-      <div className="rounded-2xl border border-ink-100 bg-white p-6">
-        <p className="text-sm font-semibold text-ink-900">How the IDIQ flow works</p>
-        <ol className="mt-3 space-y-2 text-sm text-ink-700">
-          {(config.instructions || "").split("\n").map((line, i) => (
-            <li key={i} className="flex gap-3">
-              <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-semibold text-indigo-700">
-                {i + 1}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">What happens next</h3>
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
+                Guided setup
               </span>
-              <span>{line}</span>
-            </li>
-          ))}
-        </ol>
-      </div>
+            </div>
+            <div className="space-y-4">
+              {WHAT_HAPPENS_NEXT.map((item, idx) => (
+                <div key={item.title} className="flex gap-3">
+                  <div
+                    className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+                      idx === 0 ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    {idx + 1}
+                  </div>
+                  <div>
+                    <div className="font-medium text-slate-900">{item.title}</div>
+                    <div className="text-sm leading-6 text-slate-500">{item.detail}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
-      <div className="rounded-2xl border border-ink-100 bg-ink-50/50 p-6">
-        <p className="text-sm font-semibold text-ink-900">Need help?</p>
-        <p className="mt-1 text-sm text-ink-600">
-          Our support team can guide you through the setup process. Email{" "}
-          <a className="text-indigo-700 underline" href="mailto:support@disputeiq.org">
-            support@disputeiq.org
-          </a>{" "}
-          if you get stuck.
-        </p>
-      </div>
+        {/* Onboarding step cards + side panels */}
+        <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+          <div
+            id="connect"
+            className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+          >
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Onboarding flow</p>
+                <h2 className="mt-1 text-2xl font-semibold tracking-tight">How setup works</h2>
+              </div>
+              <Link
+                href="/dashboard"
+                className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              >
+                View full checklist
+              </Link>
+            </div>
 
-      <p className="text-[11px] leading-relaxed text-ink-500">{config.disclaimer}</p>
+            <div className="space-y-4">
+              {steps.map((step, i) => {
+                const statusStyle =
+                  step.status === "current"
+                    ? "border-violet-300 bg-violet-50"
+                    : step.status === "upcoming"
+                      ? "border-slate-200 bg-white"
+                      : step.status === "complete"
+                        ? "border-emerald-200 bg-emerald-50"
+                        : "border-slate-200 bg-slate-50";
+                const badgeStyle =
+                  step.status === "current"
+                    ? "bg-violet-600 text-white"
+                    : step.status === "complete"
+                      ? "bg-emerald-500 text-white"
+                      : step.status === "upcoming"
+                        ? "bg-slate-100 text-slate-700"
+                        : "bg-slate-200 text-slate-500";
+                return (
+                  <div key={step.n} className={`rounded-[28px] border p-5 ${statusStyle}`}>
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="flex gap-4">
+                        <div
+                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-bold ${badgeStyle}`}
+                        >
+                          {step.status === "complete" ? "✓" : step.n}
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-900">{step.title}</h3>
+                          <p className="mt-1 max-w-2xl text-sm leading-7 text-slate-600">
+                            {step.body}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2 lg:w-64">
+                        {i === 0 && (
+                          <IdiqContinueButton href={idiqUrl} label={step.cta} />
+                        )}
+                        {i !== 0 && (
+                          <Link
+                            href={i === 1 ? "#connect-panel" : "#"}
+                            className={`rounded-2xl px-4 py-3 text-center text-sm font-semibold ${
+                              step.status === "locked"
+                                ? "cursor-not-allowed bg-slate-200 text-slate-500"
+                                : "bg-slate-950 text-white hover:opacity-90"
+                            }`}
+                          >
+                            {step.cta}
+                          </Link>
+                        )}
+                        {step.secondary && (
+                          <Link
+                            href={i === 0 ? "#connect-panel" : "#"}
+                            className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                          >
+                            {step.secondary}
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div id="connect-panel" className="scroll-mt-24">
+              <ConnectReportPanel />
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="text-lg font-semibold">Helpful documents to upload</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Upload what you already have now. You don&apos;t need every item to start, but
+                more documentation gives you a stronger file.
+              </p>
+              <div className="mt-4 grid gap-3">
+                {HELPFUL_DOCS.map((doc) => (
+                  <div
+                    key={doc}
+                    className="flex items-start gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                  >
+                    <div className="mt-1 h-2.5 w-2.5 rounded-full bg-violet-500" />
+                    <span>{doc}</span>
+                  </div>
+                ))}
+              </div>
+              <Link
+                href="/dashboard/proof-vault"
+                className="mt-5 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              >
+                Upload Documents
+              </Link>
+            </div>
+
+            <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+              <div className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-amber-700">
+                Former ScrewedUpCredit users
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900">
+                You need to switch to IdentityIQ
+              </h3>
+              <p className="mt-2 text-sm leading-7 text-slate-700">
+                If you previously used MyFreeScoreIQ with ScrewedUpCredit, complete your
+                IdentityIQ setup first. After that, return here to connect your report and
+                continue with the updated DisputeIQ system.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Supported provider
+              </p>
+              <p className="mt-2 text-sm text-slate-700">{IDIQ.supportedNote}</p>
+              <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+                {config.disclaimer}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

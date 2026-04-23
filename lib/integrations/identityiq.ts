@@ -52,7 +52,7 @@ function envDefaults(): IdiqConfig {
     affiliateUrl:
       process.env.IDIQ_AFFILIATE_URL ??
       process.env.NEXT_PUBLIC_IDIQ_AFFILIATE_URL ??
-      "https://www.identityiq.com/",
+      "https://www.identityiq.com/securepreferred.aspx?offercode=431298HW",
     stageUrl: process.env.IDIQ_STAGE_URL ?? null,
     displayName: process.env.IDIQ_DISPLAY_NAME ?? IDIQ.productName,
     instructions: DEFAULT_INSTRUCTIONS,

@@ -19,7 +19,7 @@ import { LeadCaptureForm } from "@/components/marketing/LeadCaptureForm";
 const IDIQ_BASE =
   process.env.IDIQ_AFFILIATE_URL ??
   process.env.NEXT_PUBLIC_IDIQ_AFFILIATE_URL ??
-  "https://www.identityiq.com/";
+  "https://www.identityiq.com/securepreferred.aspx?offercode=431298HW";
 const idiqHome = buildIdiqEnrollUrl({
   baseUrl: IDIQ_BASE,
   campaign: "home_hero",
