@@ -12,3 +12,6 @@ prisma/*.db
 coverage
 playwright-report
 test-results
+
+# next.js / typescript incremental build artifacts
+*.tsbuildinfo
