@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { IdiqContinueButton } from "@/components/dashboard/IdiqContinueButton";
+import { MarkActivatedButton } from "@/components/dashboard/MarkActivatedButton";
 import { CreditReportStatusChip } from "@/components/dashboard/CreditReportStatusChip";
 import { ConnectReportPanel } from "@/components/dashboard/ConnectReportPanel";
 import { buildIdiqEnrollUrl, IDIQ, loadIdiqConfig } from "@/lib/integrations/identityiq";
@@ -290,27 +291,70 @@ export default async function GetReportPage({
                         </div>
                       </div>
                       <div className="flex flex-col gap-2 lg:w-64">
-                        {i === 0 && (
-                          <IdiqContinueButton href={idiqUrl} label={step.cta} />
-                        )}
-                        {i !== 0 && (
+                        {/* Primary CTA — wired per step */}
+                        {i === 0 && <IdiqContinueButton href={idiqUrl} label={step.cta} />}
+                        {i === 1 && (
                           <Link
-                            href={i === 1 ? "#connect-panel" : "#"}
+                            href="#connect-panel"
+                            className="rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-semibold text-white hover:opacity-90"
+                          >
+                            {step.cta}
+                          </Link>
+                        )}
+                        {i === 2 && (
+                          <Link
+                            href="/dashboard/proof-vault"
                             className={`rounded-2xl px-4 py-3 text-center text-sm font-semibold ${
                               step.status === "locked"
-                                ? "cursor-not-allowed bg-slate-200 text-slate-500"
+                                ? "cursor-not-allowed bg-slate-200 text-slate-500 pointer-events-none"
                                 : "bg-slate-950 text-white hover:opacity-90"
                             }`}
                           >
                             {step.cta}
                           </Link>
                         )}
-                        {step.secondary && (
+                        {i === 3 && (
                           <Link
-                            href={i === 0 ? "#connect-panel" : "#"}
+                            href="/dashboard/reports"
+                            className={`rounded-2xl px-4 py-3 text-center text-sm font-semibold ${
+                              step.status === "locked"
+                                ? "cursor-not-allowed bg-slate-200 text-slate-500 pointer-events-none"
+                                : "bg-slate-950 text-white hover:opacity-90"
+                            }`}
+                          >
+                            {step.cta}
+                          </Link>
+                        )}
+
+                        {/* Secondary — wired per step */}
+                        {i === 0 && (
+                          <MarkActivatedButton
+                            label="I already activated IdentityIQ"
+                            scrollTo="#connect-panel"
+                          />
+                        )}
+                        {i === 1 && (
+                          <Link
+                            href="#connect-panel"
                             className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-900 hover:bg-slate-50"
                           >
-                            {step.secondary}
+                            Upload / Paste JSON
+                          </Link>
+                        )}
+                        {i === 2 && (
+                          <Link
+                            href="#helpful-docs"
+                            className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                          >
+                            See recommended documents
+                          </Link>
+                        )}
+                        {i === 3 && (
+                          <Link
+                            href="/dashboard"
+                            className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                          >
+                            Go to dashboard
                           </Link>
                         )}
                       </div>
@@ -323,10 +367,17 @@ export default async function GetReportPage({
 
           <div className="space-y-6">
             <div id="connect-panel" className="scroll-mt-24">
-              <ConnectReportPanel />
+              <ConnectReportPanel
+                retryImportId={
+                  status.kind === "failed" ? status.latestImportId : null
+                }
+              />
             </div>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div
+              id="helpful-docs"
+              className="scroll-mt-24 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+            >
               <h3 className="text-lg font-semibold">Helpful documents to upload</h3>
               <p className="mt-2 text-sm leading-6 text-slate-500">
                 Upload what you already have now. You don&apos;t need every item to start, but

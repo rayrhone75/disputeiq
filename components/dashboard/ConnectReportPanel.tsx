@@ -8,16 +8,25 @@ type Mode = "auto" | "upload" | "paste";
 // ConnectReportPanel — customer-facing handoff for importing an IdentityIQ
 // credit report. Opens as an inline expandable drawer on /dashboard/get-report.
 //
-// Three paths, all real, none simulated:
+// Four paths, all real, none simulated:
 //   1. Auto-connect — user pastes the IdentityIQ JSON URL + their session
 //      cookie; DisputeIQ's server fetches the report directly.
 //   2. Upload .json — user saves the IdentityIQ report as JSON and uploads it.
 //   3. Paste JSON — user pastes the raw body text.
+//   4. Retry — surfaced when the user's latest import failed; re-runs
+//      normalization against the already-captured raw JSON without asking
+//      them to paste it again.
 //
-// After any path completes a raw capture, we call the normalization endpoint
-// to populate tradelines / inquiries / dispute candidates, then refresh the
-// page so the status chip updates.
-export function ConnectReportPanel() {
+// After any path completes, we call the normalization endpoint to populate
+// tradelines / inquiries / dispute candidates, then refresh the page so the
+// status chip updates.
+export function ConnectReportPanel({
+  retryImportId,
+}: {
+  /** If the user has a FAILED import with raw captured, pass its id to
+   *  render the Retry Import button. */
+  retryImportId?: string | null;
+} = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("auto");
@@ -118,6 +127,27 @@ export function ConnectReportPanel() {
     }
   }
 
+  async function runRetry() {
+    if (!retryImportId) {
+      setError("No previous import to retry.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const summary = await normalize(retryImportId);
+      setSuccess(
+        `Retry succeeded — ${summary.tradelineCount} tradelines, ${summary.candidatesCreated} dispute candidates detected.`,
+      );
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function runPaste() {
     if (!bodyText.trim()) {
       setError("Paste the JSON body first.");
@@ -178,6 +208,26 @@ export function ConnectReportPanel() {
         >
           Paste Report JSON
         </button>
+        {retryImportId && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={runRetry}
+            className="rounded-2xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+          >
+            {busy ? "Retrying…" : "Retry Import"}
+          </button>
+        )}
+        {error && (
+          <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+            {error}
+          </p>
+        )}
+        {success && (
+          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+            {success}
+          </p>
+        )}
       </div>
     );
   }
