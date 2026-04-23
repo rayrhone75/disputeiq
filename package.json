@@ -12,6 +12,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "promote:owner": "tsx scripts/promote-owner.ts",
+    "credit-import:smoke": "tsx scripts/credit-import-smoke.ts",
     "test": "vitest",
     "e2e": "playwright test"
   },
