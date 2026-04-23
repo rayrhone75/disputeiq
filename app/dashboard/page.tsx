@@ -6,6 +6,8 @@ import { FreezePanel } from "@/components/dashboard/FreezePanel";
 import { LetterChecker } from "@/components/dashboard/LetterChecker";
 import { AssistantPanel } from "@/components/dashboard/AssistantPanel";
 import { PacketMeter } from "@/components/dashboard/PacketMeter";
+import { CreditReportStatusChip } from "@/components/dashboard/CreditReportStatusChip";
+import { loadCreditReportStatus } from "@/lib/credit-import/status";
 import { listFreezesForUser } from "@/lib/freeze";
 import { getUserPacketUsage } from "@/lib/billing/usage";
 import { PLANS } from "@/lib/billing/plans";
@@ -23,26 +25,28 @@ const PROGRESS_STEPS = [
 export default async function DashboardOverview() {
   const user = await requireUser();
 
-  const [reports, tradelines, disputes, mailJobs, freezes, packetUsage] = await Promise.all([
-    prisma.creditReport.findMany({
-      where: { userId: user.id },
-      include: { tradelines: true },
-      orderBy: { pulledAt: "desc" },
-    }),
-    prisma.tradeline.findMany({ where: { report: { userId: user.id } } }),
-    prisma.disputeCase.findMany({
-      where: { userId: user.id },
-      include: { tradeline: true },
-      orderBy: { id: "desc" },
-    }),
-    prisma.mailJob.findMany({
-      where: { disputeCase: { userId: user.id } },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
-    listFreezesForUser(user.id),
-    getUserPacketUsage(user.id),
-  ]);
+  const [reports, tradelines, disputes, mailJobs, freezes, packetUsage, creditReportStatus] =
+    await Promise.all([
+      prisma.creditReport.findMany({
+        where: { userId: user.id },
+        include: { tradelines: true },
+        orderBy: { pulledAt: "desc" },
+      }),
+      prisma.tradeline.findMany({ where: { report: { userId: user.id } } }),
+      prisma.disputeCase.findMany({
+        where: { userId: user.id },
+        include: { tradeline: true },
+        orderBy: { id: "desc" },
+      }),
+      prisma.mailJob.findMany({
+        where: { disputeCase: { userId: user.id } },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      }),
+      listFreezesForUser(user.id),
+      getUserPacketUsage(user.id),
+      loadCreditReportStatus(user.id),
+    ]);
 
   const totalItems = tradelines.length;
   const disputableCount = disputes.filter((d) => d.status !== "CLOSED").length;
@@ -156,6 +160,8 @@ export default async function DashboardOverview() {
         title="Your dispute overview"
         description="Live state of every report, packet, and certified mail job in your file. No estimates."
       />
+
+      <CreditReportStatusChip status={creditReportStatus} />
 
       {/* Executive top rail — premium high-signal status */}
       <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -392,10 +398,10 @@ async function OnboardingBanner({ userId }: { userId: string }) {
       label: "Choose plan →",
     },
     report_connect: {
-      title: "Import your credit report",
-      body: "Upload your MyFreeScoreIQ tri-merge PDF so the AI can analyze your tradelines.",
-      href: "/dashboard/reports",
-      label: "Upload report →",
+      title: "Get your credit report",
+      body: "Continue with IDIQ — our supported credit report provider — to pull your 3-bureau file into DisputeIQ.",
+      href: "/dashboard/get-report",
+      label: "Continue with IDIQ →",
     },
     report_pending: {
       title: "Report needs attention",

@@ -54,7 +54,7 @@ export default function SignUpPage() {
       <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 text-sm">
         <p className="font-semibold text-indigo-900">Already a Screwed Up Credit customer?</p>
         <p className="mt-1 text-indigo-900/75">
-          If you already have an active MyFreeScoreIQ account,{" "}
+          If you already have an active IdentityIQ account,{" "}
           <Link href="/sign-in" className="font-semibold underline">
             sign in here
           </Link>{" "}
@@ -67,9 +67,9 @@ export default function SignUpPage() {
           <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-900">
             <p className="font-semibold">Before continuing, please note:</p>
             <ul className="mt-2 space-y-2 text-xs">
-              <li>• MyDIY Credit Repair software is billed separately from MyFreeScoreIQ.</li>
-              <li>• MyFreeScoreIQ is required for report access and monitoring.</li>
-              <li>• MyFreeScoreIQ charges $24.95/month, billed separately.</li>
+              <li>• MyDIY Credit Repair software is billed separately from IdentityIQ.</li>
+              <li>• IdentityIQ is required for report access and monitoring.</li>
+              <li>• IdentityIQ charges $24.95/month, billed separately.</li>
               <li>• Your chosen software plan is billed separately.</li>
               <li>• Included packet limits reset each billing cycle.</li>
             </ul>
@@ -83,7 +83,7 @@ export default function SignUpPage() {
 
           <label className="flex items-start gap-2 text-xs text-[#0a0f1c]/80">
             <input type="checkbox" checked={acceptMonitoring} onChange={(e) => setAcceptMonitoring(e.target.checked)} className="mt-0.5" />
-            I understand MyFreeScoreIQ is required and billed separately at $24.95/month.
+            I understand IdentityIQ is required and billed separately at $24.95/month.
           </label>
 
           <label className="flex items-start gap-2 text-xs text-[#0a0f1c]/80">

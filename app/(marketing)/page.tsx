@@ -2,18 +2,34 @@ import Link from "next/link";
 import { COMPLIANCE_NOTICE } from "@/lib/compliance";
 import { URLS } from "@/lib/urls";
 import { Section } from "@/components/marketing/Section";
-import { MYFREESCORENOW, getEnrollUrl } from "@/lib/integrations/myfreescorenow";
+import { IDIQ, buildIdiqEnrollUrl } from "@/lib/integrations/identityiq";
 import { TrustSection } from "@/components/marketing/TrustSection";
 import { LeadCaptureForm } from "@/components/marketing/LeadCaptureForm";
 
 /* ----------------------------------------------------------------------------
  * DisputeIQ — premium marketing homepage.
  * Positioning: identify · challenge · track · escalate.
- * Primary funnel entry: MyFreeScoreNow 3-bureau report intake.
+ * Primary funnel entry: IdentityIQ (IDIQ) 3-bureau report intake.
+ *
+ * The marketing homepage uses env-backed IDIQ defaults (not the DB-managed
+ * setting) so it can stay purely static / cached. The authenticated
+ * dashboard get-report flow loads the live admin setting instead.
  * -------------------------------------------------------------------------- */
 
-const mfsnHome = getEnrollUrl({ campaign: "home_hero", source: "disputeiq" });
-const mfsnStart = getEnrollUrl({ campaign: "home_start_step", source: "disputeiq" });
+const IDIQ_BASE =
+  process.env.IDIQ_AFFILIATE_URL ??
+  process.env.NEXT_PUBLIC_IDIQ_AFFILIATE_URL ??
+  "https://www.identityiq.com/";
+const idiqHome = buildIdiqEnrollUrl({
+  baseUrl: IDIQ_BASE,
+  campaign: "home_hero",
+  source: "disputeiq",
+});
+const idiqStart = buildIdiqEnrollUrl({
+  baseUrl: IDIQ_BASE,
+  campaign: "home_start_step",
+  source: "disputeiq",
+});
 
 export default function HomePage() {
   return (
@@ -202,7 +218,7 @@ function DashboardMock() {
           <p className="text-[10px] uppercase tracking-[0.18em] text-white/40">Activity timeline</p>
           <ol className="mt-3 space-y-2.5">
             {[
-              ["Report pulled via MyFreeScoreNow", "now", "bg-indigo-400"],
+              ["Report pulled via IdentityIQ", "now", "bg-indigo-400"],
               ["Cross-bureau audit complete", "1m", "bg-violet-400"],
               ["Letter mailed via USPS certified", "1h", "bg-emerald-400"],
             ].map(([t, ts, dot]) => (
@@ -261,7 +277,7 @@ function PressStrip() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Start Here — MyFreeScoreNow funnel entry                                  */
+/*  Start Here — IdentityIQ funnel entry                                       */
 /* -------------------------------------------------------------------------- */
 function StartHere() {
   return (
@@ -276,8 +292,8 @@ function StartHere() {
           </h2>
           <p className="mt-5 max-w-2xl text-[16px] leading-relaxed text-[#4a4638]">
             You can't challenge what you can't see. Every DisputeIQ workflow begins with a live
-            3-bureau report pulled through our Screwed Up Credit intake partner,{" "}
-            <span className="font-semibold text-[#0a0f1c]">MyFreeScoreNow</span>.
+            3-bureau report pulled through our supported provider,{" "}
+            <span className="font-semibold text-[#0a0f1c]">IdentityIQ</span>.
           </p>
         </div>
 
@@ -297,7 +313,7 @@ function StartHere() {
                 <span className="italic text-white/85">in under two minutes.</span>
               </h3>
               <p className="mt-5 max-w-xl text-[14px] leading-relaxed text-white/70">
-                MyFreeScoreNow delivers live Experian, Equifax, and TransUnion data so DisputeIQ
+                IdentityIQ delivers live Experian, Equifax, and TransUnion data so DisputeIQ
                 can run its cross-bureau analysis the moment your file lands.
               </p>
 
@@ -317,12 +333,12 @@ function StartHere() {
 
               <div className="mt-9 flex flex-wrap items-center gap-3">
                 <a
-                  href={mfsnHome}
+                  href={idiqHome}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#0a0f1c] shadow-[0_18px_60px_-16px_rgba(255,255,255,0.55)] transition hover:scale-[1.015]"
                 >
-                  {MYFREESCORENOW.ctaLabel}
+                  Continue with {IDIQ.productName} →
                 </a>
                 <Link
                   href="/get-started"
@@ -333,8 +349,8 @@ function StartHere() {
               </div>
 
               <p className="mt-7 text-[11px] leading-relaxed text-white/45">
-                MyFreeScoreNow enrollment is provided by our ecosystem partner under the
-                Screwed Up Credit umbrella. DisputeIQ does not sell credit monitoring.
+                IdentityIQ is the supported report provider for DisputeIQ. DisputeIQ is a
+                workflow tool — we do not sell credit monitoring.
               </p>
             </div>
           </div>
@@ -352,7 +368,7 @@ function StartHere() {
                 {
                   n: "01",
                   t: "Get your report",
-                  d: "Enroll through MyFreeScoreNow and pull your live 3-bureau file.",
+                  d: "Continue with IdentityIQ and pull your live 3-bureau file.",
                 },
                 {
                   n: "02",
@@ -378,12 +394,12 @@ function StartHere() {
             </ol>
             <div className="mt-8 border-t border-[#e8e4d8] pt-6">
               <a
-                href={mfsnStart}
+                href={idiqStart}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#0a0f1c] bg-[#0a0f1c] px-5 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#111827]"
               >
-                Begin with MyFreeScoreNow →
+                Continue with IdentityIQ →
               </a>
             </div>
           </div>
@@ -639,12 +655,13 @@ function Coexistence() {
               </h2>
               <p className="mt-5 max-w-xl text-[14px] leading-relaxed text-[#4a4638]">
                 Screwed Up Credit is the parent ecosystem for our credit operations tooling.
-                DisputeIQ is the executive-grade action platform. MyFreeScoreNow is the partner
-                product we use for live 3-bureau report intake.
+                DisputeIQ is the executive-grade action platform. IdentityIQ is the
+                supported provider we use for live 3-bureau report intake.
               </p>
               <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-[#4a4638]">
-                When you enroll through MyFreeScoreNow on our homepage, you're starting the
-                Screwed Up Credit customer journey that ends in your DisputeIQ command center.
+                When you continue through IdentityIQ from our homepage, you&apos;re starting
+                the Screwed Up Credit customer journey that ends in your DisputeIQ command
+                center.
               </p>
             </div>
             <div className="grid gap-3">
@@ -655,9 +672,9 @@ function Coexistence() {
                   d: "Identify, challenge, track, escalate — your primary workspace.",
                 },
                 {
-                  h: "MyFreeScoreNow",
-                  s: "Report intake partner",
-                  d: "Live 3-bureau report pulls used by the Screwed Up Credit journey.",
+                  h: "IdentityIQ",
+                  s: "Supported report provider",
+                  d: "Live 3-bureau report pulls used across the Screwed Up Credit journey.",
                 },
                 {
                   h: "Screwed Up Credit",
@@ -762,7 +779,7 @@ function PricingTeaser() {
       </div>
       <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
         <p className="text-xs text-[#4a4638]">
-          Extra packets $19.95 each · MyFreeScoreIQ $24.95/mo billed separately · Not charged per item
+          Extra packets $19.95 each · IdentityIQ billed separately · Not charged per item
         </p>
         <Link
           href="/pricing"

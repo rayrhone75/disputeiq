@@ -1,0 +1,49 @@
+"use client";
+
+// Premium CTA for the IDIQ onboarding step. Tracks the click client-side so
+// we can surface "opened IDIQ but didn't return" on the support console.
+export function IdiqContinueButton({
+  href,
+  label = "Continue with IDIQ",
+}: {
+  href: string;
+  label?: string;
+}) {
+  function onClick() {
+    // Fire-and-forget — we don't block the redirect if telemetry fails.
+    fetch("/api/idiq/click", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+      keepalive: true,
+    }).catch(() => {});
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={onClick}
+      className="inline-flex items-center justify-center gap-2 rounded-xl bg-ink-900 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_48px_-18px_rgba(79,70,229,0.6)] transition hover:-translate-y-0.5 hover:bg-[#111827]"
+    >
+      {label}
+      <svg
+        aria-hidden
+        width="16"
+        height="16"
+        viewBox="0 0 20 20"
+        fill="none"
+        className="text-white/80"
+      >
+        <path
+          d="M7 5l5 5-5 5"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </a>
+  );
+}

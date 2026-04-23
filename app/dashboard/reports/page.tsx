@@ -36,7 +36,7 @@ export default async function ReportsPage() {
           <SectionHeader title="Report history" />
           {reports.length === 0 ? (
             <p className="text-sm text-ink-500">
-              No reports uploaded yet. Upload your MyFreeScoreIQ tri-merge PDF to get started.
+              No reports uploaded yet. Continue with IdentityIQ and then upload your 3-bureau report.
             </p>
           ) : (
             <dl className="space-y-4 text-sm">
@@ -69,7 +69,11 @@ export default async function ReportsPage() {
               <li key={r.id} className="flex items-center justify-between py-3">
                 <div>
                   <div className="font-semibold text-ink-900">
-                    {r.source === "MYFREESCORENOW" ? "MyFreeScoreIQ" : "Manual upload"}
+                    {r.source === "IDENTITYIQ" || r.source === "MYSCOREIQ"
+                      ? "IdentityIQ"
+                      : r.source === "MYFREESCORENOW"
+                        ? "MyFreeScoreNow (legacy)"
+                        : "Manual upload"}
                   </div>
                   <div className="text-xs text-ink-500">
                     {r.pulledAt.toLocaleDateString()} · {r.tradelines.length} tradelines

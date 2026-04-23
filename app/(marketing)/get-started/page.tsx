@@ -1,29 +1,37 @@
 import Link from "next/link";
 import { URLS } from "@/lib/urls";
-import { MYFREESCORENOW, getEnrollUrl } from "@/lib/integrations/myfreescorenow";
+import { IDIQ, buildIdiqEnrollUrl } from "@/lib/integrations/identityiq";
 
 export const metadata = {
   title: "Get started — DisputeIQ",
   description:
-    "Three steps to turn your live 3-bureau report into disciplined credit action: get your report, return to DisputeIQ, upload and begin analysis.",
+    "Three steps to turn your live 3-bureau IdentityIQ report into disciplined credit action: get your report, return to DisputeIQ, import and begin analysis.",
 };
 
-const mfsn = getEnrollUrl({ campaign: "get_started_primary", source: "disputeiq" });
+const IDIQ_BASE =
+  process.env.IDIQ_AFFILIATE_URL ??
+  process.env.NEXT_PUBLIC_IDIQ_AFFILIATE_URL ??
+  "https://www.identityiq.com/";
+const idiqLink = buildIdiqEnrollUrl({
+  baseUrl: IDIQ_BASE,
+  campaign: "get_started_primary",
+  source: "disputeiq",
+});
 
 const steps = [
   {
     n: "01",
     k: "Report intake",
     t: "Get your real 3-bureau report",
-    d: "Enroll through MyFreeScoreNow to pull a live Experian, Equifax, and TransUnion file. This is the report DisputeIQ will analyze.",
+    d: "Continue with IdentityIQ to pull a live Experian, Equifax, and TransUnion file. This is the report DisputeIQ will analyze.",
     bullets: [
       "Live tri-merge report",
       "All three bureaus",
       "Refresh on demand",
       "Delivered to you, not to us",
     ],
-    cta: { label: "Start with MyFreeScoreNow →", href: mfsn, external: true },
-    meta: `${MYFREESCORENOW.productName} · a Screwed Up Credit partner product`,
+    cta: { label: "Continue with IdentityIQ →", href: idiqLink, external: true },
+    meta: `${IDIQ.productName} · the supported provider for DisputeIQ`,
   },
   {
     n: "02",
@@ -73,8 +81,8 @@ export default function GetStartedPage() {
             <span className="italic">One command center.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-[16px] leading-relaxed text-[#4a4638]">
-            Every DisputeIQ workflow begins with a real 3-bureau report. Start with our ecosystem
-            partner MyFreeScoreNow, return to DisputeIQ, and turn the file into action.
+            Every DisputeIQ workflow begins with a real 3-bureau report. Start with our
+            supported provider IdentityIQ, return to DisputeIQ, and turn the file into action.
           </p>
         </div>
       </section>
@@ -199,10 +207,11 @@ export default function GetStartedPage() {
             </h3>
             <ul className="mt-7 grid gap-5 text-[14px] leading-relaxed text-[#3d3a2e] sm:grid-cols-2">
               <li>
-                <p className="font-semibold text-[#0a0f1c]">Why MyFreeScoreNow?</p>
+                <p className="font-semibold text-[#0a0f1c]">Why IdentityIQ?</p>
                 <p className="mt-1 text-[#4a4638]">
-                  MyFreeScoreNow is the 3-bureau report intake lane inside the Screwed Up Credit
-                  ecosystem. It delivers the tri-merge file DisputeIQ uses for analysis.
+                  IdentityIQ is the supported report provider for DisputeIQ. It delivers the
+                  3-bureau file DisputeIQ uses for analysis — reliable imports, accurate
+                  dispute workflow.
                 </p>
               </li>
               <li>
