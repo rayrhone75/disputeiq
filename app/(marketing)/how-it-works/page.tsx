@@ -4,39 +4,51 @@ import { URLS } from "@/lib/urls";
 export const metadata = {
   title: "How it works — DisputeIQ",
   description:
-    "The DisputeIQ method: upload, analyze, prepare, dispatch, and track — with audit-grade transparency at every step.",
+    "The full DisputeIQ loop: import, review, build, send, track, parse responses, and escalate — with audit-grade transparency at every step.",
 };
 
 const chapters = [
   {
     n: "I",
-    t: "Upload your reports",
-    d: "Drop your tri-merge PDF. The file is encrypted on upload and stored in an isolated vault keyed to you alone. We never co-mingle data across users.",
-    bullets: ["Encrypted on upload", "Per-tenant vault", "Hash-verified"],
+    t: "Import your report",
+    d: "Drop your tri-merge PDF. Our deep parser reads Equifax, Experian, and TransUnion columns row-by-row — dates, balances, statuses, and ownership flags — then stores the file in a per-tenant encrypted vault.",
+    bullets: ["Tri-merge parser", "Per-tenant vault", "Hash-verified"],
   },
   {
     n: "II",
-    t: "AI analyzes & flags",
-    d: "Cross-bureau diffing surfaces balance, status, date, and ownership inconsistencies — ranked by severity. Every finding is explained in plain English.",
-    bullets: ["Cross-bureau diffs", "Severity-ranked", "Plain-English notes"],
+    t: "Review AI findings",
+    d: "Cross-bureau diffing and a rule-based signal engine surface every inconsistency, ranked by severity. Each finding is explained in plain English with the legal basis quoted — FCRA §1681i, §1681s-2, and more.",
+    bullets: ["Severity-ranked", "Plain-English notes", "Legal basis cited"],
   },
   {
     n: "III",
-    t: "Review & prepare",
-    d: "Factual dispute documents are drafted server-side and held until your review. You see the full document before anything is dispatched. Nothing auto-sends.",
-    bullets: ["Server-side drafts", "Held for review", "Confirmation required"],
+    t: "Build the bureau packet",
+    d: "Factual dispute letters are drafted server-side, bundled with parsed evidence, and held until your review. You see the full packet — letter, report excerpts, ID docs — before anything is dispatched.",
+    bullets: ["Server-side drafts", "Evidence bundled", "Held for review"],
   },
   {
     n: "IV",
-    t: "Dispatch via certified mail",
-    d: "Print and mail yourself, or dispatch through our USPS certified mail integration. You get electronic return receipts and live tracking on every letter.",
-    bullets: ["USPS certified", "Return receipts", "Live tracking"],
+    t: "Send certified dispute",
+    d: "Print and mail yourself, or dispatch through our USPS certified mail integration. You get electronic return receipts, tracking numbers, and proof of service on every letter.",
+    bullets: ["USPS certified", "Return receipts", "Proof of service"],
   },
   {
     n: "V",
-    t: "Track every update",
-    d: "Delivery scans, bureau responses, and follow-ups sync into an immutable activity timeline. You always know what happened, when, and why.",
-    bullets: ["Immutable log", "Bureau responses", "Exportable history"],
+    t: "Track delivery",
+    d: "Delivery scans, signature events, and bureau milestones sync into an immutable timeline. The 30-day FCRA clock starts on the scan — and the platform tracks it for you.",
+    bullets: ["Live delivery scans", "Immutable log", "FCRA countdown"],
+  },
+  {
+    n: "VI",
+    t: "Upload bureau response",
+    d: "Drop the bureau's response letter and our AI parser classifies it — verified, updated, deleted, stall, no-investigation, or unclear — then recommends the next legal move with the exact statute.",
+    bullets: ["AI response parser", "Six verdict types", "Next-step guidance"],
+  },
+  {
+    n: "VII",
+    t: "Re-dispute or escalate",
+    d: "If the bureau stalled or verified without investigation, the escalation engine drafts round two, a Method of Verification demand, a CFPB complaint, or a direct §623(b) letter to the furnisher — in that order.",
+    bullets: ["Round-2 drafter", "MOV + CFPB", "Direct furnisher §623(b)"],
   },
 ];
 
@@ -53,12 +65,12 @@ export default function HowItWorks() {
             The method
           </p>
           <h1 className="mx-auto mt-5 max-w-3xl font-serif text-[52px] leading-[1.05] tracking-[-0.01em] text-[#0a0f1c] sm:text-[68px]">
-            Five chapters.
+            Seven chapters.
             <br />
-            <span className="italic">Total transparency.</span>
+            <span className="italic">The full dispute loop.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-[16px] leading-relaxed text-[#4a4638]">
-            No black box. No hidden actions. You confirm every step that leaves the platform.
+            Import, review, build, send, track, parse, escalate. No black box, no hidden actions — you confirm every step that leaves the platform.
           </p>
         </div>
       </section>

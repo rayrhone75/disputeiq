@@ -30,7 +30,13 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
           <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-ink-600">
             <span>Imported {report.pulledAt.toLocaleDateString()}</span>
             <span className="text-ink-300">·</span>
-            <span>{report.source === "MYFREESCORENOW" ? "MyFreeScoreIQ" : "Manual upload"}</span>
+            <span>
+              {report.source === "IDENTITYIQ" || report.source === "MYSCOREIQ"
+                ? "IdentityIQ"
+                : report.source === "MYFREESCORENOW"
+                  ? "MyFreeScoreNow (legacy)"
+                  : "Manual upload"}
+            </span>
             <span className="text-ink-300">·</span>
             <span>{tradelines.length} account(s)</span>
             {collections > 0 && (
@@ -55,7 +61,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
 
       {/* Score notice */}
       <Surface className="p-4 text-center text-sm text-ink-600">
-        Credit scores are not imported from uploaded reports. Your scores are available directly in your MyFreeScoreIQ account.
+        Credit scores are not imported from uploaded reports. Your scores are available directly in your IdentityIQ account.
       </Surface>
 
       {tradelines.length === 0 ? (

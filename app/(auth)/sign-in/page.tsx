@@ -29,7 +29,7 @@ export default function SignInPage() {
       <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 text-sm">
         <p className="font-semibold text-indigo-900">Returning Screwed Up Credit customer?</p>
         <p className="mt-1 text-indigo-900/75">
-          If you already have an active MyFreeScoreIQ account, log in below with your existing
+          If you already have an active DisputeIQ account, log in below with your existing
           credentials. Your dashboard and report data will be ready.
         </p>
       </div>

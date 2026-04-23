@@ -45,8 +45,8 @@ export function ReportPasteImport() {
     <div className="space-y-3">
       <h3 className="text-sm font-semibold text-ink-900">Paste report text</h3>
       <p className="text-xs text-ink-600">
-        Open your MyFreeScoreIQ report, select all text (Ctrl+A), copy it (Ctrl+C), then paste it
-        below. We'll extract tradelines from the text automatically.
+        Open your IdentityIQ report, select all text (Ctrl+A), copy it (Ctrl+C), then paste it
+        below. We&apos;ll extract tradelines from the text automatically.
       </p>
       <textarea
         value={text}

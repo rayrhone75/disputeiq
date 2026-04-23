@@ -6,7 +6,26 @@
       "Bash(ls app/api/disputes/[id]/timeline)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(DATABASE_URL=\"postgresql://fake\" npx prisma generate --schema prisma/schema.prisma)",
+      "Bash(DATABASE_URL=\"postgresql://fake\" npx prisma format --schema prisma/schema.prisma)",
+      "Bash(npx vitest *)",
+      "Bash(npx tsx *)",
+      "Bash(git checkout *)",
+      "Bash(mkdir -p /tmp/idiq-patches)",
+      "Bash(git diff *)",
+      "Read(//tmp/idiq-patches/**)",
+      "Bash(mkdir -p /tmp/idiq-backup)",
+      "Bash(cp components/ui/app-shell.tsx /tmp/idiq-backup/app-shell.tsx)",
+      "Bash(cp app/dashboard/page.tsx /tmp/idiq-backup/dashboard-page.tsx)",
+      "Bash(cp \"app/\\(marketing\\)/page.tsx\" /tmp/idiq-backup/marketing-page.tsx)",
+      "Read(//tmp/**)",
+      "Bash(cp /tmp/idiq-backup/app-shell.tsx components/ui/app-shell.tsx)",
+      "Bash(cp /tmp/idiq-backup/dashboard-page.tsx app/dashboard/page.tsx)",
+      "Bash(cp /tmp/idiq-backup/marketing-page.tsx \"app/\\(marketing\\)/page.tsx\")",
+      "Bash(git rm *)",
+      "Bash(gh auth *)",
+      "Bash(gh pr *)"
     ]
   }
 }

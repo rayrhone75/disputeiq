@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     "application/pdf",
   );
 
-  await prisma.caseAttachment.create({
+  const attachment = await prisma.caseAttachment.create({
     data: {
       disputeCaseId: id,
       kind: "BUREAU_RESPONSE",
@@ -57,14 +57,77 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     temperature: 0.1,
   });
 
+  const verdict = extractVerdict(ai.text);
+
   await writeAuditLog({
     targetUserId: user.id,
     actorUserId: user.id,
     action: "BUREAU_RESPONSE_UPLOADED",
     entityType: "DisputeCase",
     entityId: id,
-    metadataJson: { ref, aiLive: ai.live },
+    metadataJson: {
+      ref,
+      attachmentId: attachment.id,
+      aiLive: ai.live,
+      classification: verdict.classification,
+      recommendation: verdict.recommendation,
+      reasoning: verdict.reasoning,
+    },
   });
 
-  return NextResponse.json({ analysis: ai.text, aiLive: ai.live });
+  return NextResponse.json({
+    attachmentId: attachment.id,
+    analysis: ai.text,
+    verdict,
+    aiLive: ai.live,
+  });
+}
+
+type Verdict = {
+  classification:
+    | "verified"
+    | "updated"
+    | "deleted"
+    | "stall"
+    | "no_investigation"
+    | "unclear";
+  recommendation: "accept_as_resolved" | "re_dispute" | "escalate_cfpb";
+  reasoning: string;
+};
+
+const VALID_CLASS = new Set([
+  "verified",
+  "updated",
+  "deleted",
+  "stall",
+  "no_investigation",
+  "unclear",
+]);
+const VALID_REC = new Set(["accept_as_resolved", "re_dispute", "escalate_cfpb"]);
+
+function extractVerdict(raw: string): Verdict {
+  const fallback: Verdict = {
+    classification: "unclear",
+    recommendation: "re_dispute",
+    reasoning: "Could not parse AI output.",
+  };
+  if (!raw) return fallback;
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) return fallback;
+  try {
+    const parsed = JSON.parse(match[0]);
+    const classification = VALID_CLASS.has(parsed.classification)
+      ? parsed.classification
+      : "unclear";
+    const recommendation = VALID_REC.has(parsed.recommendation)
+      ? parsed.recommendation
+      : "re_dispute";
+    const reasoning =
+      typeof parsed.reasoning === "string" && parsed.reasoning.length > 0
+        ? parsed.reasoning.slice(0, 400)
+        : "No reasoning provided.";
+    return { classification, recommendation, reasoning } as Verdict;
+  } catch {
+    return fallback;
+  }
 }

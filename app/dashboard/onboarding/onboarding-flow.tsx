@@ -196,40 +196,36 @@ function SubscriptionStep() {
 }
 
 function ReportConnectStep() {
-  const router = useRouter();
-
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-ink-200 bg-white p-6 space-y-4">
-        <h2 className="text-lg font-semibold">Step 3: Import your credit report</h2>
+        <h2 className="text-lg font-semibold">Step 3: Get your credit report</h2>
         <p className="text-sm text-ink-600">
-          You need an active MyFreeScoreIQ membership to access your 3-bureau report.
-          If you already have one, upload your report PDF below.
+          DisputeIQ works best with our supported IDIQ credit report flow. Complete this
+          step to unlock your report analysis and dispute workflow.
         </p>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <a
-            href={CREDIT_MONITORING.enrollUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/dashboard/get-report"
             className="flex flex-col items-center rounded-xl border border-indigo-200 bg-indigo-50/60 p-5 text-center hover:border-indigo-300"
           >
-            <div className="text-sm font-semibold text-indigo-900">New to MyFreeScoreIQ?</div>
+            <div className="text-sm font-semibold text-indigo-900">Continue with IDIQ</div>
             <div className="mt-1 text-xs text-indigo-900/70">
-              Sign up for credit monitoring ($24.95/mo, billed separately)
+              Our supported credit report provider flow
             </div>
             <span className="mt-3 text-xs font-semibold text-indigo-600">
-              Get MyFreeScoreIQ →
+              Get started →
             </span>
-          </a>
+          </Link>
 
           <Link
             href="/dashboard/reports"
             className="flex flex-col items-center rounded-xl border border-ink-200 bg-white p-5 text-center hover:border-ink-300"
           >
-            <div className="text-sm font-semibold text-ink-900">Already have MyFreeScoreIQ?</div>
+            <div className="text-sm font-semibold text-ink-900">Already have your report?</div>
             <div className="mt-1 text-xs text-ink-600">
-              Upload your tri-merge PDF report to get started
+              Upload it directly to begin analysis
             </div>
             <span className="mt-3 text-xs font-semibold text-ink-900">
               Upload report →
@@ -238,12 +234,11 @@ function ReportConnectStep() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-900">
-        <p className="font-semibold">Need help with your MyFreeScoreIQ account?</p>
+      <div className="rounded-xl border border-ink-200 bg-white p-4 text-sm text-ink-600">
+        <p className="font-semibold text-ink-900">Need help getting started?</p>
         <p className="mt-1 text-xs">
-          If your report is not loading because your membership is inactive, restore your
-          MyFreeScoreIQ access first, then return here to upload your report. Contact
-          support@disputeiq.org if you need assistance.
+          Our support team can guide you through the IDIQ setup if you get stuck. Email
+          support@disputeiq.org and we&apos;ll walk you through it.
         </p>
       </div>
     </div>

@@ -2,18 +2,34 @@ import Link from "next/link";
 import { COMPLIANCE_NOTICE } from "@/lib/compliance";
 import { URLS } from "@/lib/urls";
 import { Section } from "@/components/marketing/Section";
-import { MYFREESCORENOW, getEnrollUrl } from "@/lib/integrations/myfreescorenow";
+import { IDIQ, buildIdiqEnrollUrl } from "@/lib/integrations/identityiq";
 import { TrustSection } from "@/components/marketing/TrustSection";
 import { LeadCaptureForm } from "@/components/marketing/LeadCaptureForm";
 
 /* ----------------------------------------------------------------------------
  * DisputeIQ — premium marketing homepage.
  * Positioning: identify · challenge · track · escalate.
- * Primary funnel entry: MyFreeScoreNow 3-bureau report intake.
+ * Primary funnel entry: IdentityIQ (IDIQ) 3-bureau report intake.
+ *
+ * The marketing homepage uses env-backed IDIQ defaults (not the DB-managed
+ * setting) so it can stay purely static / cached. The authenticated
+ * dashboard get-report flow loads the live admin setting instead.
  * -------------------------------------------------------------------------- */
 
-const mfsnHome = getEnrollUrl({ campaign: "home_hero", source: "disputeiq" });
-const mfsnStart = getEnrollUrl({ campaign: "home_start_step", source: "disputeiq" });
+const IDIQ_BASE =
+  process.env.IDIQ_AFFILIATE_URL ??
+  process.env.NEXT_PUBLIC_IDIQ_AFFILIATE_URL ??
+  "https://www.identityiq.com/securepreferred.aspx?offercode=431298HW";
+const idiqHome = buildIdiqEnrollUrl({
+  baseUrl: IDIQ_BASE,
+  campaign: "home_hero",
+  source: "disputeiq",
+});
+const idiqStart = buildIdiqEnrollUrl({
+  baseUrl: IDIQ_BASE,
+  campaign: "home_start_step",
+  source: "disputeiq",
+});
 
 export default function HomePage() {
   return (
@@ -25,6 +41,7 @@ export default function HomePage() {
       <DarkProof />
       <Storyline />
       <AISuite />
+      <ProductFrames />
       <Coexistence />
       <Testimonials />
       <TrustSection />
@@ -202,7 +219,7 @@ function DashboardMock() {
           <p className="text-[10px] uppercase tracking-[0.18em] text-white/40">Activity timeline</p>
           <ol className="mt-3 space-y-2.5">
             {[
-              ["Report pulled via MyFreeScoreNow", "now", "bg-indigo-400"],
+              ["Report pulled via IdentityIQ", "now", "bg-indigo-400"],
               ["Cross-bureau audit complete", "1m", "bg-violet-400"],
               ["Letter mailed via USPS certified", "1h", "bg-emerald-400"],
             ].map(([t, ts, dot]) => (
@@ -261,7 +278,7 @@ function PressStrip() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Start Here — MyFreeScoreNow funnel entry                                  */
+/*  Start Here — IdentityIQ funnel entry                                       */
 /* -------------------------------------------------------------------------- */
 function StartHere() {
   return (
@@ -276,8 +293,8 @@ function StartHere() {
           </h2>
           <p className="mt-5 max-w-2xl text-[16px] leading-relaxed text-[#4a4638]">
             You can't challenge what you can't see. Every DisputeIQ workflow begins with a live
-            3-bureau report pulled through our Screwed Up Credit intake partner,{" "}
-            <span className="font-semibold text-[#0a0f1c]">MyFreeScoreNow</span>.
+            3-bureau report pulled through our supported provider,{" "}
+            <span className="font-semibold text-[#0a0f1c]">IdentityIQ</span>.
           </p>
         </div>
 
@@ -297,7 +314,7 @@ function StartHere() {
                 <span className="italic text-white/85">in under two minutes.</span>
               </h3>
               <p className="mt-5 max-w-xl text-[14px] leading-relaxed text-white/70">
-                MyFreeScoreNow delivers live Experian, Equifax, and TransUnion data so DisputeIQ
+                IdentityIQ delivers live Experian, Equifax, and TransUnion data so DisputeIQ
                 can run its cross-bureau analysis the moment your file lands.
               </p>
 
@@ -317,12 +334,12 @@ function StartHere() {
 
               <div className="mt-9 flex flex-wrap items-center gap-3">
                 <a
-                  href={mfsnHome}
+                  href={idiqHome}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#0a0f1c] shadow-[0_18px_60px_-16px_rgba(255,255,255,0.55)] transition hover:scale-[1.015]"
                 >
-                  {MYFREESCORENOW.ctaLabel}
+                  Continue with {IDIQ.productName} →
                 </a>
                 <Link
                   href="/get-started"
@@ -333,8 +350,8 @@ function StartHere() {
               </div>
 
               <p className="mt-7 text-[11px] leading-relaxed text-white/45">
-                MyFreeScoreNow enrollment is provided by our ecosystem partner under the
-                Screwed Up Credit umbrella. DisputeIQ does not sell credit monitoring.
+                IdentityIQ is the supported report provider for DisputeIQ. DisputeIQ is a
+                workflow tool — we do not sell credit monitoring.
               </p>
             </div>
           </div>
@@ -352,7 +369,7 @@ function StartHere() {
                 {
                   n: "01",
                   t: "Get your report",
-                  d: "Enroll through MyFreeScoreNow and pull your live 3-bureau file.",
+                  d: "Continue with IdentityIQ and pull your live 3-bureau file.",
                 },
                 {
                   n: "02",
@@ -378,12 +395,12 @@ function StartHere() {
             </ol>
             <div className="mt-8 border-t border-[#e8e4d8] pt-6">
               <a
-                href={mfsnStart}
+                href={idiqStart}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#0a0f1c] bg-[#0a0f1c] px-5 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#111827]"
               >
-                Begin with MyFreeScoreNow →
+                Continue with IdentityIQ →
               </a>
             </div>
           </div>
@@ -621,6 +638,239 @@ function AISuite() {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Product Frames — five concrete views of the operational product           */
+/* -------------------------------------------------------------------------- */
+function ProductFrames() {
+  return (
+    <section className="relative bg-white">
+      <div className="mx-auto max-w-7xl px-6 py-24">
+        <div className="mb-14 max-w-3xl">
+          <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-indigo-600">
+            Inside the product
+          </p>
+          <h2 className="mt-5 font-serif text-[36px] leading-[1.08] tracking-tight text-[#0a0f1c] sm:text-[48px]">
+            Five views. One operational record.
+          </h2>
+          <p className="mt-5 max-w-2xl text-[16px] leading-relaxed text-[#4a4638]">
+            Every dispute is tracked across five connected surfaces — from the parsed tri-merge to
+            the escalation panel. This is what you actually see.
+          </p>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <FrameTriMerge />
+          <FrameProofVault />
+          <FrameVerdictCard />
+          <FrameTrackingTimeline />
+          <FrameEscalationStages />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FrameShell({
+  eyebrow,
+  title,
+  children,
+  wide,
+}: {
+  eyebrow: string;
+  title: string;
+  children: React.ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <article
+      className={`relative overflow-hidden rounded-2xl border border-[#e8e4d8] bg-[#faf9f4] p-5 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_24px_48px_-28px_rgba(10,15,28,0.14)] ${
+        wide ? "lg:col-span-2" : ""
+      }`}
+    >
+      <div className="mb-4 flex items-center justify-between">
+        <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#8a8472]">
+          {eyebrow}
+        </p>
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+      </div>
+      <h3 className="mb-3 font-serif text-[18px] leading-tight tracking-tight text-[#0a0f1c]">
+        {title}
+      </h3>
+      <div className="rounded-xl border border-[#e0dccf] bg-white p-4 text-[11px] text-[#2a2620]">
+        {children}
+      </div>
+    </article>
+  );
+}
+
+function FrameTriMerge() {
+  const row = (creditor: string, eq: string, ex: string, tu: string, flag?: boolean) => (
+    <tr className={flag ? "bg-rose-50/70" : ""}>
+      <td className="py-1.5 pr-2 font-semibold text-[#0a0f1c]">{creditor}</td>
+      <td className="px-2 text-center tabular-nums">{eq}</td>
+      <td className="px-2 text-center tabular-nums">{ex}</td>
+      <td className="px-2 text-center tabular-nums">{tu}</td>
+    </tr>
+  );
+  return (
+    <FrameShell eyebrow="I. Import" title="Tri-merge parse">
+      <table className="w-full text-[11px]">
+        <thead>
+          <tr className="border-b border-[#e0dccf] text-[9px] uppercase tracking-[0.14em] text-[#8a8472]">
+            <th className="py-1 pr-2 text-left">Creditor</th>
+            <th className="px-2">EQ</th>
+            <th className="px-2">EX</th>
+            <th className="px-2">TU</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[#f1ede2]">
+          {row("Capital One", "$1,284", "$1,402", "$1,284", true)}
+          {row("Discover", "$0", "$0", "$0")}
+          {row("Midland Funding", "$412", "$412", "—")}
+          {row("JPMC Auto", "Closed", "Closed", "Open", true)}
+        </tbody>
+      </table>
+      <p className="mt-3 border-t border-[#f1ede2] pt-2 text-[10px] text-[#6b6556]">
+        2 cross-bureau inconsistencies flagged · column parser confidence: high
+      </p>
+    </FrameShell>
+  );
+}
+
+function FrameProofVault() {
+  const items = [
+    { c: "Capital One", b: "Equifax", v: "stall", tone: "bg-amber-100 text-amber-700" },
+    { c: "Midland", b: "Experian", v: "deleted", tone: "bg-emerald-100 text-emerald-700" },
+    { c: "Discover", b: "TransUnion", v: "verified", tone: "bg-rose-100 text-rose-700" },
+  ];
+  return (
+    <FrameShell eyebrow="VI. Vault" title="Proof Vault">
+      <ul className="space-y-2">
+        {items.map((i) => (
+          <li
+            key={i.c}
+            className="flex items-center justify-between rounded-lg border border-[#f1ede2] p-2.5"
+          >
+            <div>
+              <p className="font-semibold text-[#0a0f1c]">{i.c}</p>
+              <p className="text-[10px] text-[#6b6556]">{i.b} response · PDF filed</p>
+            </div>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${i.tone}`}
+            >
+              {i.v}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-[10px] text-[#6b6556]">
+        Every response parsed · linked to its dispute · one click to escalate
+      </p>
+    </FrameShell>
+  );
+}
+
+function FrameVerdictCard() {
+  return (
+    <FrameShell eyebrow="VI. Response parser" title="AI verdict">
+      <div className="rounded-lg bg-amber-50 p-3 ring-1 ring-amber-200">
+        <div className="flex items-center justify-between">
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-amber-700">
+            Verdict
+          </p>
+          <span className="rounded-full bg-white/80 px-2 py-0.5 text-[9px] font-semibold uppercase text-[#0a0f1c] ring-1 ring-[#e0dccf]">
+            Next: re-dispute (MOV)
+          </span>
+        </div>
+        <p className="mt-1 font-semibold text-[#0a0f1c]">Stall tactic</p>
+        <p className="mt-1.5 text-[11px] leading-relaxed text-[#3d3a2e]">
+          Bureau requested additional ID documentation beyond what §1681i requires. This is a
+          recognized stall pattern.
+        </p>
+        <p className="mt-2 border-l-2 border-amber-300 pl-2 text-[10px] italic text-[#6b6556]">
+          AI reasoning: Response cites 'frivolous' but provides no substantive basis.
+        </p>
+      </div>
+    </FrameShell>
+  );
+}
+
+function FrameTrackingTimeline() {
+  const events = [
+    { t: "Printed by LetterStream", ts: "Tue 9:12a", tone: "bg-indigo-400" },
+    { t: "Accepted at USPS origin", ts: "Tue 4:48p", tone: "bg-indigo-400" },
+    { t: "In transit · Memphis", ts: "Wed 7:02a", tone: "bg-violet-400" },
+    { t: "Delivered · signature on file", ts: "Fri 10:31a", tone: "bg-emerald-400" },
+    { t: "FCRA 30-day clock started", ts: "Fri 10:31a", tone: "bg-emerald-400" },
+  ];
+  return (
+    <FrameShell eyebrow="V. Tracking" title="Certified mail timeline">
+      <ol className="space-y-2">
+        {events.map((e) => (
+          <li key={e.t} className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <span className={`h-1.5 w-1.5 rounded-full ${e.tone}`} />
+              {e.t}
+            </span>
+            <span className="font-mono text-[10px] text-[#8a8472]">{e.ts}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-3 border-t border-[#f1ede2] pt-2 text-[10px] text-[#6b6556]">
+        USPS 9214-8901-2347-3318 · auto follow-up on Apr 30
+      </p>
+    </FrameShell>
+  );
+}
+
+function FrameEscalationStages() {
+  const stages = [
+    { n: "1", t: "Re-dispute", sub: "FCRA §611 round 2", active: false, done: true },
+    { n: "2", t: "MOV demand", sub: "Method of Verification", active: true, done: false },
+    { n: "3", t: "CFPB complaint", sub: "Consent order record", active: false, done: false },
+    { n: "4", t: "§623(b) furnisher", sub: "Direct to creditor", active: false, done: false },
+  ];
+  return (
+    <FrameShell eyebrow="VII. Escalation" title="Four stages, one ladder" wide>
+      <div className="grid gap-2 sm:grid-cols-4">
+        {stages.map((s) => (
+          <div
+            key={s.n}
+            className={`rounded-lg border p-3 ${
+              s.active
+                ? "border-indigo-300 bg-indigo-50/60 ring-1 ring-indigo-200"
+                : s.done
+                  ? "border-emerald-200 bg-emerald-50/60"
+                  : "border-[#f1ede2] bg-[#faf9f4]"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span
+                className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold ${
+                  s.done
+                    ? "bg-emerald-600 text-white"
+                    : s.active
+                      ? "bg-indigo-600 text-white"
+                      : "bg-[#e8e4d8] text-[#6b6556]"
+                }`}
+              >
+                {s.done ? "✓" : s.n}
+              </span>
+              {s.active && (
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-indigo-600">
+                  Active
+                </span>
+              )}
+            </div>
+            <p className="mt-2 font-semibold text-[#0a0f1c]">{s.t}</p>
+            <p className="text-[10px] text-[#6b6556]">{s.sub}</p>
+          </div>
+        ))}
+      </div>
+    </FrameShell>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Coexistence — DisputeIQ + Screwed Up Credit explainer                     */
 /* -------------------------------------------------------------------------- */
 function Coexistence() {
@@ -639,12 +889,13 @@ function Coexistence() {
               </h2>
               <p className="mt-5 max-w-xl text-[14px] leading-relaxed text-[#4a4638]">
                 Screwed Up Credit is the parent ecosystem for our credit operations tooling.
-                DisputeIQ is the executive-grade action platform. MyFreeScoreNow is the partner
-                product we use for live 3-bureau report intake.
+                DisputeIQ is the executive-grade action platform. IdentityIQ is the
+                supported provider we use for live 3-bureau report intake.
               </p>
               <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-[#4a4638]">
-                When you enroll through MyFreeScoreNow on our homepage, you're starting the
-                Screwed Up Credit customer journey that ends in your DisputeIQ command center.
+                When you continue through IdentityIQ from our homepage, you&apos;re starting
+                the Screwed Up Credit customer journey that ends in your DisputeIQ command
+                center.
               </p>
             </div>
             <div className="grid gap-3">
@@ -655,9 +906,9 @@ function Coexistence() {
                   d: "Identify, challenge, track, escalate — your primary workspace.",
                 },
                 {
-                  h: "MyFreeScoreNow",
-                  s: "Report intake partner",
-                  d: "Live 3-bureau report pulls used by the Screwed Up Credit journey.",
+                  h: "IdentityIQ",
+                  s: "Supported report provider",
+                  d: "Live 3-bureau report pulls used across the Screwed Up Credit journey.",
                 },
                 {
                   h: "Screwed Up Credit",
@@ -762,7 +1013,7 @@ function PricingTeaser() {
       </div>
       <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
         <p className="text-xs text-[#4a4638]">
-          Extra packets $19.95 each · MyFreeScoreIQ $24.95/mo billed separately · Not charged per item
+          Extra packets $19.95 each · IdentityIQ billed separately · Not charged per item
         </p>
         <Link
           href="/pricing"

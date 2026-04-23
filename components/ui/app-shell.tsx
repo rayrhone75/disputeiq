@@ -7,6 +7,7 @@ import { cn } from "@/components/ui/primitives";
 
 const NAV_DASHBOARD = [
   { href: "/dashboard", label: "Overview" },
+  { href: "/dashboard/get-report", label: "Get Report" },
   { href: "/dashboard/reports", label: "Reports" },
   { href: "/dashboard/disputes", label: "Disputes" },
   { href: "/dashboard/letters", label: "Letters" },
@@ -16,8 +17,11 @@ const NAV_DASHBOARD = [
 
 const NAV_ADMIN = [
   { href: "/admin", label: "Command Center" },
+  { href: "/admin/support", label: "Support" },
+  { href: "/admin/settings", label: "Platform Settings" },
   { href: "/admin/pricing", label: "Pricing" },
   { href: "/admin/reports", label: "Report Diagnostics" },
+  { href: "/admin/credit-imports", label: "Credit Imports" },
   { href: "/admin/audit-logs", label: "Audit Log" },
   { href: "/admin/mail-jobs", label: "Mail Jobs" },
   { href: "/admin/growth", label: "Growth Console" },

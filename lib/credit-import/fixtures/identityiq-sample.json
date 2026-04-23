@@ -1,0 +1,117 @@
+{
+  "reportId": "IDQ-2025-0001",
+  "reportDate": "2025-12-01T00:00:00Z",
+  "borrower": {
+    "fullName": "Jane Q Consumer",
+    "firstName": "Jane",
+    "lastName": "Consumer",
+    "dateOfBirth": "1985-04-12",
+    "ssn": "123-45-6789",
+    "currentAddress": {
+      "line1": "123 Maple Street",
+      "city": "Oakland",
+      "state": "CA",
+      "zip": "94601"
+    },
+    "priorAddresses": [
+      { "line1": "55 Oak Ave", "city": "San Jose", "state": "CA", "zip": "95112" }
+    ],
+    "phone": "510-555-0101",
+    "employers": [
+      { "name": "Acme Corp", "position": "Engineer", "dateReported": "2022-06-01" }
+    ],
+    "consumerStatement": "Files include disputed items — please investigate."
+  },
+  "creditScores": [
+    { "bureau": "Experian", "model": "FICO 8", "score": 642, "date": "2025-12-01", "factors": ["Amount owed", "Short credit history"] },
+    { "bureau": "Equifax", "model": "FICO 8", "score": 651, "date": "2025-12-01" },
+    { "bureau": "TransUnion", "model": "FICO 8", "score": 638, "date": "2025-12-01" }
+  ],
+  "tradelines": [
+    {
+      "bureau": "Experian",
+      "creditorName": "CAPITAL ONE",
+      "accountNumber": "XXXXXXXXXXXX1234",
+      "accountType": "Credit Card",
+      "balance": 1850.52,
+      "creditLimit": 2000,
+      "pastDue": 150.00,
+      "status": "Past Due",
+      "dateOpened": "2019-03-15",
+      "lastReported": "2025-11-30",
+      "lastActivity": "2025-10-15",
+      "isDerogatory": true,
+      "remarks": ["Account in delinquency"]
+    },
+    {
+      "bureau": "Equifax",
+      "creditorName": "CAPITAL ONE",
+      "accountNumber": "XXXXXXXXXXXX1234",
+      "accountType": "Credit Card",
+      "balance": 1920.75,
+      "creditLimit": 2000,
+      "pastDue": 0,
+      "status": "Current",
+      "dateOpened": "2019-03-15",
+      "lastReported": "2025-11-30"
+    },
+    {
+      "bureau": "TransUnion",
+      "creditorName": "PORTFOLIO RECOVERY",
+      "accountNumber": "XXXX5678",
+      "accountType": "Collection",
+      "balance": 412.33,
+      "originalBalance": 412.33,
+      "status": "Open Collection",
+      "dateOpened": "2016-02-11",
+      "lastActivity": "2017-08-22",
+      "isCollection": true
+    },
+    {
+      "bureau": "Experian",
+      "creditorName": "ST LUKES MEDICAL",
+      "accountNumber": "XXXX9090",
+      "accountType": "Medical Collection",
+      "balance": 320.00,
+      "status": "Open Collection",
+      "dateOpened": "2024-06-01",
+      "lastReported": "2025-10-01",
+      "isCollection": true,
+      "isMedical": true
+    }
+  ],
+  "collections": [
+    {
+      "bureau": "TransUnion",
+      "collectorName": "PORTFOLIO RECOVERY",
+      "originalCreditor": "SYNCHRONY BANK",
+      "accountNumber": "XXXX5678",
+      "balance": 412.33,
+      "originalBalance": 412.33,
+      "status": "Open",
+      "dateAssigned": "2017-01-15",
+      "dateOfFirstDelinquency": "2016-10-10",
+      "dateReported": "2025-11-10"
+    }
+  ],
+  "inquiries": [
+    { "bureau": "Experian", "subscriberName": "CHASE AUTO", "inquiryDate": "2025-09-22", "type": "Auto Loan", "hardInquiry": true },
+    { "bureau": "Equifax", "subscriberName": "DISCOVER", "inquiryDate": "2022-03-15", "type": "Credit Card", "hardInquiry": true },
+    { "bureau": "TransUnion", "subscriberName": "PRE-APPROVAL LLC", "inquiryDate": "2024-11-01", "type": "Promotional", "hardInquiry": false }
+  ],
+  "publicRecords": [
+    {
+      "bureau": "Equifax",
+      "recordType": "Chapter 7 Bankruptcy",
+      "status": "Discharged",
+      "courtName": "NDCA",
+      "referenceNumber": "BK-2014-9912",
+      "dateFiled": "2014-06-01",
+      "dateResolved": "2014-10-12",
+      "amount": 0
+    }
+  ],
+  "fraudAlerts": [
+    { "type": "Initial Fraud Alert", "date": "2025-03-15", "expirationDate": "2026-03-15", "phone": "510-555-0199" }
+  ]
+}

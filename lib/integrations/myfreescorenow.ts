@@ -1,20 +1,19 @@
 /**
- * MyFreeScoreNow integration module.
+ * MyFreeScoreNow integration module — LEGACY.
  *
- * Phase A: manual affiliate funnel.
- *   - Centralized enrollment URL + affiliate tag.
- *   - Helpers the UI uses so the link never gets pasted inline anywhere.
- *   - Stub return/intake contract so the rest of the app can already depend on
- *     stable shapes before any real API exists.
+ * MFSN was the previous report-intake partner. DisputeIQ has moved to
+ * IdentityIQ (IDIQ) as the supported provider for every new customer.
  *
- * Future phases (not implemented here):
- *   - Automated report pull + re-pull via MFSN API (when credentials exist)
- *   - Diff between pulls (report snapshots stored per user)
- *   - Webhook ingestion to keep the activity timeline in sync
+ * This module stays only to:
+ *   - keep historical `ReportSource.MYFREESCORENOW` rows readable
+ *   - avoid breaking any legacy imports in marketing/admin surfaces that
+ *     have not yet been cut over
  *
- * Branding rule:
- *   MyFreeScoreNow lives inside the Screwed Up Credit ecosystem.
- *   DisputeIQ is the primary product surface; MFSN is the report intake lane.
+ * Do NOT use this for new customer-facing flows. Use
+ * `lib/integrations/identityiq.ts` instead.
+ *
+ * @deprecated Use `lib/integrations/identityiq.ts`. Slated for removal once
+ * all UI surfaces have migrated.
  */
 
 export const MYFREESCORENOW = {
@@ -22,44 +21,29 @@ export const MYFREESCORENOW = {
   enrollUrl: "https://app.myfreescorenow.com/enroll/B01B4735",
   parentBrand: "Screwed Up Credit",
   productName: "MyFreeScoreNow",
-  /**
-   * Short marketing label shown next to the CTA. Keep it under ~40 chars.
-   */
   ctaLabel: "Get your 3-bureau report →",
-  /**
-   * Neutral, non-promissory descriptor for compliance copy.
-   */
   descriptor:
-    "MyFreeScoreNow is the 3-bureau report intake provider in the Screwed Up Credit ecosystem.",
+    "MyFreeScoreNow was the legacy report-intake provider. DisputeIQ now uses IdentityIQ (IDIQ) as the supported provider for new customers.",
+  /** When true, any legacy callers that reach this module receive empty URLs. */
+  retired: true,
 } as const;
 
-/**
- * Canonical enrollment URL. Use this everywhere instead of hardcoding.
- * When MFSN adds per-session tracking, add params here in one place.
- */
-export function getEnrollUrl(opts?: {
-  /** internal campaign identifier — does not leak PII */
-  campaign?: string;
-  /** where the user was on disputeiq.org when they clicked */
-  source?: string;
-}) {
+/** @deprecated Use `buildIdiqEnrollUrl` from `lib/integrations/identityiq.ts`. */
+export function getEnrollUrl(opts?: { campaign?: string; source?: string }): string {
+  // Preserve behavior for any legacy callers still in the tree. Prefer not to
+  // encourage new use — the string is intentionally left intact so admin
+  // support tooling can still link back for historical context.
   const url = new URL(MYFREESCORENOW.enrollUrl);
   if (opts?.campaign) url.searchParams.set("utm_campaign", opts.campaign);
   if (opts?.source) url.searchParams.set("utm_source", opts.source);
   return url.toString();
 }
 
-/**
- * Stable contract the rest of the app can depend on today, even though it's
- * populated manually until an MFSN API or webhook lands.
- */
 export type MfsnReportSnapshot = {
   provider: "myfreescorenow";
-  pulledAt: string;            // ISO timestamp
+  pulledAt: string;
   bureaus: ("experian" | "equifax" | "transunion")[];
-  /** opaque user identifier provided by MFSN (or our own id for manual uploads) */
   externalId: string;
-  /** storage key of the raw report file in our vault */
   vaultKey: string;
 };
 
@@ -70,19 +54,14 @@ export type MfsnIntakeStatus =
   | "report_linked"
   | "failed";
 
-/**
- * Placeholder for future automated intake. Currently returns "not_started"
- * so call sites can already wire themselves up.
- */
+/** @deprecated MFSN is retired; always returns "not_started" now. */
 export async function getIntakeStatus(_userId: string): Promise<MfsnIntakeStatus> {
   return "not_started";
 }
 
-/**
- * Placeholder for future MFSN refresh/re-pull. Throws until credentials exist.
- */
+/** @deprecated MFSN is retired; throws on call. */
 export async function requestRefresh(_userId: string): Promise<never> {
   throw new Error(
-    "MyFreeScoreNow automated refresh not yet available. Manual re-upload is the Phase A path."
+    "MyFreeScoreNow is retired. Use the IdentityIQ flow instead.",
   );
 }

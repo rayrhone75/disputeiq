@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { PageHeader, Surface } from "@/components/ui/primitives";
+import { AdminReportDeleteButton } from "@/components/admin/AdminReportDeleteButton";
 
 export default async function AdminReportsPage() {
   await requireRole(["OWNER", "ADMIN"]);
@@ -51,6 +52,7 @@ export default async function AdminReportsPage() {
                 <th className="py-2 pr-3">Tradelines</th>
                 <th className="py-2 pr-3">Parser flags</th>
                 <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -83,6 +85,9 @@ export default async function AdminReportsPage() {
                       }`}>
                         {status}
                       </span>
+                    </td>
+                    <td className="py-2 pr-3">
+                      <AdminReportDeleteButton reportId={r.id} />
                     </td>
                   </tr>
                 );

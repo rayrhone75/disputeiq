@@ -6,7 +6,7 @@ import { DISCLOSURES } from "@/lib/billing/disclosures";
 export const metadata = {
   title: "Pricing — MyDIY Credit Repair",
   description:
-    "Monthly software plans with included dispute packets. MyFreeScoreIQ billed separately at $24.95/month.",
+    "Monthly software plans with included dispute packets. IdentityIQ billed separately at $24.95/month.",
 };
 
 const FAQ = [
@@ -19,12 +19,12 @@ const FAQ = [
     a: "No. Multiple disputed items are grouped into one packet submission round. You are charged per packet, not per tradeline.",
   },
   {
-    q: "Why is MyFreeScoreIQ billed separately?",
-    a: "MyFreeScoreIQ provides your 3-bureau credit report and monitoring. It is a separate service billed at $24.95/month directly by MyFreeScoreIQ, not by us.",
+    q: "Why is IdentityIQ billed separately?",
+    a: "IdentityIQ provides your 3-bureau credit report and monitoring. It is a separate service billed at $24.95/month directly by IdentityIQ, not by us.",
   },
   {
     q: "Do I need credit monitoring to use the platform?",
-    a: "Yes. An active MyFreeScoreIQ membership is required so the platform can analyze your credit report data.",
+    a: "Yes. An active IdentityIQ membership is required so the platform can analyze your credit report data.",
   },
   {
     q: "What happens if I use all my included packets?",
@@ -59,7 +59,7 @@ export default function PricingPage() {
         <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 text-sm text-amber-900">
           <div className="font-semibold">Credit monitoring required</div>
           <p className="mt-1">
-            This platform requires an active credit monitoring account through MyFreeScoreIQ at
+            This platform requires an active credit monitoring account through IdentityIQ at
             $24.95/month, billed separately. This charge is not included in your software
             subscription.
           </p>
