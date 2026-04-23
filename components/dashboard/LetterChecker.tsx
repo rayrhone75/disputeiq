@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ResponseVerdictCard, type Verdict } from "@/components/dashboard/ResponseVerdictCard";
 
 interface DeliveredCase {
   disputeCaseId: string;
@@ -21,7 +22,7 @@ export function LetterChecker({ delivered }: { delivered: DeliveredCase[] }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [uploadFor, setUploadFor] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [verdict, setVerdict] = useState<Verdict | null>(null);
 
   if (delivered.length === 0) return null;
 
@@ -60,7 +61,7 @@ export function LetterChecker({ delivered }: { delivered: DeliveredCase[] }) {
   async function uploadResponse(id: string, file: File) {
     setBusy(id);
     setErr(null);
-    setAnalysis(null);
+    setVerdict(null);
     try {
       const form = new FormData();
       form.append("file", file);
@@ -70,7 +71,7 @@ export function LetterChecker({ delivered }: { delivered: DeliveredCase[] }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "Failed");
-      setAnalysis(data.analysis);
+      if (data.verdict) setVerdict(data.verdict as Verdict);
     } catch (e: any) {
       setErr(String(e?.message ?? e));
     } finally {
@@ -146,11 +147,8 @@ export function LetterChecker({ delivered }: { delivered: DeliveredCase[] }) {
                 </label>
               </div>
             </div>
-            {uploadFor === d.disputeCaseId && analysis && (
-              <div className="mt-3 rounded-lg bg-ink-50 p-3 text-xs text-ink-800">
-                <div className="mb-1 font-semibold">AI response analysis</div>
-                <pre className="whitespace-pre-wrap">{analysis}</pre>
-              </div>
+            {uploadFor === d.disputeCaseId && verdict && (
+              <ResponseVerdictCard verdict={verdict} disputeCaseId={d.disputeCaseId} />
             )}
           </li>
         ))}

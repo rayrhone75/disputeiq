@@ -6,6 +6,7 @@ import { FreezePanel } from "@/components/dashboard/FreezePanel";
 import { LetterChecker } from "@/components/dashboard/LetterChecker";
 import { AssistantPanel } from "@/components/dashboard/AssistantPanel";
 import { PacketMeter } from "@/components/dashboard/PacketMeter";
+import { ExecutiveRail, type RailTile } from "@/components/dashboard/ExecutiveRail";
 import { CreditReportStatusChip } from "@/components/dashboard/CreditReportStatusChip";
 import { loadCreditReportStatus } from "@/lib/credit-import/status";
 import { listFreezesForUser } from "@/lib/freeze";
@@ -106,13 +107,14 @@ export default async function DashboardOverview() {
       (tradelineRedisputeCounts.get(d.tradelineId) ?? 0) >= 2,
   ).length;
 
-  const executiveRail = [
+  const executiveRail: readonly RailTile[] = [
     {
       label: "Removed items",
       value: removed,
       hint: "Marked deleted by the bureau",
       tone: "emerald",
       href: "#dispute-history",
+      icon: "check",
     },
     {
       label: "Remaining items",
@@ -120,6 +122,7 @@ export default async function DashboardOverview() {
       hint: "Parsed tradelines not yet disputed",
       tone: "indigo",
       href: "/dashboard/reports",
+      icon: "list",
     },
     {
       label: "Ready to re-dispute",
@@ -127,6 +130,7 @@ export default async function DashboardOverview() {
       hint: "Delivered, not deleted",
       tone: "amber",
       href: "#letter-checker",
+      icon: "clock",
     },
     {
       label: "Ready for CFPB",
@@ -134,21 +138,9 @@ export default async function DashboardOverview() {
       hint: "Re-disputed and still unresolved",
       tone: "rose",
       href: "#cfpb-queue",
+      icon: "flag",
     },
-  ] as const;
-
-  const toneRing: Record<string, string> = {
-    emerald: "from-emerald-500/20 to-emerald-500/5 ring-emerald-200",
-    indigo: "from-indigo-500/20 to-indigo-500/5 ring-indigo-200",
-    amber: "from-amber-500/20 to-amber-500/5 ring-amber-200",
-    rose: "from-rose-500/20 to-rose-500/5 ring-rose-200",
-  };
-  const toneText: Record<string, string> = {
-    emerald: "text-emerald-700",
-    indigo: "text-indigo-700",
-    amber: "text-amber-700",
-    rose: "text-rose-700",
-  };
+  ];
 
   return (
     <div className="space-y-10">
@@ -163,25 +155,7 @@ export default async function DashboardOverview() {
 
       <CreditReportStatusChip status={creditReportStatus} />
 
-      {/* Executive top rail — premium high-signal status */}
-      <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        {executiveRail.map((c) => (
-          <Link
-            key={c.label}
-            href={c.href}
-            className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${toneRing[c.tone]} p-6 ring-1 transition hover:-translate-y-0.5 hover:shadow-lg`}
-          >
-            <p className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${toneText[c.tone]}`}>
-              {c.label}
-            </p>
-            <p className="mt-3 text-4xl font-semibold tracking-tight text-ink-900">{c.value}</p>
-            <p className="mt-1 text-xs text-ink-600">{c.hint}</p>
-            <span className="absolute right-4 top-4 text-xs text-ink-400 opacity-0 transition group-hover:opacity-100">
-              →
-            </span>
-          </Link>
-        ))}
-      </section>
+      <ExecutiveRail tiles={executiveRail} />
 
       <PacketMeter
         planName={packetUsage.plan ? PLANS[packetUsage.plan].name : null}

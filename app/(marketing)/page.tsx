@@ -41,6 +41,7 @@ export default function HomePage() {
       <DarkProof />
       <Storyline />
       <AISuite />
+      <ProductFrames />
       <Coexistence />
       <Testimonials />
       <TrustSection />
@@ -633,6 +634,239 @@ function AISuite() {
         </ul>
       </div>
     </Section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Product Frames — five concrete views of the operational product           */
+/* -------------------------------------------------------------------------- */
+function ProductFrames() {
+  return (
+    <section className="relative bg-white">
+      <div className="mx-auto max-w-7xl px-6 py-24">
+        <div className="mb-14 max-w-3xl">
+          <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-indigo-600">
+            Inside the product
+          </p>
+          <h2 className="mt-5 font-serif text-[36px] leading-[1.08] tracking-tight text-[#0a0f1c] sm:text-[48px]">
+            Five views. One operational record.
+          </h2>
+          <p className="mt-5 max-w-2xl text-[16px] leading-relaxed text-[#4a4638]">
+            Every dispute is tracked across five connected surfaces — from the parsed tri-merge to
+            the escalation panel. This is what you actually see.
+          </p>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <FrameTriMerge />
+          <FrameProofVault />
+          <FrameVerdictCard />
+          <FrameTrackingTimeline />
+          <FrameEscalationStages />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FrameShell({
+  eyebrow,
+  title,
+  children,
+  wide,
+}: {
+  eyebrow: string;
+  title: string;
+  children: React.ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <article
+      className={`relative overflow-hidden rounded-2xl border border-[#e8e4d8] bg-[#faf9f4] p-5 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_24px_48px_-28px_rgba(10,15,28,0.14)] ${
+        wide ? "lg:col-span-2" : ""
+      }`}
+    >
+      <div className="mb-4 flex items-center justify-between">
+        <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#8a8472]">
+          {eyebrow}
+        </p>
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+      </div>
+      <h3 className="mb-3 font-serif text-[18px] leading-tight tracking-tight text-[#0a0f1c]">
+        {title}
+      </h3>
+      <div className="rounded-xl border border-[#e0dccf] bg-white p-4 text-[11px] text-[#2a2620]">
+        {children}
+      </div>
+    </article>
+  );
+}
+
+function FrameTriMerge() {
+  const row = (creditor: string, eq: string, ex: string, tu: string, flag?: boolean) => (
+    <tr className={flag ? "bg-rose-50/70" : ""}>
+      <td className="py-1.5 pr-2 font-semibold text-[#0a0f1c]">{creditor}</td>
+      <td className="px-2 text-center tabular-nums">{eq}</td>
+      <td className="px-2 text-center tabular-nums">{ex}</td>
+      <td className="px-2 text-center tabular-nums">{tu}</td>
+    </tr>
+  );
+  return (
+    <FrameShell eyebrow="I. Import" title="Tri-merge parse">
+      <table className="w-full text-[11px]">
+        <thead>
+          <tr className="border-b border-[#e0dccf] text-[9px] uppercase tracking-[0.14em] text-[#8a8472]">
+            <th className="py-1 pr-2 text-left">Creditor</th>
+            <th className="px-2">EQ</th>
+            <th className="px-2">EX</th>
+            <th className="px-2">TU</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[#f1ede2]">
+          {row("Capital One", "$1,284", "$1,402", "$1,284", true)}
+          {row("Discover", "$0", "$0", "$0")}
+          {row("Midland Funding", "$412", "$412", "—")}
+          {row("JPMC Auto", "Closed", "Closed", "Open", true)}
+        </tbody>
+      </table>
+      <p className="mt-3 border-t border-[#f1ede2] pt-2 text-[10px] text-[#6b6556]">
+        2 cross-bureau inconsistencies flagged · column parser confidence: high
+      </p>
+    </FrameShell>
+  );
+}
+
+function FrameProofVault() {
+  const items = [
+    { c: "Capital One", b: "Equifax", v: "stall", tone: "bg-amber-100 text-amber-700" },
+    { c: "Midland", b: "Experian", v: "deleted", tone: "bg-emerald-100 text-emerald-700" },
+    { c: "Discover", b: "TransUnion", v: "verified", tone: "bg-rose-100 text-rose-700" },
+  ];
+  return (
+    <FrameShell eyebrow="VI. Vault" title="Proof Vault">
+      <ul className="space-y-2">
+        {items.map((i) => (
+          <li
+            key={i.c}
+            className="flex items-center justify-between rounded-lg border border-[#f1ede2] p-2.5"
+          >
+            <div>
+              <p className="font-semibold text-[#0a0f1c]">{i.c}</p>
+              <p className="text-[10px] text-[#6b6556]">{i.b} response · PDF filed</p>
+            </div>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${i.tone}`}
+            >
+              {i.v}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-[10px] text-[#6b6556]">
+        Every response parsed · linked to its dispute · one click to escalate
+      </p>
+    </FrameShell>
+  );
+}
+
+function FrameVerdictCard() {
+  return (
+    <FrameShell eyebrow="VI. Response parser" title="AI verdict">
+      <div className="rounded-lg bg-amber-50 p-3 ring-1 ring-amber-200">
+        <div className="flex items-center justify-between">
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-amber-700">
+            Verdict
+          </p>
+          <span className="rounded-full bg-white/80 px-2 py-0.5 text-[9px] font-semibold uppercase text-[#0a0f1c] ring-1 ring-[#e0dccf]">
+            Next: re-dispute (MOV)
+          </span>
+        </div>
+        <p className="mt-1 font-semibold text-[#0a0f1c]">Stall tactic</p>
+        <p className="mt-1.5 text-[11px] leading-relaxed text-[#3d3a2e]">
+          Bureau requested additional ID documentation beyond what §1681i requires. This is a
+          recognized stall pattern.
+        </p>
+        <p className="mt-2 border-l-2 border-amber-300 pl-2 text-[10px] italic text-[#6b6556]">
+          AI reasoning: Response cites 'frivolous' but provides no substantive basis.
+        </p>
+      </div>
+    </FrameShell>
+  );
+}
+
+function FrameTrackingTimeline() {
+  const events = [
+    { t: "Printed by LetterStream", ts: "Tue 9:12a", tone: "bg-indigo-400" },
+    { t: "Accepted at USPS origin", ts: "Tue 4:48p", tone: "bg-indigo-400" },
+    { t: "In transit · Memphis", ts: "Wed 7:02a", tone: "bg-violet-400" },
+    { t: "Delivered · signature on file", ts: "Fri 10:31a", tone: "bg-emerald-400" },
+    { t: "FCRA 30-day clock started", ts: "Fri 10:31a", tone: "bg-emerald-400" },
+  ];
+  return (
+    <FrameShell eyebrow="V. Tracking" title="Certified mail timeline">
+      <ol className="space-y-2">
+        {events.map((e) => (
+          <li key={e.t} className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <span className={`h-1.5 w-1.5 rounded-full ${e.tone}`} />
+              {e.t}
+            </span>
+            <span className="font-mono text-[10px] text-[#8a8472]">{e.ts}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-3 border-t border-[#f1ede2] pt-2 text-[10px] text-[#6b6556]">
+        USPS 9214-8901-2347-3318 · auto follow-up on Apr 30
+      </p>
+    </FrameShell>
+  );
+}
+
+function FrameEscalationStages() {
+  const stages = [
+    { n: "1", t: "Re-dispute", sub: "FCRA §611 round 2", active: false, done: true },
+    { n: "2", t: "MOV demand", sub: "Method of Verification", active: true, done: false },
+    { n: "3", t: "CFPB complaint", sub: "Consent order record", active: false, done: false },
+    { n: "4", t: "§623(b) furnisher", sub: "Direct to creditor", active: false, done: false },
+  ];
+  return (
+    <FrameShell eyebrow="VII. Escalation" title="Four stages, one ladder" wide>
+      <div className="grid gap-2 sm:grid-cols-4">
+        {stages.map((s) => (
+          <div
+            key={s.n}
+            className={`rounded-lg border p-3 ${
+              s.active
+                ? "border-indigo-300 bg-indigo-50/60 ring-1 ring-indigo-200"
+                : s.done
+                  ? "border-emerald-200 bg-emerald-50/60"
+                  : "border-[#f1ede2] bg-[#faf9f4]"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span
+                className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold ${
+                  s.done
+                    ? "bg-emerald-600 text-white"
+                    : s.active
+                      ? "bg-indigo-600 text-white"
+                      : "bg-[#e8e4d8] text-[#6b6556]"
+                }`}
+              >
+                {s.done ? "✓" : s.n}
+              </span>
+              {s.active && (
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-indigo-600">
+                  Active
+                </span>
+              )}
+            </div>
+            <p className="mt-2 font-semibold text-[#0a0f1c]">{s.t}</p>
+            <p className="text-[10px] text-[#6b6556]">{s.sub}</p>
+          </div>
+        ))}
+      </div>
+    </FrameShell>
   );
 }
 

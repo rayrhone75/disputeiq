@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { PageHeader, Surface } from "@/components/ui/primitives";
+import { FollowUpBadge } from "@/components/dashboard/FollowUpBadge";
 
 export default async function DisputesPage() {
   const user = await requireUser();
@@ -38,6 +39,7 @@ export default async function DisputesPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <FollowUpBadge responseDueAt={d.responseDueAt} status={d.status} />
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${statusColor[d.status] ?? "bg-ink-100 text-ink-700"}`}>
             {d.status}
           </span>
