@@ -25,6 +25,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsed.success) return null;
         const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
         if (!user?.passwordHash) return null;
+        // Archived users have their passwordHash nulled during archive, but
+        // guard explicitly so sign-in is blocked even if a row is restored
+        // from backup without re-nulling the hash.
+        if (user.archivedAt) return null;
         const ok = await bcrypt.compare(parsed.data.password, user.passwordHash);
         if (!ok) return null;
         return {
