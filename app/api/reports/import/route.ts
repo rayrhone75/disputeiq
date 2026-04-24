@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import { createImport, ImportRunnerError } from "@/lib/credit-import/runner";
 
 // Customer-facing import creation. A logged-in user creates a new
 // CreditReportImport belonging to themselves. Default provider is
 // IDENTITYIQ — users don't see legacy providers.
 export async function POST(req: NextRequest) {
-  const user = await requireUser().catch(() => null);
-  if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const { userId, getToken } = await auth();
+  if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const token = await getToken({ template: "convex" });
+
   const body = await req.json().catch(() => ({}));
   try {
-    const imp = await createImport({
-      userId: user.id,
-      provider: "IDENTITYIQ",
-      sourceUrl: typeof body.sourceUrl === "string" ? body.sourceUrl : undefined,
-      actorUserId: user.id,
-    });
+    const imp = await createImport(
+      { token },
+      {
+        provider: "IDENTITYIQ",
+        sourceUrl: typeof body.sourceUrl === "string" ? body.sourceUrl : undefined,
+      },
+    );
     return NextResponse.json({ import: imp });
   } catch (err) {
     if (err instanceof ImportRunnerError) {

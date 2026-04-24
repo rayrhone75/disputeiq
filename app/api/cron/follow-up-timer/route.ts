@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { writeAuditLog } from "@/lib/audit";
+import { fetchMutation } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 
-// Daily sweep: any DELIVERED or RESPONSE_RECEIVED dispute whose responseDueAt has
-// elapsed is flipped to ESCALATION_READY so it shows up in the Ready-to-re-dispute
-// and CFPB tiles on the dashboard rail. An audit log entry is written for every
-// case that transitions.
+// Daily sweep: any DELIVERED or RESPONSE_RECEIVED dispute whose responseDueAt
+// has elapsed is flipped to ESCALATION_READY. The actual scan + state
+// transitions live inside `api.mailJobs.scanForFollowUps`, gated by
+// `CRON_SECRET`.
 //
-// Auth: Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. If CRON_SECRET
-// is unset (local dev) we accept any request.
+// Auth: Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. If
+// CRON_SECRET is unset (local dev) we skip the bearer check but still
+// forward an empty secret — the Convex mutation will accept it because the
+// matching env var inside Convex will also be unset.
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
+  const secret = process.env.CRON_SECRET ?? "";
   if (secret) {
     const header = req.headers.get("authorization") ?? "";
     if (header !== `Bearer ${secret}`) {
@@ -18,41 +20,19 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const now = new Date();
-  const overdue = await prisma.disputeCase.findMany({
-    where: {
-      responseDueAt: { lt: now },
-      status: { in: ["DELIVERED", "RESPONSE_RECEIVED"] },
-    },
-    select: { id: true, userId: true, tradelineId: true, responseDueAt: true, status: true },
-  });
-
-  let transitioned = 0;
-  for (const dc of overdue) {
-    await prisma.disputeCase.update({
-      where: { id: dc.id },
-      data: { status: "ESCALATION_READY" },
+  try {
+    const result = await fetchMutation(api.mailJobs.scanForFollowUps, { secret });
+    return NextResponse.json({
+      ok: true,
+      scanned: result.scanned,
+      transitioned: result.transitioned,
+      at: new Date(result.atMs).toISOString(),
     });
-    await writeAuditLog({
-      targetUserId: dc.userId,
-      action: "AUTO_FOLLOW_UP_ELAPSED",
-      entityType: "DisputeCase",
-      entityId: dc.id,
-      metadataJson: {
-        previousStatus: dc.status,
-        responseDueAt: dc.responseDueAt?.toISOString() ?? null,
-        elapsedHours: dc.responseDueAt
-          ? Math.round((now.getTime() - dc.responseDueAt.getTime()) / 3_600_000)
-          : null,
-      },
-    });
-    transitioned += 1;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("FORBIDDEN")) {
+      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "INTERNAL", detail: msg }, { status: 500 });
   }
-
-  return NextResponse.json({
-    ok: true,
-    scanned: overdue.length,
-    transitioned,
-    at: now.toISOString(),
-  });
 }

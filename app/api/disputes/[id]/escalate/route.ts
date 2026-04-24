@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery, fetchMutation } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { decrypt } from "@/lib/encryption";
 import { buildLetterPdf } from "@/lib/letter-pdf";
 import { storage } from "@/lib/storage";
-import { writeAuditLog } from "@/lib/audit";
 import {
   draftRedispute,
   draftMOV,
@@ -33,22 +34,28 @@ const BUREAU_NAMES: Record<string, string> = {
 };
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const user = await requireUser().catch(() => null);
-  if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const { userId, getToken } = await auth();
+  if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
   const { id } = await ctx.params;
 
   const parsed = schema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: "INVALID_INPUT" }, { status: 400 });
   const { stage } = parsed.data;
 
-  const prior = await prisma.disputeCase.findUnique({
-    where: { id },
-    include: { tradeline: true, mailJobs: { orderBy: { createdAt: "desc" }, take: 1 } },
-  });
-  if (!prior) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
-  if (prior.userId !== user.id) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const caseBundle = await fetchQuery(
+    api.disputes.getById,
+    { id: id as Id<"disputeCases"> },
+    { token },
+  );
+  if (!caseBundle) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  const prior = caseBundle.case;
+  const tradeline = caseBundle.tradeline;
+  const latestMailJob = caseBundle.latestMailJob;
+  const auditLogs = caseBundle.auditLogs;
 
-  const profile = await prisma.userProfile.findUnique({ where: { userId: user.id } });
+  const profile = await fetchQuery(api.disputes.userProfileForLetter, {}, { token });
   if (!profile) return NextResponse.json({ error: "PROFILE_REQUIRED" }, { status: 400 });
 
   const consumer = {
@@ -59,17 +66,28 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     zip: decrypt(profile.encryptedZip),
   };
 
+  const priorMailedAt = prior.mailedAt
+    ? new Date(prior.mailedAt).toISOString().slice(0, 10)
+    : latestMailJob?.mailedAt
+    ? new Date(latestMailJob.mailedAt).toISOString().slice(0, 10)
+    : undefined;
+  const priorDeliveredAt = prior.deliveredAt
+    ? new Date(prior.deliveredAt).toISOString().slice(0, 10)
+    : latestMailJob?.deliveredAt
+    ? new Date(latestMailJob.deliveredAt).toISOString().slice(0, 10)
+    : undefined;
+
   const escCtx = {
     consumer,
-    creditor: prior.tradeline?.creditorName ?? "Unknown Creditor",
-    accountRefMasked: prior.tradeline?.accountRefMasked ?? "••••",
-    bureau: prior.tradeline?.bureau ?? "Unknown",
-    priorCaseId: prior.id,
+    creditor: tradeline?.creditorName ?? "Unknown Creditor",
+    accountRefMasked: tradeline?.accountRefMasked ?? "••••",
+    bureau: tradeline?.bureau ?? "Unknown",
+    priorCaseId: prior._id as unknown as string,
     priorReason: prior.aiReasonSummary,
-    priorMailedAt: prior.mailedAt?.toISOString().slice(0, 10),
-    priorDeliveredAt: prior.deliveredAt?.toISOString().slice(0, 10),
-    balanceCents: prior.tradeline?.balanceCents,
-    statusLabel: prior.tradeline?.statusLabel,
+    priorMailedAt,
+    priorDeliveredAt,
+    balanceCents: tradeline?.balanceCents,
+    statusLabel: tradeline?.statusLabel,
   };
 
   let result;
@@ -79,12 +97,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     result = await draftMOV(escCtx);
   } else if (stage === "cfpb") {
     // Build timeline from audit logs
-    const logs = await prisma.auditLog.findMany({
-      where: { entityType: "DisputeCase", entityId: prior.id },
-      orderBy: { createdAt: "asc" },
-    });
-    const timeline = logs.map((l) => ({
-      date: l.createdAt.toISOString().slice(0, 10),
+    const timeline = auditLogs.map((l) => ({
+      date: new Date(l.createdAt).toISOString().slice(0, 10),
       action: l.action,
       result: JSON.stringify(l.metadataJson).slice(0, 200),
     }));
@@ -94,7 +108,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   }
 
   // Generate PDF
-  const bureauKey = (prior.tradeline?.bureau ?? "").toUpperCase();
+  const bureauKey = (tradeline?.bureau ?? "").toUpperCase();
   const recipientName = stage === "direct_furnisher"
     ? escCtx.creditor
     : BUREAU_NAMES[bureauKey] ?? escCtx.bureau;
@@ -109,35 +123,31 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   });
 
   const pdfRef = await storage.put(
-    `letters/${user.id}/escalation_${stage}_${Date.now()}.pdf`,
+    `letters/${userId}/escalation_${stage}_${Date.now()}.pdf`,
     pdf.bytes,
     "application/pdf",
   );
 
-  const newCase = await prisma.disputeCase.create({
-    data: {
-      userId: user.id,
-      tradelineId: prior.tradelineId,
+  const created = await fetchMutation(
+    api.disputes.createEscalation,
+    {
+      priorId: prior._id,
       letterType: LETTER_TYPE_MAP[stage],
-      aiReasonSummary: `${stage.toUpperCase()} escalation of case ${prior.id}`,
+      aiReasonSummary: `${stage.toUpperCase()} escalation of case ${prior._id}`,
       legalBasisSummary: result.legalBasis,
-      status: "DRAFT",
       secureLetterRef: pdfRef,
+      auditAction: `ESCALATION_${stage.toUpperCase()}`,
+      auditMetadata: { stage, aiLive: result.aiLive, pages: pdf.pages },
+      // The escalate flow used to leave the prior case alone; the redispute
+      // route is the one that closes it. Mirror that here.
+      closePrior: false,
     },
-  });
-
-  await writeAuditLog({
-    targetUserId: user.id,
-    actorUserId: user.id,
-    action: `ESCALATION_${stage.toUpperCase()}`,
-    entityType: "DisputeCase",
-    entityId: newCase.id,
-    metadataJson: { priorCaseId: prior.id, stage, aiLive: result.aiLive, pages: pdf.pages },
-  });
+    { token },
+  );
 
   return NextResponse.json({
-    newDisputeCaseId: newCase.id,
-    priorDisputeCaseId: prior.id,
+    newDisputeCaseId: created.newId,
+    priorDisputeCaseId: prior._id,
     stage,
     pages: pdf.pages,
     legalBasis: result.legalBasis,

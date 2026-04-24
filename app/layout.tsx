@@ -4,6 +4,7 @@ import type { Viewport } from "next";
 
 import { BRAND, URLS } from "@/lib/urls";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
+import { ConvexClerkProvider } from "@/components/providers/ConvexClerkProvider";
 
 export const metadata = {
   metadataBase: new URL(URLS.marketing),
@@ -34,8 +35,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className="min-h-screen bg-white text-slate-900">
-        {children}
-        <PwaInstallPrompt />
+        <ConvexClerkProvider>
+          {children}
+          <PwaInstallPrompt />
+        </ConvexClerkProvider>
       </body>
     </html>
   );

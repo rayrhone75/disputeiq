@@ -1,18 +1,24 @@
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { ReportWorkspace } from "./report-workspace";
 import { Surface } from "@/components/ui/primitives";
 
 export default async function ReportDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
+  const { userId, getToken } = await auth();
+  if (!userId) redirect("/sign-in");
+  const token = await getToken({ template: "convex" });
   const { id } = await params;
-  const report = await prisma.creditReport.findUnique({
-    where: { id },
-    include: { tradelines: true },
-  });
-  if (!report || report.userId !== user.id) notFound();
+
+  const report = await fetchQuery(
+    api.creditReports.getOwnedReport,
+    { id: id as Id<"creditReports"> },
+    { token: token ?? undefined },
+  );
+  if (!report) notFound();
 
   const tradelines = report.tradelines;
   const collections = tradelines.filter((t) => t.isCollection).length;
@@ -28,7 +34,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
           </Link>
           <h1 className="mt-1 text-2xl font-bold text-ink-900">Credit report workspace</h1>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-ink-600">
-            <span>Imported {report.pulledAt.toLocaleDateString()}</span>
+            <span>Imported {new Date(report.pulledAt).toLocaleDateString()}</span>
             <span className="text-ink-300">·</span>
             <span>
               {report.source === "IDENTITYIQ" || report.source === "MYSCOREIQ"
@@ -79,14 +85,14 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
         </Surface>
       ) : (
         <ReportWorkspace
-          reportId={report.id}
+          reportId={report._id as unknown as string}
           tradelines={tradelines.map((t) => ({
-            id: t.id,
+            id: t._id as unknown as string,
             bureau: t.bureau,
             creditor: t.creditorName,
             account: t.accountRefMasked,
-            balanceCents: t.balanceCents,
-            status: t.statusLabel,
+            balanceCents: t.balanceCents ?? null,
+            status: t.statusLabel ?? null,
             isCollection: t.isCollection,
             isMedical: t.isMedical,
           }))}

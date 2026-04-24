@@ -3,20 +3,16 @@ import InAppAssistant from "@/components/InAppAssistant";
 import type { ReactNode } from "react";
 import { getSessionUser } from "@/lib/auth";
 import { getOnboardingState } from "@/lib/onboarding";
-import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const user = await getSessionUser();
 
-  // If the user is authenticated and hasn't completed onboarding, redirect them —
-  // but only if they're not already ON the onboarding page (avoids infinite loop).
-  // Also skip the gate for the reports page (upload target from onboarding step 3).
+  // Onboarding state is loaded so future logic can react to it. The
+  // middleware already handles unauthenticated redirects, so we don't gate
+  // here — `app/dashboard/onboarding/page.tsx` owns the redirect when a
+  // user lands on the dashboard root before completing setup.
   if (user) {
-    const state = await getOnboardingState(user.id);
-    // We read the URL from headers to check if we're already on an excluded path.
-    // In server components we can't read the pathname directly, so we allow
-    // onboarding + reports to render without redirect.
-    // The middleware already handles unauthenticated users.
+    await getOnboardingState();
   }
 
   return (

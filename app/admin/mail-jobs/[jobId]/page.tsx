@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { getSessionUser } from "@/lib/auth";
 import { retryMailJob } from "@/lib/jobs/retry-mail-job";
 import { PageHeader, Surface, Chip, SectionHeader, Button } from "@/components/ui/primitives";
@@ -14,7 +17,7 @@ async function retryAction(formData: FormData) {
   if (!u || !["OWNER", "ADMIN"].includes(u.role)) throw new Error("FORBIDDEN");
   const id = String(formData.get("mailJobId") ?? "");
   if (!id) throw new Error("missing id");
-  await retryMailJob({ mailJobId: id, actorUserId: u.id });
+  await retryMailJob({ mailJobId: id as Id<"mailJobs"> });
 }
 
 export default async function AdminMailJobDetail({
@@ -26,20 +29,18 @@ export default async function AdminMailJobDetail({
   if (!u || !["OWNER", "ADMIN", "SUPPORT"].includes(u.role)) redirect("/");
 
   const { jobId } = await params;
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
+  if (!token) redirect("/");
 
-  const job = await prisma.mailJob.findUnique({
-    where: { id: jobId },
-    include: {
-      disputeCase: {
-        include: {
-          user: { select: { id: true, email: true } },
-          tradeline: true,
-        },
-      },
-      events: { orderBy: { occurredAt: "desc" }, take: 200 },
-    },
-  });
-  if (!job) notFound();
+  const bundle = await fetchQuery(
+    api.mailJobs.getForAdmin,
+    { mailJobId: jobId as Id<"mailJobs"> },
+    { token },
+  );
+  if (!bundle) notFound();
+
+  const { job, disputeCase, owner, events } = bundle;
 
   const ufs = toUserFacingStatus(job.status, { signedAt: job.signedAt });
   const canRetry = job.status === "FAILED" && ["OWNER", "ADMIN"].includes(u.role);
@@ -48,8 +49,8 @@ export default async function AdminMailJobDetail({
     <div className="space-y-8">
       <PageHeader
         eyebrow={`Mail job · ${job.provider}`}
-        title={`Packet ${job.id.slice(0, 10)}…`}
-        description={`Dispute case ${job.disputeCaseId} · user ${job.disputeCase.user.email}`}
+        title={`Packet ${job._id.slice(0, 10)}…`}
+        description={`Dispute case ${job.disputeCaseId}${owner?.email ? ` · user ${owner.email}` : ""}`}
         actions={
           <Link
             href="/admin/mail-jobs"
@@ -87,6 +88,7 @@ export default async function AdminMailJobDetail({
             <Field label="Delivered">{fmt(job.deliveredAt)}</Field>
             <Field label="Signed">{fmt(job.signedAt)}</Field>
             <Field label="Signature ref">{job.signatureRef ?? "—"}</Field>
+            <Field label="Letter type">{disputeCase?.letterType ?? "—"}</Field>
             <Field label="Last error">
               {job.lastError ? (
                 <span className="text-rose-300">{job.lastError}</span>
@@ -98,7 +100,7 @@ export default async function AdminMailJobDetail({
 
           {canRetry && (
             <form action={retryAction} className="mt-8 border-t border-white/10 pt-6">
-              <input type="hidden" name="mailJobId" value={job.id} />
+              <input type="hidden" name="mailJobId" value={job._id} />
               <p className="text-[11px] uppercase tracking-[0.18em] text-white/50">
                 Manual retry
               </p>
@@ -118,9 +120,9 @@ export default async function AdminMailJobDetail({
         <Surface>
           <SectionHeader title="Event timeline" />
           <ol className="space-y-3">
-            {job.events.map((e) => (
+            {events.map((e) => (
               <li
-                key={e.id}
+                key={e._id}
                 className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
               >
                 <div className="flex items-center justify-between">
@@ -144,7 +146,7 @@ export default async function AdminMailJobDetail({
                 )}
               </li>
             ))}
-            {job.events.length === 0 && (
+            {events.length === 0 && (
               <li className="text-[13px] text-white/50">No events recorded yet.</li>
             )}
           </ol>
@@ -170,10 +172,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function fmt(d: Date | null | undefined): string {
-  if (!d) return "—";
+function fmt(d: number | null | undefined): string {
+  if (d == null) return "—";
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(d);
+  }).format(new Date(d));
 }

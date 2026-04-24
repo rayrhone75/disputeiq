@@ -2,7 +2,33 @@
 // duplicates, stale collections), then Claude-haiku as a reasoning layer to
 // summarize and prioritize. Never invents tradelines.
 import { callClaude } from "./client";
-import type { Tradeline } from "@prisma/client";
+import type { Doc } from "@/convex/_generated/dataModel";
+
+// Subset of fields the analyzer actually uses. Defined as a local type so
+// the analyzer stays portable (legacy `tradelines`, normalized
+// `creditTradelines`, or in-memory test fixtures all satisfy it).
+export type Tradeline = {
+  id: string;
+  bureau: string;
+  creditorName: string;
+  accountRefMasked: string;
+  balanceCents: number | null;
+  statusLabel: string | null;
+  isCollection: boolean;
+};
+
+// Convenience adapter for code that already has the Convex doc.
+export function fromConvexTradeline(t: Doc<"tradelines">): Tradeline {
+  return {
+    id: t._id as unknown as string,
+    bureau: t.bureau,
+    creditorName: t.creditorName,
+    accountRefMasked: t.accountRefMasked,
+    balanceCents: t.balanceCents ?? null,
+    statusLabel: t.statusLabel ?? null,
+    isCollection: t.isCollection,
+  };
+}
 
 export interface ReportFinding {
   tradelineIds: string[];

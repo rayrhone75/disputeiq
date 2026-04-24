@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { fetchMutation, fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 import { PLANS, type PlanCode } from "@/lib/billing/plans";
-import { getOrCreateSquareCustomer, createSquareSubscription } from "@/lib/square-subscriptions";
-import { writeAuditLog } from "@/lib/audit";
+import {
+  getOrCreateSquareCustomer,
+  createSquareSubscription,
+} from "@/lib/square-subscriptions";
 
 // Real recurring subscription via Square Subscriptions API.
 // Creates a Square customer, then a subscription with the plan variation.
@@ -14,8 +17,10 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const user = await requireUser().catch(() => null);
-  if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const { userId, getToken } = await auth();
+  if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
   const parsed = schema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: "INVALID_INPUT" }, { status: 400 });
@@ -23,29 +28,44 @@ export async function POST(req: NextRequest) {
   const planCode = parsed.data.planCode as PlanCode;
   const plan = PLANS[planCode];
 
-  const existing = await prisma.userSubscription.findUnique({ where: { userId: user.id } });
+  const existing = await fetchQuery(
+    api.subscriptions.getForUser,
+    {},
+    { token },
+  );
   if (existing?.status === "active") {
-    return NextResponse.json({ error: "ALREADY_SUBSCRIBED", plan: existing.planCode }, { status: 409 });
+    return NextResponse.json(
+      { error: "ALREADY_SUBSCRIBED", plan: existing.planCode },
+      { status: 409 },
+    );
   }
 
-  const profile = await prisma.userProfile.findUnique({ where: { userId: user.id } });
+  const profile = await fetchQuery(api.profile.getMine, {}, { token });
+  const u = await currentUser();
+  const email =
+    u?.primaryEmailAddress?.emailAddress ??
+    u?.emailAddresses?.[0]?.emailAddress ??
+    "";
+
   const squareCustomerId = await getOrCreateSquareCustomer(
-    user.id,
-    user.email,
-    profile?.fullName,
+    userId,
+    email,
+    profile?.fullName ?? undefined,
   );
 
-  const result = await createSquareSubscription({ customerId: squareCustomerId, planCode });
+  const result = await createSquareSubscription({
+    customerId: squareCustomerId,
+    planCode,
+  });
 
-  const now = new Date();
+  const now = Date.now();
   const cycleEnd = result.chargedThroughDate
-    ? new Date(result.chargedThroughDate)
-    : new Date(now.getTime() + 30 * 86400000);
+    ? new Date(result.chargedThroughDate).getTime()
+    : now + 30 * 86400000;
 
-  const sub = await prisma.userSubscription.upsert({
-    where: { userId: user.id },
-    create: {
-      userId: user.id,
+  const subId = await fetchMutation(
+    api.subscriptions.upsertForUser,
+    {
       planCode,
       status: result.status === "ACTIVE" ? "active" : "pending",
       cycleStart: now,
@@ -54,30 +74,13 @@ export async function POST(req: NextRequest) {
       overagePacketPriceCents: plan.overagePacketPriceCents,
       squareSubscriptionId: result.subscriptionId,
     },
-    update: {
-      planCode,
-      status: result.status === "ACTIVE" ? "active" : "pending",
-      cycleStart: now,
-      cycleEnd,
-      includedPackets: plan.includedPackets,
-      overagePacketPriceCents: plan.overagePacketPriceCents,
-      squareSubscriptionId: result.subscriptionId,
-    },
-  });
-
-  await writeAuditLog({
-    targetUserId: user.id,
-    actorUserId: user.id,
-    action: "SUBSCRIPTION_CREATED",
-    entityType: "UserSubscription",
-    entityId: sub.id,
-    metadataJson: { planCode, squareSubscriptionId: result.subscriptionId, squareCustomerId },
-  });
+    { token },
+  );
 
   return NextResponse.json({
-    subscriptionId: sub.id,
+    subscriptionId: subId,
     squareSubscriptionId: result.subscriptionId,
-    status: sub.status,
+    status: result.status === "ACTIVE" ? "active" : "pending",
     planCode,
   });
 }

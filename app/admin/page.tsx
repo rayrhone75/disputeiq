@@ -1,16 +1,21 @@
-import { prisma } from "@/lib/prisma";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
 import { requireRole } from "@/lib/auth";
+import { api } from "@/convex/_generated/api";
 import { PageHeader, Surface } from "@/components/ui/primitives";
 
 export default async function AdminHome() {
   await requireRole(["OWNER", "ADMIN", "SUPPORT"]);
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
+  const counts = token
+    ? await fetchQuery(api.admin.dashboardCounts, {}, { token }).catch(() => null)
+    : null;
 
-  const [userCount, disputeCount, mailJobCount, recentLogs] = await Promise.all([
-    prisma.user.count(),
-    prisma.disputeCase.count(),
-    prisma.mailJob.count({ where: { status: { in: ["QUEUED", "SUBMITTED", "MAILED"] } } }),
-    prisma.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
-  ]);
+  const userCount = counts?.userCount ?? 0;
+  const disputeCount = counts?.disputeCount ?? 0;
+  const mailJobCount = counts?.mailJobCount ?? 0;
+  const recentLogs = counts?.recentLogs ?? [];
 
   return (
     <div className="space-y-10">
@@ -27,7 +32,10 @@ export default async function AdminHome() {
           { label: "Mail in flight", value: mailJobCount },
           { label: "Audit entries", value: recentLogs.length > 0 ? "Live" : "0" },
         ].map((c) => (
-          <div key={c.label} className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
+          <div
+            key={c.label}
+            className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm"
+          >
             <p className="text-xs uppercase tracking-wide text-ink-500">{c.label}</p>
             <p className="mt-2 text-3xl font-semibold text-ink-900">{c.value}</p>
           </div>
@@ -41,7 +49,10 @@ export default async function AdminHome() {
         ) : (
           <ul className="mt-4 divide-y divide-ink-100 text-sm">
             {recentLogs.map((l) => (
-              <li key={l.id} className="flex items-center justify-between py-3">
+              <li
+                key={l._id as unknown as string}
+                className="flex items-center justify-between py-3"
+              >
                 <div>
                   <div className="font-semibold text-ink-900">{l.action}</div>
                   <div className="text-xs text-ink-500">
@@ -49,7 +60,7 @@ export default async function AdminHome() {
                   </div>
                 </div>
                 <div className="text-xs text-ink-500">
-                  {l.createdAt.toLocaleString()}
+                  {new Date(l.createdAt).toLocaleString()}
                 </div>
               </li>
             ))}

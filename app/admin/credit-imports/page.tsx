@@ -1,20 +1,25 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { Button, Chip, PageHeader, Surface } from "@/components/ui/primitives";
-import type { CreditImportStatus, CreditProvider, Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-const STATUSES: CreditImportStatus[] = [
+const STATUSES = [
   "PENDING",
   "FETCHED",
   "VALIDATED",
   "NORMALIZED",
   "FAILED",
   "ARCHIVED",
-];
-const PROVIDERS: CreditProvider[] = ["IDENTITYIQ", "MYSCOREIQ", "MYFREESCORENOW", "MANUAL"];
+] as const;
+type Status = (typeof STATUSES)[number];
+
+const PROVIDERS = ["IDENTITYIQ", "MYSCOREIQ", "MYFREESCORENOW", "MANUAL"] as const;
+type Provider = (typeof PROVIDERS)[number];
 
 const STATUS_TONE: Record<string, "neutral" | "accent" | "success" | "warning" | "danger"> = {
   PENDING: "neutral",
@@ -35,36 +40,36 @@ export default async function AdminCreditImportsPage({
     email?: string;
   }>;
 }) {
-  await requireRole(["OWNER", "ADMIN"]);
+  const { userId, getToken } = await auth();
+  if (!userId) redirect("/sign-in");
+  const token = await getToken({ template: "convex" });
   const q = (await searchParams) ?? {};
 
-  const where: Prisma.CreditReportImportWhereInput = {};
-  if (q.status && STATUSES.includes(q.status as CreditImportStatus)) {
-    where.status = q.status as CreditImportStatus;
-  }
-  if (q.provider && PROVIDERS.includes(q.provider as CreditProvider)) {
-    where.provider = q.provider as CreditProvider;
-  }
-  if (q.userId) where.userId = q.userId;
-  if (q.email) where.user = { email: { contains: q.email, mode: "insensitive" } };
-
-  const imports = await prisma.creditReportImport.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: 100,
-    include: {
-      user: { select: { email: true } },
-      _count: {
-        select: {
-          tradelines: true,
-          inquiries: true,
-          collections: true,
-          publicRecords: true,
-          disputeCandidates: true,
-        },
+  let imports: Awaited<ReturnType<typeof fetchQuery<typeof api.creditImports.adminList>>>["imports"] = [];
+  try {
+    const result = await fetchQuery(
+      api.creditImports.adminList,
+      {
+        status:
+          q.status && (STATUSES as readonly string[]).includes(q.status)
+            ? (q.status as Status)
+            : undefined,
+        provider:
+          q.provider && (PROVIDERS as readonly string[]).includes(q.provider)
+            ? (q.provider as Provider)
+            : undefined,
+        userId: q.userId ? (q.userId as Id<"users">) : undefined,
+        emailContains: q.email || undefined,
+        limit: 100,
+        offset: 0,
       },
-    },
-  });
+      { token: token ?? undefined },
+    );
+    imports = result.imports;
+  } catch (err) {
+    if ((err as Error).message === "FORBIDDEN") redirect("/dashboard");
+    throw err;
+  }
 
   return (
     <div className="space-y-8">
@@ -169,26 +174,33 @@ export default async function AdminCreditImportsPage({
             </thead>
             <tbody>
               {imports.map((imp) => (
-                <tr key={imp.id} className="border-t border-ink-100">
-                  <td className="py-2 pr-3 font-mono">{imp.user.email}</td>
+                <tr key={imp._id} className="border-t border-ink-100">
+                  <td className="py-2 pr-3 font-mono">{imp.user?.email ?? "—"}</td>
                   <td className="py-2 pr-3">{imp.provider}</td>
-                  <td className="py-2 pr-3">{imp.createdAt.toLocaleDateString()}</td>
+                  <td className="py-2 pr-3">
+                    {new Date(imp.createdAt).toLocaleDateString()}
+                  </td>
                   <td className="py-2 pr-3">
                     <Chip tone={STATUS_TONE[imp.status] ?? "neutral"}>{imp.status}</Chip>
                   </td>
                   <td className="py-2 pr-3 font-mono text-[10px]">
                     {imp.bureauCoverage.length ? imp.bureauCoverage.join(",") : "—"}
                   </td>
-                  <td className="py-2 pr-3">{imp._count.tradelines}</td>
-                  <td className="py-2 pr-3">{imp._count.collections}</td>
-                  <td className="py-2 pr-3">{imp._count.publicRecords}</td>
-                  <td className="py-2 pr-3">{imp._count.inquiries}</td>
-                  <td className="py-2 pr-3 font-semibold">{imp._count.disputeCandidates}</td>
+                  <td className="py-2 pr-3">{imp.counts.tradelines}</td>
+                  <td className="py-2 pr-3">{imp.counts.collections}</td>
+                  <td className="py-2 pr-3">{imp.counts.publicRecords}</td>
+                  <td className="py-2 pr-3">{imp.counts.inquiries}</td>
+                  <td className="py-2 pr-3 font-semibold">
+                    {imp.counts.disputeCandidates}
+                  </td>
                   <td className="py-2 pr-3 text-danger-600">
                     {imp.errorCode ? imp.errorCode : ""}
                   </td>
                   <td className="py-2 pr-3">
-                    <Link className="text-accent-600 underline" href={`/admin/credit-imports/${imp.id}`}>
+                    <Link
+                      className="text-accent-600 underline"
+                      href={`/admin/credit-imports/${imp._id}`}
+                    >
                       open
                     </Link>
                   </td>

@@ -1,5 +1,15 @@
 // Rules-first reason engine. Detects factual mismatches across bureau snapshots.
-import type { Tradeline } from "@prisma/client";
+// Originally typed against the Prisma `Tradeline` row; now accepts a structural
+// shape so it can run on either legacy `tradelines` or the new `creditTradelines`
+// pipeline rows. Caller adapts the input.
+
+export type AuditTradeline = {
+  id: string;
+  creditorName: string;
+  accountRefMasked: string;
+  balanceCents?: number | null;
+  statusLabel?: string | null;
+};
 
 export type AuditFinding = {
   tradelineId: string;
@@ -8,10 +18,10 @@ export type AuditFinding = {
   summary: string;
 };
 
-export function auditTradelines(tradelines: Tradeline[]): AuditFinding[] {
+export function auditTradelines(tradelines: AuditTradeline[]): AuditFinding[] {
   const findings: AuditFinding[] = [];
   // Group by masked account ref to compare across bureaus
-  const groups = new Map<string, Tradeline[]>();
+  const groups = new Map<string, AuditTradeline[]>();
   for (const t of tradelines) {
     const k = `${t.creditorName}::${t.accountRefMasked}`;
     if (!groups.has(k)) groups.set(k, []);

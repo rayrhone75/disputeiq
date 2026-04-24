@@ -1,63 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
 import { requireRole } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { api } from "@/convex/_generated/api";
 
 // Fast customer lookup for the support workspace.
-// Matches on email substring, exact user id, or the last 8 chars of an
-// import id so support can paste any identifier from a ticket.
+// Matches on email substring, exact user id, or import id substring.
 export async function GET(req: NextRequest) {
   const user = await requireRole(["OWNER", "ADMIN", "SUPPORT"]).catch(() => null);
   if (!user) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+
   const url = new URL(req.url);
   const q = (url.searchParams.get("q") ?? "").trim();
   const includeArchived = url.searchParams.get("archived") === "1";
-  const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? "25"), 1), 100);
+  const limit = Math.min(
+    Math.max(Number(url.searchParams.get("limit") ?? "25"), 1),
+    100,
+  );
 
-  if (!q) {
-    const recent = await prisma.user.findMany({
-      where: includeArchived ? {} : { archivedAt: null },
-      orderBy: { updatedAt: "desc" },
-      take: limit,
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        archivedAt: true,
-        createdAt: true,
-        _count: {
-          select: { creditImports: true, disputes: true, supportNotes: true },
-        },
-      },
-    });
-    return NextResponse.json({ users: recent });
-  }
-
-  const users = await prisma.user.findMany({
-    where: {
-      AND: [
-        includeArchived ? {} : { archivedAt: null },
-        {
-          OR: [
-            { email: { contains: q, mode: "insensitive" } },
-            { id: q },
-            { creditImports: { some: { id: { contains: q } } } },
-          ],
-        },
-      ],
-    },
-    orderBy: { updatedAt: "desc" },
-    take: limit,
-    select: {
-      id: true,
-      email: true,
-      role: true,
-      archivedAt: true,
-      createdAt: true,
-      _count: {
-        select: { creditImports: true, disputes: true, supportNotes: true },
-      },
-    },
-  });
+  const users = await fetchQuery(
+    api.support.searchUsers,
+    { q, includeArchived, limit },
+    { token },
+  );
   return NextResponse.json({ users });
 }

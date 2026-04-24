@@ -1,31 +1,38 @@
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { EscalationPanel } from "./escalation-panel";
 
 export default async function DisputeDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
-  const { id } = await params;
-  const dc = await prisma.disputeCase.findUnique({
-    where: { id },
-    include: { tradeline: true, mailJobs: { orderBy: { createdAt: "desc" }, take: 1 } },
-  });
-  if (!dc || dc.userId !== user.id) notFound();
+  const { userId, getToken } = await auth();
+  if (!userId) throw new Error("UNAUTHENTICATED");
+  const token = await getToken({ template: "convex" });
+  if (!token) throw new Error("UNAUTHENTICATED");
 
-  const logs = await prisma.auditLog.findMany({
-    where: { entityType: "DisputeCase", entityId: id },
-    orderBy: { createdAt: "asc" },
-  });
+  const { id } = await params;
+  const bundle = await fetchQuery(
+    api.disputes.getById,
+    { id: id as Id<"disputeCases"> },
+    { token },
+  );
+  if (!bundle) notFound();
+  const dc = bundle.case;
+  const tradeline = bundle.tradeline;
+  const logs = bundle.auditLogs;
 
   // Determine escalation eligibility
   const canEscalate = ["DELIVERED", "RESPONSE_RECEIVED", "ESCALATION_READY"].includes(dc.status);
 
   // Count prior disputes on same tradeline for stage suggestion
   const priorCount = dc.tradelineId
-    ? await prisma.disputeCase.count({
-        where: { tradelineId: dc.tradelineId, userId: user.id },
-      })
+    ? await fetchQuery(
+        api.disputes.countForTradeline,
+        { tradelineId: dc.tradelineId },
+        { token },
+      )
     : 1;
 
   const suggestedStage =
@@ -48,14 +55,14 @@ export default async function DisputeDetailPage({ params }: { params: Promise<{ 
           ← All disputes
         </Link>
         <h1 className="mt-2 text-2xl font-bold text-ink-900">
-          {dc.tradeline?.creditorName ?? "Bureau packet"}
+          {tradeline?.creditorName ?? "Bureau packet"}
         </h1>
         <div className="mt-2 flex items-center gap-3">
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${statusColor[dc.status] ?? "bg-ink-100 text-ink-700"}`}>
             {dc.status}
           </span>
           <span className="text-xs text-ink-500">
-            {dc.letterType.replace(/_/g, " ")} · Case {dc.id.slice(0, 8)}
+            {dc.letterType.replace(/_/g, " ")} · Case {String(dc._id).slice(0, 8)}
           </span>
         </div>
       </div>
@@ -67,26 +74,26 @@ export default async function DisputeDetailPage({ params }: { params: Promise<{ 
           {dc.legalBasisSummary && (
             <p className="mt-2 text-xs text-ink-500">{dc.legalBasisSummary}</p>
           )}
-          {dc.tradeline && (
+          {tradeline && (
             <dl className="mt-4 space-y-1 text-xs text-ink-600">
               <div className="flex justify-between">
                 <dt>Bureau</dt>
-                <dd className="font-semibold">{dc.tradeline.bureau}</dd>
+                <dd className="font-semibold">{tradeline.bureau}</dd>
               </div>
               <div className="flex justify-between">
                 <dt>Account</dt>
-                <dd className="font-semibold">{dc.tradeline.accountRefMasked}</dd>
+                <dd className="font-semibold">{tradeline.accountRefMasked}</dd>
               </div>
-              {dc.tradeline.balanceCents != null && (
+              {tradeline.balanceCents != null && (
                 <div className="flex justify-between">
                   <dt>Balance</dt>
-                  <dd className="font-semibold">${(dc.tradeline.balanceCents / 100).toFixed(2)}</dd>
+                  <dd className="font-semibold">${(tradeline.balanceCents / 100).toFixed(2)}</dd>
                 </div>
               )}
-              {dc.tradeline.statusLabel && (
+              {tradeline.statusLabel && (
                 <div className="flex justify-between">
                   <dt>Status</dt>
-                  <dd className="font-semibold">{dc.tradeline.statusLabel}</dd>
+                  <dd className="font-semibold">{tradeline.statusLabel}</dd>
                 </div>
               )}
             </dl>
@@ -100,7 +107,7 @@ export default async function DisputeDetailPage({ params }: { params: Promise<{ 
           </p>
           <iframe
             title="letter preview"
-            src={`/api/letters/preview?id=${dc.id}`}
+            src={`/api/letters/preview?id=${dc._id}`}
             className="mt-3 h-64 w-full rounded-lg border border-ink-200"
           />
         </div>
@@ -114,7 +121,7 @@ export default async function DisputeDetailPage({ params }: { params: Promise<{ 
             Review the letter above, then proceed to the consent screen and payment.
           </p>
           <Link
-            href={`/dashboard/checkout/${dc.id}`}
+            href={`/dashboard/checkout/${dc._id}`}
             className="mt-4 inline-block rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-ink-900"
           >
             Continue to checkout →
@@ -125,10 +132,10 @@ export default async function DisputeDetailPage({ params }: { params: Promise<{ 
       {/* Escalation panel — only when delivered/unresolved */}
       {canEscalate && (
         <EscalationPanel
-          disputeCaseId={dc.id}
+          disputeCaseId={String(dc._id)}
           suggestedStage={suggestedStage}
           priorCount={priorCount}
-          creditor={dc.tradeline?.creditorName ?? "Unknown"}
+          creditor={tradeline?.creditorName ?? "Unknown"}
         />
       )}
 
@@ -140,7 +147,7 @@ export default async function DisputeDetailPage({ params }: { params: Promise<{ 
         ) : (
           <ol className="mt-4 space-y-2 text-xs">
             {logs.map((l) => (
-              <li key={l.id} className="flex gap-3 text-ink-700">
+              <li key={l._id} className="flex gap-3 text-ink-700">
                 <span className="w-36 shrink-0 text-ink-500">
                   {new Date(l.createdAt).toLocaleString()}
                 </span>

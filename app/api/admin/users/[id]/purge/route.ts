@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { auth } from "@clerk/nextjs/server";
+import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { requireRole } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import {
-  DeletionError,
   expectedPurgeConfirmation,
-  hardPurgeUser,
   isConfirmationOk,
 } from "@/lib/admin/deletion";
 
@@ -32,43 +33,53 @@ export async function POST(req: NextRequest, ctx: Params) {
     );
   }
 
-  const target = await prisma.user.findUnique({ where: { id }, select: { email: true } });
-  if (!target) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
-  if (!isConfirmationOk(parsed.data.confirmation, expectedPurgeConfirmation(target.email))) {
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+
+  const preview = await fetchQuery(
+    api.admin.previewUserImpact,
+    { userId: id as Id<"users"> },
+    { token },
+  ).catch(() => null);
+  if (!preview) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+
+  if (
+    !isConfirmationOk(
+      parsed.data.confirmation,
+      expectedPurgeConfirmation(preview.user.email),
+    )
+  ) {
     return NextResponse.json(
       {
         error: "CONFIRMATION_MISMATCH",
-        message: `Confirmation phrase must be exactly: ${expectedPurgeConfirmation(target.email)}`,
+        message: `Confirmation phrase must be exactly: ${expectedPurgeConfirmation(preview.user.email)}`,
       },
       { status: 400 },
     );
   }
 
   try {
-    const result = await hardPurgeUser({
-      userId: id,
-      reason: parsed.data.reason,
-      actorUserId: user.id,
-      actorRole: user.role,
-    });
+    const result = await fetchMutation(
+      api.admin.hardPurgeUser,
+      { userId: id as Id<"users">, reason: parsed.data.reason },
+      { token },
+    );
     return NextResponse.json(result);
   } catch (err) {
-    if (err instanceof DeletionError) {
+    const msg = (err as Error).message;
+    if (msg.includes("FORBIDDEN")) {
+      return NextResponse.json({ error: "FORBIDDEN", message: msg }, { status: 403 });
+    }
+    if (msg.includes("NOT_FOUND")) {
+      return NextResponse.json({ error: "NOT_FOUND", message: msg }, { status: 404 });
+    }
+    if (msg.includes("SELF_PURGE_FORBIDDEN")) {
       return NextResponse.json(
-        { error: err.code, message: err.message },
-        {
-          status:
-            err.code === "FORBIDDEN"
-              ? 403
-              : err.code === "NOT_FOUND"
-                ? 404
-                : 400,
-        },
+        { error: "SELF_PURGE_FORBIDDEN", message: msg },
+        { status: 400 },
       );
     }
-    return NextResponse.json(
-      { error: "INTERNAL", message: (err as Error).message },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "INTERNAL", message: msg }, { status: 500 });
   }
 }

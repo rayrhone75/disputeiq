@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { writeAuditLog } from "@/lib/audit";
-import type { MailJobStatus } from "@prisma/client";
+import { fetchMutation } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { MailJobStatus } from "@/lib/letterstream/status";
 import { classifyEventKind } from "@/lib/letterstream/status";
 import { getSignature } from "@/lib/letterstream";
 
@@ -13,10 +13,14 @@ import { getSignature } from "@/lib/letterstream";
 //   - timestamp    provider-issued timestamp
 //   - json         stringified JSON containing tracking line items
 //
-// We parse `json`, iterate tracking line items, match each to a MailJob by
-// provider job id, record an append-only MailJobEvent, advance MailJob state,
-// and on DELIVERED update the DisputeCase. On SIGNATURE we fetch the signature
-// image ref via the provider tracking API.
+// We parse `json`, iterate tracking line items, and for each one:
+//   - look up the matching MailJob via `api.mailJobs.recordEventFromWebhook`
+//     (gated by INTERNAL_SERVICE_SECRET)
+//   - record an append-only event + advance state
+//   - on DELIVERED, update the dispute case (handled inside Convex)
+//
+// On signature events we additionally fetch the signature image ref via
+// the provider tracking API before recording the event.
 //
 // Must respond HTTP 200 with {"success":true,"reason":"Received data"}.
 
@@ -67,11 +71,19 @@ function pickStatus(item: Record<string, unknown>): string | undefined {
 }
 
 function pickTrackingCode(item: Record<string, unknown>): string | undefined {
-  const v = item.tracking_number ?? item.tracking ?? item.usps_tracking ?? item.TrackingNumber;
+  const v =
+    item.tracking_number ??
+    item.tracking ??
+    item.usps_tracking ??
+    item.TrackingNumber;
   return v == null ? undefined : String(v);
 }
 
 const ACK = { success: true, reason: "Received data" };
+
+function internalSecret(): string | null {
+  return process.env.INTERNAL_SERVICE_SECRET ?? null;
+}
 
 export async function POST(req: NextRequest) {
   const body = await parseBody(req);
@@ -79,13 +91,25 @@ export async function POST(req: NextRequest) {
   const { key, api_version: apiVersion, timestamp, json: jsonStr } = body;
 
   const expected = process.env.LETTERSTREAM_CALLBACK_KEY;
+  const secret = internalSecret();
+
   if (expected && key !== expected) {
-    await writeAuditLog({
-      action: "LETTERSTREAM_CALLBACK_BAD_KEY",
-      entityType: "MailJob",
-      entityId: "unknown",
-      metadataJson: { apiVersion, timestamp },
-    }).catch(() => null);
+    if (secret) {
+      await fetchMutation(api.mailJobs.recordBadCallbackKey, {
+        secret,
+        apiVersion,
+        timestamp,
+      }).catch(() => null);
+    }
+    // Always ACK — never give a webhook reason to retry-storm us.
+    return NextResponse.json(ACK);
+  }
+
+  if (!secret) {
+    // Misconfiguration: ACK to LetterStream but log to console so we notice.
+    console.error(
+      "[letterstream/webhook] INTERNAL_SERVICE_SECRET unset — events will be dropped.",
+    );
     return NextResponse.json(ACK);
   }
 
@@ -112,103 +136,43 @@ export async function POST(req: NextRequest) {
     const mapped = mapStatus(rawStatus);
     const trackingCode = pickTrackingCode(item);
 
-    const mailJob = await prisma.mailJob.findFirst({
-      where: { providerJobId: String(providerId) },
-    });
-
-    if (!mailJob) {
-      await writeAuditLog({
-        action: "LETTERSTREAM_EVENT_UNMATCHED",
-        entityType: "MailJob",
-        entityId: String(providerId),
-        metadataJson: { item, apiVersion, timestamp },
-      }).catch(() => null);
-      continue;
-    }
-
-    // Append-only event history.
-    await prisma.mailJobEvent.create({
-      data: {
-        mailJobId: mailJob.id,
-        kind: classifyEventKind(rawStatus),
-        rawStatus: rawStatus ?? null,
-        mappedStatus: mapped ?? null,
-        message: null,
-        payloadJson: item as object,
-      },
-    });
-
-    // State advancement.
-    if (mapped) {
-      const now = new Date();
-      const patch: {
-        status: MailJobStatus;
-        rawResponseJson: object;
-        trackingCode?: string;
-        mailedAt?: Date;
-        deliveredAt?: Date;
-        signedAt?: Date;
-        signatureRef?: string;
-      } = {
-        status: mapped,
-        rawResponseJson: item as object,
-      };
-      if (trackingCode && !mailJob.trackingCode) patch.trackingCode = trackingCode;
-      if (mapped === "MAILED" && !mailJob.mailedAt) patch.mailedAt = now;
-      if (mapped === "DELIVERED" && !mailJob.deliveredAt) patch.deliveredAt = now;
-
-      // Fetch signature ref on delivery when ERR is enabled.
-      if (mapped === "DELIVERED" && mailJob.err && !mailJob.signatureRef) {
-        try {
-          const sig = await getSignature(mailJob.providerJobId ?? "");
-          const sigRef =
-            (sig as { url?: string; signature_url?: string; ref?: string })?.url ??
-            (sig as { signature_url?: string })?.signature_url ??
-            (sig as { ref?: string })?.ref ??
-            null;
-          if (sigRef) {
-            patch.signatureRef = String(sigRef);
-            patch.signedAt = now;
-            await prisma.mailJobEvent.create({
-              data: {
-                mailJobId: mailJob.id,
-                kind: "SIGNATURE",
-                rawStatus: "signature_captured",
-                mappedStatus: mapped,
-                payloadJson: sig as object,
-              },
-            });
-          }
-        } catch (e) {
-          await prisma.mailJobEvent.create({
-            data: {
-              mailJobId: mailJob.id,
-              kind: "ERROR",
-              message: `signature_fetch_failed: ${e instanceof Error ? e.message : String(e)}`,
-            },
-          });
+    // For DELIVERED + ERR-tracked packets, attempt to fetch the signature
+    // image ref before we record the event so it lands on the same row.
+    let signatureRef: string | undefined;
+    let signedAt: number | undefined;
+    if (mapped === "DELIVERED") {
+      try {
+        const sig = await getSignature(String(providerId));
+        const ref =
+          (sig as { url?: string; signature_url?: string; ref?: string })?.url ??
+          (sig as { signature_url?: string })?.signature_url ??
+          (sig as { ref?: string })?.ref ??
+          null;
+        if (ref) {
+          signatureRef = String(ref);
+          signedAt = Date.now();
         }
-      }
-
-      await prisma.mailJob.update({
-        where: { id: mailJob.id },
-        data: patch,
-      });
-
-      if (mapped === "DELIVERED") {
-        await prisma.disputeCase.update({
-          where: { id: mailJob.disputeCaseId },
-          data: { status: "DELIVERED", deliveredAt: new Date() },
-        });
+      } catch {
+        // Best-effort — Convex will still record the DELIVERED event itself.
       }
     }
 
-    await writeAuditLog({
-      action: "LETTERSTREAM_EVENT",
-      entityType: "MailJob",
-      entityId: mailJob.id,
-      metadataJson: { rawStatus, mapped, trackingCode, apiVersion, timestamp },
-    }).catch(() => null);
+    await fetchMutation(api.mailJobs.recordEventFromWebhook, {
+      secret,
+      providerJobId: String(providerId),
+      rawStatus,
+      mappedStatus: mapped ?? undefined,
+      eventKind: classifyEventKind(rawStatus),
+      trackingCode,
+      signatureRef,
+      signedAt,
+      payloadJson: item,
+      apiVersion,
+      timestamp,
+    }).catch((e) => {
+      console.warn("[letterstream/webhook] convex mutation failed", e);
+      return null;
+    });
   }
 
   return NextResponse.json(ACK);

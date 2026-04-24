@@ -1,16 +1,17 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 import { PageHeader, Surface } from "@/components/ui/primitives";
 import { FollowUpBadge } from "@/components/dashboard/FollowUpBadge";
 
 export default async function DisputesPage() {
-  const user = await requireUser();
-  const disputes = await prisma.disputeCase.findMany({
-    where: { userId: user.id },
-    include: { tradeline: true },
-    orderBy: { id: "desc" },
-  });
+  const { userId, getToken } = await auth();
+  if (!userId) throw new Error("UNAUTHENTICATED");
+  const token = await getToken({ template: "convex" });
+  if (!token) throw new Error("UNAUTHENTICATED");
+
+  const disputes = await fetchQuery(api.disputes.listForUser, {}, { token });
 
   const byStatus = (s: string[]) => disputes.filter((d) => s.includes(d.status));
   const active = byStatus(["DRAFT", "NEEDS_USER_CONFIRMATION", "READY_FOR_PAYMENT", "PAID", "MAILED"]);
@@ -27,7 +28,7 @@ export default async function DisputesPage() {
     ESCALATION_READY: "bg-rose-100 text-rose-700",
   };
 
-  function DisputeRow({ d }: { d: (typeof disputes)[0] }) {
+  function DisputeRow({ d }: { d: (typeof disputes)[number] }) {
     return (
       <li className="flex items-center justify-between py-3">
         <div>
@@ -39,12 +40,15 @@ export default async function DisputesPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <FollowUpBadge responseDueAt={d.responseDueAt} status={d.status} />
+          <FollowUpBadge
+            responseDueAt={d.responseDueAt ? new Date(d.responseDueAt) : null}
+            status={d.status}
+          />
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${statusColor[d.status] ?? "bg-ink-100 text-ink-700"}`}>
             {d.status}
           </span>
           {d.status === "DRAFT" && (
-            <Link href={`/dashboard/checkout/${d.id}`} className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white">
+            <Link href={`/dashboard/checkout/${d._id}`} className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white">
               Continue →
             </Link>
           )}
@@ -82,7 +86,7 @@ export default async function DisputesPage() {
             <Surface className="p-6">
               <h2 className="text-lg font-semibold text-ink-900">Active ({active.length})</h2>
               <ul className="mt-4 divide-y divide-ink-100 text-sm">
-                {active.map((d) => <DisputeRow key={d.id} d={d} />)}
+                {active.map((d) => <DisputeRow key={d._id} d={d} />)}
               </ul>
             </Surface>
           )}
@@ -90,7 +94,7 @@ export default async function DisputesPage() {
             <Surface className="p-6">
               <h2 className="text-lg font-semibold text-ink-900">Delivered — awaiting response ({delivered.length})</h2>
               <ul className="mt-4 divide-y divide-ink-100 text-sm">
-                {delivered.map((d) => <DisputeRow key={d.id} d={d} />)}
+                {delivered.map((d) => <DisputeRow key={d._id} d={d} />)}
               </ul>
             </Surface>
           )}
@@ -98,7 +102,7 @@ export default async function DisputesPage() {
             <Surface className="p-6">
               <h2 className="text-lg font-semibold text-ink-900">Resolved ({closed.length})</h2>
               <ul className="mt-4 divide-y divide-ink-100 text-sm">
-                {closed.map((d) => <DisputeRow key={d.id} d={d} />)}
+                {closed.map((d) => <DisputeRow key={d._id} d={d} />)}
               </ul>
             </Surface>
           )}

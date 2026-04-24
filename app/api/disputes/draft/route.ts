@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery, fetchMutation } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { draftLetter } from "@/lib/ai/draft-letter";
 import { buildLetterPdf } from "@/lib/letter-pdf";
 import { storage } from "@/lib/storage";
 import { decrypt } from "@/lib/encryption";
-import { writeAuditLog } from "@/lib/audit";
 
 const schema = z.object({
   tradelineId: z.string(),
-  letterType: z.enum(["FACTUAL_DISPUTE", "MOV_REQUEST", "DIRECT_FURNISHER", "IDENTITY_THEFT_605B"]),
+  letterType: z.enum([
+    "FACTUAL_DISPUTE",
+    "MOV_REQUEST",
+    "DIRECT_FURNISHER",
+    "IDENTITY_THEFT_605B",
+  ]),
   findingCode: z.string(),
   findingDetail: z.string(),
 });
@@ -28,23 +34,31 @@ const BUREAU_ADDR: Record<string, string[]> = {
 };
 
 export async function POST(req: NextRequest) {
-  const user = await requireUser().catch(() => null);
-  if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const { userId, getToken } = await auth();
+  if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const body = parsed.data;
 
-  const tradeline = await prisma.tradeline.findUnique({
-    where: { id: body.tradelineId },
-    include: { report: true },
-  });
-  if (!tradeline) return NextResponse.json({ error: "TRADELINE_NOT_FOUND" }, { status: 404 });
-  if (tradeline.report.userId !== user.id) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const tradelineId = body.tradelineId as Id<"tradelines">;
+  const tlBundle = await fetchQuery(
+    api.disputes.tradelineForUser,
+    { tradelineId },
+    { token },
+  );
+  if (!tlBundle) {
+    return NextResponse.json({ error: "TRADELINE_NOT_FOUND" }, { status: 404 });
   }
+  const tradeline = tlBundle.tradeline;
 
-  const profile = await prisma.userProfile.findUnique({ where: { userId: user.id } });
+  const profile = await fetchQuery(
+    api.disputes.userProfileForLetter,
+    {},
+    { token },
+  );
   if (!profile) {
     return NextResponse.json({ error: "PROFILE_REQUIRED" }, { status: 400 });
   }
@@ -93,40 +107,34 @@ export async function POST(req: NextRequest) {
 
   // 3. Persist the PDF in secure storage
   const pdfRef = await storage.put(
-    `letters/${user.id}/${Date.now()}_${tradeline.id}.pdf`,
+    `letters/${userId}/${Date.now()}_${tradelineId}.pdf`,
     pdf.bytes,
     "application/pdf",
   );
 
-  // 4. Create the DisputeCase in DRAFT pointing at the secure letter ref
-  const dc = await prisma.disputeCase.create({
-    data: {
-      userId: user.id,
-      tradelineId: tradeline.id,
+  // 4. Create the DisputeCase in DRAFT pointing at the secure letter ref.
+  //    Audit log is written inside the same Convex mutation.
+  const disputeCaseId = (await fetchMutation(
+    api.disputes.createDraft,
+    {
+      tradelineId,
       letterType: body.letterType,
       aiReasonSummary: `${body.findingCode}: ${body.findingDetail}`,
       legalBasisSummary: drafted.legalBasis,
-      status: "DRAFT",
       secureLetterRef: pdfRef,
+      auditAction: "DISPUTE_DRAFTED",
+      auditMetadata: {
+        letterType: body.letterType,
+        pages: pdf.pages,
+        aiLive: drafted.aiLive,
+        pdfRef,
+      },
     },
-  });
-
-  await writeAuditLog({
-    targetUserId: user.id,
-    actorUserId: user.id,
-    action: "DISPUTE_DRAFTED",
-    entityType: "DisputeCase",
-    entityId: dc.id,
-    metadataJson: {
-      letterType: body.letterType,
-      pages: pdf.pages,
-      aiLive: drafted.aiLive,
-      pdfRef,
-    },
-  });
+    { token },
+  )) as Id<"disputeCases">;
 
   return NextResponse.json({
-    disputeCaseId: dc.id,
+    disputeCaseId,
     pages: pdf.pages,
     legalBasis: drafted.legalBasis,
     aiLive: drafted.aiLive,

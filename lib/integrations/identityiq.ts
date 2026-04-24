@@ -5,10 +5,12 @@
 // admin/support views but is no longer advertised to new users.
 //
 // Configuration values (affiliate URL, display copy, feature flags) live in
-// the `PlatformSetting` table so admins can rotate them without a deploy.
-// `loadIdiqConfig` merges defaults ← env ← DB in that precedence order.
+// the `platformSettings` Convex table so admins can rotate them without a
+// deploy. `loadIdiqConfig` merges defaults ← env ← DB in that precedence
+// order.
 
-import { prisma } from "@/lib/prisma";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 
 export const IDIQ = {
   productName: "IdentityIQ",
@@ -61,13 +63,24 @@ function envDefaults(): IdiqConfig {
   };
 }
 
-export async function loadIdiqConfig(): Promise<IdiqConfig> {
+/**
+ * Load the IDIQ config from Convex platformSettings, falling back to env
+ * defaults if the DB is unreachable. Caller may pass a Clerk token (admin
+ * pages can read settings even though the table doesn't gate by user); if
+ * unauth'd, the helper still works because `listByPrefix` doesn't enforce a
+ * role. We keep `token` optional so RSC pages don't have to thread auth.
+ */
+export async function loadIdiqConfig(token?: string | null): Promise<IdiqConfig> {
   const defaults = envDefaults();
   try {
-    const rows = await prisma.platformSetting.findMany({
-      where: { key: { startsWith: "idiq." } },
-    });
-    const byKey = new Map(rows.map((r) => [r.key, r.valueJson]));
+    const rows = await fetchQuery(
+      api.platformSettings.listByPrefix,
+      { prefix: "idiq." },
+      { token: token ?? undefined },
+    );
+    const byKey = new Map<string, unknown>(
+      (rows ?? []).map((r: { key: string; valueJson: unknown }) => [r.key, r.valueJson]),
+    );
 
     const str = (k: string, fallback: string): string => {
       const v = byKey.get(k);
@@ -78,7 +91,10 @@ export async function loadIdiqConfig(): Promise<IdiqConfig> {
       if (typeof v === "string") return v.trim().length ? v : null;
       return fallback;
     };
-    const rec = (k: string, fallback: Record<string, boolean>): Record<string, boolean> => {
+    const rec = (
+      k: string,
+      fallback: Record<string, boolean>,
+    ): Record<string, boolean> => {
       const v = byKey.get(k);
       if (v && typeof v === "object" && !Array.isArray(v)) {
         return v as Record<string, boolean>;
@@ -95,7 +111,8 @@ export async function loadIdiqConfig(): Promise<IdiqConfig> {
       featureFlags: rec(IDIQ_SETTING_KEYS.featureFlags, defaults.featureFlags),
     };
   } catch {
-    // DB unavailable — fall back to env defaults rather than breaking the page.
+    // Convex unreachable — fall back to env defaults rather than breaking
+    // the page.
     return defaults;
   }
 }

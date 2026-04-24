@@ -1,38 +1,43 @@
-// Import job orchestrator.
+// Import job orchestrator (Convex-backed).
 //
-// Responsibilities:
+// Responsibilities (unchanged from the Prisma version):
 //   - Create an import record (PENDING)
 //   - Fetch or accept-pasted raw JSON
-//   - Encrypt + persist the raw body (CreditReportRaw)
+//   - Encrypt + persist the raw body (creditReportRaws)
 //   - Run provider-specific normalization
 //   - Persist normalized entities (tradelines, inquiries, collections, etc.)
 //   - Emit dispute candidates
 //   - Record audit trail at every step
 //
-// All mutations are wrapped in a transaction so a partial failure leaves
-// the import in a known state with a structured error, not half-written data.
-// Re-running normalization on the same import is idempotent: we drop and
-// re-insert child rows under the import id.
+// The orchestration runs in the Next.js Node runtime so we can use Node
+// crypto for encryption. Each step calls a Convex mutation/query via
+// `fetchMutation` / `fetchQuery`, passing the caller's Clerk JWT.
+//
+// Convex mutations are atomic per-call; we don't try to span an admin
+// transaction across HTTP boundaries. The "replace" path inside
+// persistNormalization is itself a single Convex mutation, so a partial
+// re-normalization can't leave child rows half-rewritten.
 
-import { prisma } from "@/lib/prisma";
-import { encrypt } from "@/lib/encryption";
-import { writeAuditLog } from "@/lib/audit";
+import { fetchMutation, fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+import { decrypt, encrypt } from "@/lib/encryption";
 import { redactJson } from "./redact";
 import { getAdapter, detectAdapter } from "./providers";
 import { fetchProviderJson, parseProviderJson, ProviderFetchError } from "./fetcher";
 import { NormalizedReportZ } from "./schemas";
 import { runDisputeEngine } from "./dispute-engine";
-import { sha256, stableStringify, toDate, tradelineFingerprint } from "./util";
-import { toCreditReportBureau } from "./types";
-import type { NormalizedReport } from "./types";
+import { sha256, stableStringify, toDate } from "./util";
+import { tradelineFingerprint } from "./util";
 import type {
-  CreditImportStatus,
   CreditProvider,
   CreditReportBureau,
-  Prisma,
-} from "@prisma/client";
+  NormalizedReport,
+} from "./types";
 
 const RUNNER_VERSION = "v1";
+
+export type RunnerCtx = { token: string | null };
 
 export class ImportRunnerError extends Error {
   constructor(
@@ -45,124 +50,91 @@ export class ImportRunnerError extends Error {
   }
 }
 
-export async function createImport(input: {
-  userId: string;
-  provider: CreditProvider;
-  providerRef?: string;
-  sourceUrl?: string;
-  actorUserId?: string;
-}) {
-  const imp = await prisma.creditReportImport.create({
-    data: {
+const dateMs = (iso?: string): number | undefined => {
+  const d = toDate(iso);
+  return d ? d.getTime() : undefined;
+};
+
+export async function createImport(
+  ctx: RunnerCtx,
+  input: {
+    userId?: Id<"users">;
+    provider: CreditProvider;
+    providerRef?: string;
+    sourceUrl?: string;
+  },
+) {
+  return await fetchMutation(
+    api.creditImports.createImport,
+    {
       userId: input.userId,
       provider: input.provider,
       providerRef: input.providerRef,
       sourceUrl: input.sourceUrl,
-      status: "PENDING",
     },
-  });
-  await writeAuditLog({
-    targetUserId: input.userId,
-    actorUserId: input.actorUserId,
-    action: "CREDIT_IMPORT_CREATED",
-    entityType: "CreditReportImport",
-    entityId: imp.id,
-    metadataJson: {
-      provider: input.provider,
-      sourceUrl: input.sourceUrl ?? null,
-    },
-  });
-  return imp;
+    { token: ctx.token ?? undefined },
+  );
 }
 
 /**
  * Capture a raw JSON body against an import (paste-in flow).
- * The body is persisted encrypted and the import advances to FETCHED.
+ * The body is encrypted in this Node process, then persisted.
  */
-export async function captureRaw(opts: {
-  importId: string;
-  bodyText?: string;
-  json?: unknown;
-  actorUserId?: string;
-}) {
+export async function captureRaw(
+  ctx: RunnerCtx,
+  opts: {
+    importId: Id<"creditReportImports">;
+    bodyText?: string;
+    json?: unknown;
+    onlyIfOwnedByMe?: boolean;
+  },
+) {
   if (!opts.bodyText && opts.json === undefined) {
     throw new ImportRunnerError("NO_INPUT", "Either bodyText or json is required.");
   }
   const bodyText = opts.bodyText ?? JSON.stringify(opts.json);
   const payloadHash = sha256(bodyText);
-  // Parse eagerly so we surface a malformed body before persisting.
-  let _parsed: unknown;
+
+  let parsed: unknown;
   try {
-    _parsed = opts.json !== undefined ? opts.json : JSON.parse(bodyText);
+    parsed = opts.json !== undefined ? opts.json : JSON.parse(bodyText);
   } catch (err) {
     throw new ImportRunnerError(
       "PARSE_ERROR",
       `Pasted body is not valid JSON: ${(err as Error).message}`,
     );
   }
-  void _parsed;
 
   const encryptedPayload = encrypt(bodyText);
-  const redactionFingerprint = sha256(stableStringify(redactJson(_parsed)));
+  const redactionFingerprint = sha256(stableStringify(redactJson(parsed)));
 
-  const imp = await prisma.$transaction(async (tx) => {
-    const existing = await tx.creditReportImport.findUnique({ where: { id: opts.importId } });
-    if (!existing) throw new ImportRunnerError("NOT_FOUND", "Import not found.");
-    // Upsert raw capture: re-pasting replaces prior raw.
-    await tx.creditReportRaw.upsert({
-      where: { importId: opts.importId },
-      create: {
-        importId: opts.importId,
-        encryptedPayload,
-        payloadBytes: Buffer.byteLength(bodyText, "utf8"),
-        payloadHash,
-        redactionFingerprint,
-      },
-      update: {
-        encryptedPayload,
-        payloadBytes: Buffer.byteLength(bodyText, "utf8"),
-        payloadHash,
-        redactionFingerprint,
-        capturedAt: new Date(),
-      },
-    });
-    return tx.creditReportImport.update({
-      where: { id: opts.importId },
-      data: {
-        status: "FETCHED",
-        fetchedAt: new Date(),
-        payloadHash,
-        errorCode: null,
-        errorMessage: null,
-      },
-    });
-  });
-
-  await writeAuditLog({
-    targetUserId: imp.userId,
-    actorUserId: opts.actorUserId,
-    action: "CREDIT_IMPORT_RAW_CAPTURED",
-    entityType: "CreditReportImport",
-    entityId: imp.id,
-    metadataJson: {
+  return await fetchMutation(
+    api.creditImports.captureRaw,
+    {
+      importId: opts.importId,
+      encryptedPayload,
       payloadBytes: Buffer.byteLength(bodyText, "utf8"),
       payloadHash,
       redactionFingerprint,
+      onlyIfOwnedByMe: opts.onlyIfOwnedByMe,
     },
-  });
-  return imp;
+    { token: ctx.token ?? undefined },
+  );
 }
 
 /**
  * Fetch provider JSON over the network and capture it.
  */
-export async function fetchAndCapture(opts: {
-  importId: string;
-  url: string;
-  cookieHeader?: string;
-  bearerToken?: string;
-  actorUserId?: string;
-}) {
+export async function fetchAndCapture(
+  ctx: RunnerCtx,
+  opts: {
+    importId: Id<"creditReportImports">;
+    url: string;
+    cookieHeader?: string;
+    bearerToken?: string;
+    onlyIfOwnedByMe?: boolean;
+  },
+) {
   try {
     const res = await fetchProviderJson({
       url: opts.url,
@@ -172,305 +144,224 @@ export async function fetchAndCapture(opts: {
     try {
       parseProviderJson(res.bodyText);
     } catch (err) {
-      await markFailed(opts.importId, (err as ProviderFetchError).code, (err as Error).message);
+      await markFailed(ctx, opts.importId, (err as ProviderFetchError).code, (err as Error).message);
       throw err;
     }
-    return captureRaw({
+    return await captureRaw(ctx, {
       importId: opts.importId,
       bodyText: res.bodyText,
-      actorUserId: opts.actorUserId,
+      onlyIfOwnedByMe: opts.onlyIfOwnedByMe,
     });
   } catch (err) {
     if (err instanceof ProviderFetchError) {
-      await markFailed(opts.importId, err.code, err.message);
+      await markFailed(ctx, opts.importId, err.code, err.message);
     }
     throw err;
   }
 }
 
-async function markFailed(importId: string, code: string, message: string, detail?: Record<string, unknown>) {
-  await prisma.creditReportImport.update({
-    where: { id: importId },
-    data: {
-      status: "FAILED",
-      errorCode: code,
-      errorMessage: message.slice(0, 2000),
-      errorDetailJson: (detail ?? {}) as unknown as Prisma.InputJsonValue,
-    },
-  });
+async function markFailed(
+  ctx: RunnerCtx,
+  importId: Id<"creditReportImports">,
+  code: string,
+  message: string,
+  detail?: Record<string, unknown>,
+) {
+  await fetchMutation(
+    api.creditImports.markFailed,
+    { importId, code, message, detailJson: detail ?? {} },
+    { token: ctx.token ?? undefined },
+  );
 }
 
 /**
  * Run normalization over the already-captured raw payload.
- * Idempotent when `replace = true` (default): we delete previously normalized
- * child rows and re-insert from the current adapter run.
+ * `replace` is the only supported mode — child rows are dropped + re-inserted
+ * inside the persistNormalization Convex mutation.
  */
-export async function runNormalization(opts: {
-  importId: string;
-  replace?: boolean;
-  actorUserId?: string;
-}): Promise<{ report: NormalizedReport; candidatesCreated: number }> {
-  const replace = opts.replace !== false;
+export async function runNormalization(
+  ctx: RunnerCtx,
+  opts: { importId: Id<"creditReportImports"> },
+): Promise<{ report: NormalizedReport; candidatesCreated: number }> {
+  const fetched = await fetchQuery(
+    api.creditImports.getOwnedRaw,
+    { id: opts.importId },
+    { token: ctx.token ?? undefined },
+  );
+  if (!fetched) throw new ImportRunnerError("NOT_FOUND", "Import not found.");
+  const { import: imp, raw } = fetched;
+  if (!raw) throw new ImportRunnerError("NO_RAW", "Raw payload has not been captured yet.");
 
-  const imp = await prisma.creditReportImport.findUnique({
-    where: { id: opts.importId },
-    include: { raw: true },
-  });
-  if (!imp) throw new ImportRunnerError("NOT_FOUND", "Import not found.");
-  if (!imp.raw) throw new ImportRunnerError("NO_RAW", "Raw payload has not been captured yet.");
-
-  // Decrypt → parse → normalize
-  let parsed: unknown;
+  let parsedJson: unknown;
   try {
-    const { decrypt } = await import("@/lib/encryption");
-    parsed = JSON.parse(decrypt(imp.raw.encryptedPayload));
+    parsedJson = JSON.parse(decrypt(raw.encryptedPayload));
   } catch (err) {
-    await markFailed(imp.id, "DECRYPT_OR_PARSE", (err as Error).message);
+    await markFailed(ctx, opts.importId, "DECRYPT_OR_PARSE", (err as Error).message);
     throw new ImportRunnerError("DECRYPT_OR_PARSE", (err as Error).message);
   }
 
   const adapter =
-    imp.provider === "MANUAL" ? detectAdapter(parsed) : getAdapter(imp.provider);
+    imp.provider === "MANUAL" ? detectAdapter(parsedJson) : getAdapter(imp.provider);
 
   let normalized: NormalizedReport;
   try {
-    normalized = adapter.normalize(parsed);
+    normalized = adapter.normalize(parsedJson);
   } catch (err) {
-    await markFailed(imp.id, "NORMALIZE_FAILED", (err as Error).message);
+    await markFailed(ctx, opts.importId, "NORMALIZE_FAILED", (err as Error).message);
     throw new ImportRunnerError("NORMALIZE_FAILED", (err as Error).message);
   }
 
   const zParse = NormalizedReportZ.safeParse(normalized);
   if (!zParse.success) {
-    const msg = zParse.error.errors.slice(0, 5).map((e) => `${e.path.join(".")}: ${e.message}`).join("; ");
-    await markFailed(imp.id, "VALIDATION_FAILED", msg, { issues: zParse.error.format() as unknown as Record<string, unknown> });
+    const msg = zParse.error.errors
+      .slice(0, 5)
+      .map((e) => `${e.path.join(".")}: ${e.message}`)
+      .join("; ");
+    await markFailed(ctx, opts.importId, "VALIDATION_FAILED", msg, {
+      issues: zParse.error.format() as unknown as Record<string, unknown>,
+    });
     throw new ImportRunnerError("VALIDATION_FAILED", msg);
   }
 
-  // Persist normalized entities transactionally.
   const candidates = runDisputeEngine(normalized);
-  const bureauCoverage: CreditReportBureau[] = normalized.bureausDetected.map(toCreditReportBureau);
+  const bureauCoverage: CreditReportBureau[] = normalized.bureausDetected;
 
-  await prisma.$transaction(async (tx) => {
-    if (replace) {
-      await tx.creditDisputeCandidate.deleteMany({ where: { importId: imp.id } });
-      await tx.creditTradeline.deleteMany({ where: { importId: imp.id } });
-      await tx.creditInquiry.deleteMany({ where: { importId: imp.id } });
-      await tx.creditCollection.deleteMany({ where: { importId: imp.id } });
-      await tx.creditPublicRecord.deleteMany({ where: { importId: imp.id } });
-      await tx.creditScoreSnapshot.deleteMany({ where: { importId: imp.id } });
-      await tx.creditPersonalProfile.deleteMany({ where: { importId: imp.id } });
-      await tx.creditReportNormalized.deleteMany({ where: { importId: imp.id } });
-    }
-
-    await tx.creditReportNormalized.create({
-      data: {
-        importId: imp.id,
-        pulledAt: toDate(normalized.pulledAt) ?? new Date(),
+  await fetchMutation(
+    api.creditImports.persistNormalization,
+    {
+      importId: opts.importId,
+      bureauCoverage,
+      parserVersion: RUNNER_VERSION,
+      normalized: {
+        pulledAtMs: dateMs(normalized.pulledAt) ?? Date.now(),
         reportIdProvider: normalized.providerReportId,
         bureaus: bureauCoverage,
-        summaryJson: normalized.summary as unknown as Prisma.InputJsonValue,
-        unmappedFieldsJson: (normalized.unmapped ?? {}) as unknown as Prisma.InputJsonValue,
+        summaryJson: normalized.summary,
+        unmappedFieldsJson: normalized.unmapped ?? {},
         validationWarnings: normalized.validationWarnings,
       },
-    });
-
-    for (const p of normalized.profiles) {
-      await tx.creditPersonalProfile.create({
-        data: {
-          importId: imp.id,
-          bureau: toCreditReportBureau(p.bureau),
-          fullName: p.fullName,
-          encryptedDob: p.dob ? encrypt(p.dob) : null,
-          encryptedSsnLast4: p.ssnLast4 ? encrypt(p.ssnLast4) : null,
-          encryptedPrimaryAddr: p.addressLine1 ? encrypt(p.addressLine1) : null,
-          cityMasked: p.city,
-          stateCode: p.stateCode,
-          zipMasked: p.zip,
-          phoneMasked: p.phone,
-          employers: (p.employers ?? null) as unknown as Prisma.InputJsonValue,
-          priorAddresses: (p.priorAddresses ?? null) as unknown as Prisma.InputJsonValue,
-          aliases: p.aliases ?? [],
-          fraudAlerts: (p.fraudAlerts ?? null) as unknown as Prisma.InputJsonValue,
-          consumerStatement: p.consumerStatement,
-          unmappedFieldsJson: (p.unmapped ?? {}) as unknown as Prisma.InputJsonValue,
-        },
-      });
-    }
-
-    for (const t of normalized.tradelines) {
-      await tx.creditTradeline.create({
-        data: {
-          importId: imp.id,
-          bureau: toCreditReportBureau(t.bureau),
-          fingerprint: tradelineFingerprint({
-            bureau: t.bureau,
-            creditorName: t.creditorName,
-            accountRefMasked: t.accountRefMasked,
-          }),
+      profiles: normalized.profiles.map((p) => ({
+        bureau: p.bureau,
+        fullName: p.fullName,
+        encryptedDob: p.dob ? encrypt(p.dob) : undefined,
+        encryptedSsnLast4: p.ssnLast4 ? encrypt(p.ssnLast4) : undefined,
+        encryptedPrimaryAddr: p.addressLine1 ? encrypt(p.addressLine1) : undefined,
+        cityMasked: p.city,
+        stateCode: p.stateCode,
+        zipMasked: p.zip,
+        phoneMasked: p.phone,
+        employers: p.employers ?? undefined,
+        priorAddresses: p.priorAddresses ?? undefined,
+        aliases: p.aliases ?? [],
+        fraudAlerts: p.fraudAlerts ?? undefined,
+        consumerStatement: p.consumerStatement,
+        unmappedFieldsJson: p.unmapped ?? {},
+      })),
+      tradelines: normalized.tradelines.map((t) => ({
+        bureau: t.bureau,
+        fingerprint: tradelineFingerprint({
+          bureau: t.bureau,
           creditorName: t.creditorName,
-          furnisherName: t.furnisherName,
           accountRefMasked: t.accountRefMasked,
-          accountType: t.accountType,
-          accountSubtype: t.accountSubtype,
-          ownership: t.ownership,
-          balanceCents: t.balanceCents,
-          highBalanceCents: t.highBalanceCents,
-          creditLimitCents: t.creditLimitCents,
-          pastDueCents: t.pastDueCents,
-          monthlyPaymentCents: t.monthlyPaymentCents,
-          termsMonths: t.termsMonths,
-          statusLabel: t.statusLabel,
-          paymentStatus: t.paymentStatus,
-          rawStatus: t.rawStatus,
-          openedAt: toDate(t.openedAt),
-          closedAt: toDate(t.closedAt),
-          lastReportedAt: toDate(t.lastReportedAt),
-          lastActivityAt: toDate(t.lastActivityAt),
-          lastPaymentAt: toDate(t.lastPaymentAt),
-          isCollection: !!t.isCollection,
-          isChargeOff: !!t.isChargeOff,
-          isMedical: !!t.isMedical,
-          isDerogatory: !!t.isDerogatory,
-          isClosed: !!t.isClosed,
-          isFraudClaimed: !!t.isFraudClaimed,
-          paymentHistoryJson: (t.paymentHistory ?? null) as unknown as Prisma.InputJsonValue,
-          remarks: t.remarks ?? [],
-          unmappedFieldsJson: (t.unmapped ?? {}) as unknown as Prisma.InputJsonValue,
-        },
-      });
-    }
-
-    for (const q of normalized.inquiries) {
-      await tx.creditInquiry.create({
-        data: {
-          importId: imp.id,
-          bureau: toCreditReportBureau(q.bureau),
-          inquirerName: q.inquirerName,
-          inquirerType: q.inquirerType,
-          inquiryDate: toDate(q.inquiryDate),
-          isHard: q.isHard !== false,
-          purpose: q.purpose,
-          unmappedFieldsJson: (q.unmapped ?? {}) as unknown as Prisma.InputJsonValue,
-        },
-      });
-    }
-
-    for (const c of normalized.collections) {
-      await tx.creditCollection.create({
-        data: {
-          importId: imp.id,
-          bureau: toCreditReportBureau(c.bureau),
-          collectorName: c.collectorName,
-          originalCreditor: c.originalCreditor,
-          accountRefMasked: c.accountRefMasked,
-          balanceCents: c.balanceCents,
-          originalBalanceCents: c.originalBalanceCents,
-          statusLabel: c.statusLabel,
-          assignedAt: toDate(c.assignedAt),
-          reportedAt: toDate(c.reportedAt),
-          firstDelinquencyAt: toDate(c.firstDelinquencyAt),
-          isMedical: !!c.isMedical,
-          unmappedFieldsJson: (c.unmapped ?? {}) as unknown as Prisma.InputJsonValue,
-        },
-      });
-    }
-
-    for (const r of normalized.publicRecords) {
-      await tx.creditPublicRecord.create({
-        data: {
-          importId: imp.id,
-          bureau: toCreditReportBureau(r.bureau),
-          recordType: r.recordType,
-          status: r.status,
-          courtName: r.courtName,
-          referenceNumber: r.referenceNumber,
-          filedAt: toDate(r.filedAt),
-          resolvedAt: toDate(r.resolvedAt),
-          amountCents: r.amountCents,
-          unmappedFieldsJson: (r.unmapped ?? {}) as unknown as Prisma.InputJsonValue,
-        },
-      });
-    }
-
-    for (const s of normalized.scores) {
-      await tx.creditScoreSnapshot.create({
-        data: {
-          importId: imp.id,
-          bureau: toCreditReportBureau(s.bureau),
-          scoreModel: s.scoreModel,
-          score: s.score,
-          rangeMin: s.rangeMin,
-          rangeMax: s.rangeMax,
-          factors: s.factors ?? [],
-          pulledAt: toDate(s.pulledAt),
-        },
-      });
-    }
-
-    // Link dispute candidates back to their tradeline, if any.
-    const tradelinesByFingerprint = new Map<string, string>();
-    const tradelineRows = await tx.creditTradeline.findMany({
-      where: { importId: imp.id },
-      select: { id: true, fingerprint: true, bureau: true },
-    });
-    for (const row of tradelineRows) {
-      tradelinesByFingerprint.set(`${row.bureau}::${row.fingerprint}`, row.id);
-    }
-
-    for (const cand of candidates) {
-      const key = cand.tradelineFingerprint
-        ? `${toCreditReportBureau(cand.bureau)}::${cand.tradelineFingerprint}`
-        : undefined;
-      await tx.creditDisputeCandidate.create({
-        data: {
-          importId: imp.id,
-          tradelineId: key ? tradelinesByFingerprint.get(key) ?? null : null,
-          bureau: toCreditReportBureau(cand.bureau),
-          stage: cand.stage,
-          reason: cand.reason,
-          reasonCodes: cand.reasonCodes,
-          severity: cand.severity,
-          summary: cand.summary,
-          evidenceJson: cand.evidenceJson as unknown as Prisma.InputJsonValue,
-          legalBasis: cand.legalBasis,
-          confidence: cand.confidence,
-        },
-      });
-    }
-
-    await tx.creditReportImport.update({
-      where: { id: imp.id },
-      data: {
-        status: "NORMALIZED" as CreditImportStatus,
-        normalizedAt: new Date(),
-        validatedAt: new Date(),
-        parserVersion: RUNNER_VERSION,
-        bureauCoverage,
-        errorCode: null,
-        errorMessage: null,
-        errorDetailJson: {} as unknown as Prisma.InputJsonValue,
+        }),
+        creditorName: t.creditorName,
+        furnisherName: t.furnisherName,
+        accountRefMasked: t.accountRefMasked,
+        accountType: t.accountType,
+        accountSubtype: t.accountSubtype,
+        ownership: t.ownership,
+        balanceCents: t.balanceCents,
+        highBalanceCents: t.highBalanceCents,
+        creditLimitCents: t.creditLimitCents,
+        pastDueCents: t.pastDueCents,
+        monthlyPaymentCents: t.monthlyPaymentCents,
+        termsMonths: t.termsMonths,
+        statusLabel: t.statusLabel,
+        paymentStatus: t.paymentStatus,
+        rawStatus: t.rawStatus,
+        openedAt: dateMs(t.openedAt),
+        closedAt: dateMs(t.closedAt),
+        lastReportedAt: dateMs(t.lastReportedAt),
+        lastActivityAt: dateMs(t.lastActivityAt),
+        lastPaymentAt: dateMs(t.lastPaymentAt),
+        isCollection: !!t.isCollection,
+        isChargeOff: !!t.isChargeOff,
+        isMedical: !!t.isMedical,
+        isDerogatory: !!t.isDerogatory,
+        isClosed: !!t.isClosed,
+        isFraudClaimed: !!t.isFraudClaimed,
+        paymentHistoryJson: t.paymentHistory ?? undefined,
+        remarks: t.remarks ?? [],
+        unmappedFieldsJson: t.unmapped ?? {},
+      })),
+      inquiries: normalized.inquiries.map((q) => ({
+        bureau: q.bureau,
+        inquirerName: q.inquirerName,
+        inquirerType: q.inquirerType,
+        inquiryDate: dateMs(q.inquiryDate),
+        isHard: q.isHard !== false,
+        purpose: q.purpose,
+        unmappedFieldsJson: q.unmapped ?? {},
+      })),
+      collections: normalized.collections.map((c) => ({
+        bureau: c.bureau,
+        collectorName: c.collectorName,
+        originalCreditor: c.originalCreditor,
+        accountRefMasked: c.accountRefMasked,
+        balanceCents: c.balanceCents,
+        originalBalanceCents: c.originalBalanceCents,
+        statusLabel: c.statusLabel,
+        assignedAt: dateMs(c.assignedAt),
+        reportedAt: dateMs(c.reportedAt),
+        firstDelinquencyAt: dateMs(c.firstDelinquencyAt),
+        isMedical: !!c.isMedical,
+        unmappedFieldsJson: c.unmapped ?? {},
+      })),
+      publicRecords: normalized.publicRecords.map((r) => ({
+        bureau: r.bureau,
+        recordType: r.recordType,
+        status: r.status,
+        courtName: r.courtName,
+        referenceNumber: r.referenceNumber,
+        filedAt: dateMs(r.filedAt),
+        resolvedAt: dateMs(r.resolvedAt),
+        amountCents: r.amountCents,
+        unmappedFieldsJson: r.unmapped ?? {},
+      })),
+      scoreSnapshots: normalized.scores.map((s) => ({
+        bureau: s.bureau,
+        scoreModel: s.scoreModel,
+        score: s.score,
+        rangeMin: s.rangeMin,
+        rangeMax: s.rangeMax,
+        factors: s.factors ?? [],
+        pulledAt: dateMs(s.pulledAt),
+      })),
+      candidates: candidates.map((c) => ({
+        tradelineFingerprint: c.tradelineFingerprint,
+        bureau: c.bureau,
+        stage: c.stage,
+        reason: c.reason,
+        reasonCodes: c.reasonCodes,
+        severity: c.severity,
+        summary: c.summary,
+        evidenceJson: c.evidenceJson,
+        legalBasis: c.legalBasis,
+        confidence: c.confidence,
+      })),
+      auditMetadataJson: {
+        provider: imp.provider,
+        bureausDetected: normalized.bureausDetected,
+        tradelineCount: normalized.tradelines.length,
+        inquiryCount: normalized.inquiries.length,
+        collectionCount: normalized.collections.length,
+        publicRecordCount: normalized.publicRecords.length,
+        candidateCount: candidates.length,
+        validationWarnings: normalized.validationWarnings,
       },
-    });
-  });
-
-  await writeAuditLog({
-    targetUserId: imp.userId,
-    actorUserId: opts.actorUserId,
-    action: "CREDIT_IMPORT_NORMALIZED",
-    entityType: "CreditReportImport",
-    entityId: imp.id,
-    metadataJson: {
-      provider: imp.provider,
-      bureausDetected: normalized.bureausDetected,
-      tradelineCount: normalized.tradelines.length,
-      inquiryCount: normalized.inquiries.length,
-      collectionCount: normalized.collections.length,
-      publicRecordCount: normalized.publicRecords.length,
-      candidateCount: candidates.length,
-      validationWarnings: normalized.validationWarnings,
     },
-  });
+    { token: ctx.token ?? undefined },
+  );
 
   return { report: normalized, candidatesCreated: candidates.length };
 }

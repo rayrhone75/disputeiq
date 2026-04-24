@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth";
 import { PasteImportZ } from "@/lib/credit-import/schemas";
 import { captureRaw, ImportRunnerError } from "@/lib/credit-import/runner";
+import type { Id } from "@/convex/_generated/dataModel";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -9,6 +11,9 @@ export async function POST(req: NextRequest, ctx: Params) {
   const user = await requireRole(["OWNER", "ADMIN"]).catch(() => null);
   if (!user) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   const { id } = await ctx.params;
+
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
 
   const body = await req.json().catch(() => ({}));
   const parsed = PasteImportZ.safeParse({ ...body, importId: id });
@@ -20,12 +25,14 @@ export async function POST(req: NextRequest, ctx: Params) {
   }
 
   try {
-    const imp = await captureRaw({
-      importId: id,
-      bodyText: parsed.data.bodyText,
-      json: parsed.data.json,
-      actorUserId: user.id,
-    });
+    const imp = await captureRaw(
+      { token },
+      {
+        importId: id as Id<"creditReportImports">,
+        bodyText: parsed.data.bodyText,
+        json: parsed.data.json,
+      },
+    );
     return NextResponse.json({ import: imp });
   } catch (err) {
     if (err instanceof ImportRunnerError) {

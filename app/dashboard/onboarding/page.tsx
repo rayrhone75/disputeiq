@@ -5,7 +5,8 @@ import { OnboardingFlow } from "./onboarding-flow";
 
 export default async function OnboardingPage() {
   const user = await requireUser();
-  const state = await getOnboardingState(user.id);
+  void user;
+  const state = await getOnboardingState();
   if (state.step === "ready") redirect("/dashboard");
 
   return (

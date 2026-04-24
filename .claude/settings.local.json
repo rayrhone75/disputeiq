@@ -25,7 +25,27 @@
       "Bash(cp /tmp/idiq-backup/marketing-page.tsx \"app/\\(marketing\\)/page.tsx\")",
       "Bash(git rm *)",
       "Bash(gh auth *)",
-      "Bash(gh pr *)"
+      "Bash(gh pr *)",
+      "Bash(DATABASE_URL=\"postgresql://placeholder:placeholder@localhost:5432/placeholder?sslmode=disable\" npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script)",
+      "Bash(git rev-list *)",
+      "Bash(gh repo *)",
+      "Bash(git fetch *)",
+      "Bash(gh api *)",
+      "Bash(curl -sSL --max-time 10 https://disputeiq.org/)",
+      "Bash(curl -sSL --max-time 10 https://disputeiq.org/get-started)",
+      "Bash(curl -sSI --max-time 10 https://disputeiq.org/)",
+      "Bash(curl -k -sSL --max-time 10 https://disputeiq.org/ -o /tmp/prod-home.html)",
+      "Bash(curl -k -sSI --max-time 10 https://disputeiq.org/)",
+      "Bash(curl -k -sS --max-time 10 -o /dev/null -D - https://disputeiq.org/)",
+      "Bash(curl -k -sSI --max-time 10 https://app.disputeiq.org/)",
+      "Bash(curl -k -sSI --max-time 10 https://disputeiq-rays-projects-340ef2eb.vercel.app/)",
+      "Bash(cmd *)",
+      "Bash(npm run *)",
+      "Bash(openssl rand *)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(npm install *)",
+      "Bash(npm uninstall *)",
+      "Bash(node *)"
     ]
   }
 }

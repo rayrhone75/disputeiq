@@ -1,28 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { CreateImportZ } from "@/lib/credit-import/schemas";
 import { createImport } from "@/lib/credit-import/runner";
-import type { CreditImportStatus, CreditProvider, Prisma } from "@prisma/client";
 
-const VALID_STATUSES = new Set<CreditImportStatus>([
+const VALID_STATUSES = new Set([
   "PENDING",
   "FETCHED",
   "VALIDATED",
   "NORMALIZED",
   "FAILED",
   "ARCHIVED",
-]);
-const VALID_PROVIDERS = new Set<CreditProvider>([
+] as const);
+const VALID_PROVIDERS = new Set([
   "IDENTITYIQ",
   "MYSCOREIQ",
   "MYFREESCORENOW",
   "MANUAL",
-]);
+] as const);
+
+type ImportStatus = typeof VALID_STATUSES extends Set<infer T> ? T : never;
+type ImportProvider = typeof VALID_PROVIDERS extends Set<infer T> ? T : never;
 
 export async function GET(req: NextRequest) {
-  const user = await requireRole(["OWNER", "ADMIN"]).catch(() => null);
-  if (!user) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const { userId, getToken } = await auth();
+  if (!userId) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const token = await getToken({ template: "convex" });
 
   const url = new URL(req.url);
   const rawStatus = url.searchParams.get("status") ?? undefined;
@@ -34,45 +39,49 @@ export async function GET(req: NextRequest) {
   const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 250) : 100;
   const offset = Number.isFinite(rawOffset) ? Math.max(rawOffset, 0) : 0;
 
-  const where: Prisma.CreditReportImportWhereInput = {};
-  if (rawStatus && VALID_STATUSES.has(rawStatus as CreditImportStatus)) {
-    where.status = rawStatus as CreditImportStatus;
-  }
-  if (rawProvider && VALID_PROVIDERS.has(rawProvider as CreditProvider)) {
-    where.provider = rawProvider as CreditProvider;
-  }
-  if (rawUserId) where.userId = rawUserId;
-  if (rawEmail) {
-    where.user = { email: { contains: rawEmail, mode: "insensitive" } };
-  }
+  const statusArg =
+    rawStatus && (VALID_STATUSES as Set<string>).has(rawStatus)
+      ? (rawStatus as ImportStatus)
+      : undefined;
+  const providerArg =
+    rawProvider && (VALID_PROVIDERS as Set<string>).has(rawProvider)
+      ? (rawProvider as ImportProvider)
+      : undefined;
 
-  const [imports, total] = await Promise.all([
-    prisma.creditReportImport.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      skip: offset,
-      include: {
-        user: { select: { email: true } },
-        _count: {
-          select: {
-            tradelines: true,
-            inquiries: true,
-            collections: true,
-            publicRecords: true,
-            disputeCandidates: true,
-          },
-        },
+  try {
+    const result = await fetchQuery(
+      api.creditImports.adminList,
+      {
+        status: statusArg,
+        provider: providerArg,
+        userId: rawUserId ? (rawUserId as Id<"users">) : undefined,
+        emailContains: rawEmail || undefined,
+        limit,
+        offset,
       },
-    }),
-    prisma.creditReportImport.count({ where }),
-  ]);
-  return NextResponse.json({ imports, total, limit, offset });
+      { token: token ?? undefined },
+    );
+    return NextResponse.json({
+      imports: result.imports,
+      total: result.total,
+      limit: result.limit,
+      offset: result.offset,
+    });
+  } catch (err) {
+    if ((err as Error).message === "FORBIDDEN") {
+      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    }
+    return NextResponse.json(
+      { error: "INTERNAL", message: (err as Error).message },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const user = await requireRole(["OWNER", "ADMIN"]).catch(() => null);
-  if (!user) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const { userId, getToken } = await auth();
+  if (!userId) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const token = await getToken({ template: "convex" });
 
   const parsed = CreateImportZ.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {
@@ -82,16 +91,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Verify target user exists — importing against a ghost user is a mistake.
-  const target = await prisma.user.findUnique({ where: { id: parsed.data.userId } });
-  if (!target) return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
-
-  const imp = await createImport({
-    userId: parsed.data.userId,
-    provider: parsed.data.provider,
-    providerRef: parsed.data.providerRef,
-    sourceUrl: parsed.data.sourceUrl,
-    actorUserId: user.id,
-  });
-  return NextResponse.json({ import: imp });
+  try {
+    const imp = await createImport(
+      { token },
+      {
+        userId: parsed.data.userId as Id<"users">,
+        provider: parsed.data.provider,
+        providerRef: parsed.data.providerRef,
+        sourceUrl: parsed.data.sourceUrl,
+      },
+    );
+    return NextResponse.json({ import: imp });
+  } catch (err) {
+    const msg = (err as Error).message;
+    if (msg === "FORBIDDEN") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    if (msg === "USER_NOT_FOUND")
+      return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
+    return NextResponse.json(
+      { error: "INTERNAL", message: msg },
+      { status: 500 },
+    );
+  }
 }
+

@@ -1,8 +1,26 @@
-import type { MailJobStatus } from "@prisma/client";
+// User-facing status mapping for LetterStream mail jobs.
+//
+// The internal `MailJobStatus` enum (QUEUED/SUBMITTED/ACCEPTED/PRINTED/MAILED/
+// DELIVERED/FAILED) is the provider state machine — too granular for the
+// dashboard. `toUserFacingStatus` collapses it into a 5-step user journey
+// (queued → mailed → in_transit → delivered → signed) plus a failure state.
+//
+// The MailJobStatus type is duplicated here from `convex/schema.ts` rather
+// than imported from `@prisma/client` (which is gone). It must stay in sync
+// with the `mailJobStatus` v.union in the schema.
+
+export type MailJobStatus =
+  | "QUEUED"
+  | "SUBMITTED"
+  | "ACCEPTED"
+  | "PRINTED"
+  | "MAILED"
+  | "DELIVERED"
+  | "FAILED";
 
 /**
  * User-facing status buckets.
- * Provider statuses (MailJobStatus enum) are internal; this is what the UI shows.
+ * Provider statuses (MailJobStatus) are internal; this is what the UI shows.
  */
 export type UserFacingStatus =
   | "queued"
@@ -14,7 +32,7 @@ export type UserFacingStatus =
 
 export function toUserFacingStatus(
   providerStatus: MailJobStatus,
-  opts?: { signedAt?: Date | null },
+  opts?: { signedAt?: number | null },
 ): UserFacingStatus {
   if (opts?.signedAt) return "signed";
   switch (providerStatus) {

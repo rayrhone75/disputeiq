@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 import { callClaude } from "@/lib/ai/client";
 import { writeAuditLog } from "@/lib/audit";
 
 // Authenticated, context-grounded AI assistant for the dashboard.
 // The model receives a structured snapshot of THIS USER's real report state,
 // dispute history, and mail status. It is forbidden from inventing facts or
-// quoting tradelines that are not in the snapshot. If the user asks something
-// the data doesn't support, the assistant says so.
+// quoting tradelines that are not in the snapshot.
 
 const schema = z.object({
   messages: z
@@ -38,16 +38,28 @@ function buildContext(opts: {
   reports: number;
   tradelineCount: number;
   byBureau: Record<string, number>;
-  disputes: Array<{ id: string; status: string; reason: string; bureau?: string; creditor?: string }>;
-  mailJobs: Array<{ status: string; deliveredAt: Date | null; trackingCode: string | null }>;
+  disputes: Array<{
+    id: string;
+    status: string;
+    reason: string;
+    bureau?: string;
+    creditor?: string;
+  }>;
+  mailJobs: Array<{
+    status: string;
+    deliveredAt: number | null;
+    trackingCode: string | null;
+  }>;
 }) {
   return `CONTEXT (real data for this user — only refer to what's here):
 
 Reports uploaded: ${opts.reports}
 Tradelines parsed: ${opts.tradelineCount}
-Tradelines by bureau: ${Object.entries(opts.byBureau)
-    .map(([b, n]) => `${b}=${n}`)
-    .join(", ") || "none"}
+Tradelines by bureau: ${
+    Object.entries(opts.byBureau)
+      .map(([b, n]) => `${b}=${n}`)
+      .join(", ") || "none"
+  }
 
 Active disputes (${opts.disputes.length}):
 ${
@@ -68,7 +80,7 @@ ${
     : opts.mailJobs
         .map(
           (j) =>
-            `  - status=${j.status} · tracking=${j.trackingCode ?? "pending"} · delivered=${j.deliveredAt ? j.deliveredAt.toISOString().slice(0, 10) : "no"}`,
+            `  - status=${j.status} · tracking=${j.trackingCode ?? "pending"} · delivered=${j.deliveredAt ? new Date(j.deliveredAt).toISOString().slice(0, 10) : "no"}`,
         )
         .join("\n")
 }
@@ -77,47 +89,45 @@ End of CONTEXT.`;
 }
 
 export async function POST(req: NextRequest) {
-  const user = await requireUser().catch(() => null);
-  if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const { userId, getToken } = await auth();
+  if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
   const parsed = schema.safeParse(await req.json().catch(() => ({})));
-  if (!parsed.success) return NextResponse.json({ error: "INVALID_INPUT" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: "INVALID_INPUT" }, { status: 400 });
+  }
 
-  // Pull the user's REAL state. This is the only ground truth the AI gets.
-  const [reports, tradelines, disputes, mailJobs] = await Promise.all([
-    prisma.creditReport.count({ where: { userId: user.id } }),
-    prisma.tradeline.findMany({ where: { report: { userId: user.id } } }),
-    prisma.disputeCase.findMany({
-      where: { userId: user.id },
-      include: { tradeline: true },
-      orderBy: { id: "desc" },
-      take: 12,
-    }),
-    prisma.mailJob.findMany({
-      where: { disputeCase: { userId: user.id } },
-      orderBy: { createdAt: "desc" },
-      take: 8,
-    }),
-  ]);
+  // Pull the user's REAL state via the consolidated dashboard query.
+  const overview = await fetchQuery(
+    api.onboarding.dashboardOverview,
+    {},
+    { token },
+  );
+  if (!overview) {
+    return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  }
 
+  const tradelines = overview.tradelines;
   const byBureau: Record<string, number> = {};
   for (const t of tradelines) byBureau[t.bureau] = (byBureau[t.bureau] ?? 0) + 1;
 
   const context = buildContext({
-    reports,
+    reports: overview.reports.length,
     tradelineCount: tradelines.length,
     byBureau,
-    disputes: disputes.map((d) => ({
-      id: d.id,
+    disputes: overview.disputes.slice(0, 12).map((d) => ({
+      id: d._id as unknown as string,
       status: d.status,
       reason: d.aiReasonSummary,
       bureau: d.tradeline?.bureau,
       creditor: d.tradeline?.creditorName,
     })),
-    mailJobs: mailJobs.map((j) => ({
+    mailJobs: overview.mailJobs.slice(0, 8).map((j) => ({
       status: j.status,
-      deliveredAt: j.deliveredAt,
-      trackingCode: j.trackingCode,
+      deliveredAt: j.deliveredAt ?? null,
+      trackingCode: j.trackingCode ?? null,
     })),
   });
 
@@ -134,11 +144,9 @@ export async function POST(req: NextRequest) {
   });
 
   await writeAuditLog({
-    actorUserId: user.id,
-    targetUserId: user.id,
     action: "AI_ASSISTANT_QUERY",
     entityType: "User",
-    entityId: user.id,
+    entityId: overview.user.id as unknown as string,
     metadataJson: { live: result.live, contextItems: tradelines.length },
   }).catch(() => null);
 

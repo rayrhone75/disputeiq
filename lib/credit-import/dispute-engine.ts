@@ -12,7 +12,31 @@
 // When in doubt: emit fewer, higher-confidence candidates. False positives
 // erode user trust; false negatives can always be caught by a second round.
 
-import type { DisputeCandidateReason, DisputeCandidateStage } from "@prisma/client";
+// DisputeCandidateReason / DisputeCandidateStage now live in the Convex
+// schema (convex/schema.ts) — they're string-literal unions there. Mirror
+// them here so the engine doesn't need to import generated Convex types.
+export type DisputeCandidateStage =
+  | "ROUND_1"
+  | "ROUND_2"
+  | "MOV"
+  | "DIRECT_FURNISHER"
+  | "CFPB"
+  | "AG"
+  | "STATE_REGULATOR";
+
+export type DisputeCandidateReason =
+  | "INACCURATE"
+  | "INCOMPLETE"
+  | "UNVERIFIABLE"
+  | "DUPLICATE"
+  | "OUTDATED"
+  | "IDENTITY_THEFT"
+  | "BALANCE_MISMATCH"
+  | "STATUS_MISMATCH"
+  | "OBSOLETE_BY_AGE"
+  | "MEDICAL_UNDER_LIMIT"
+  | "OTHER";
+
 import type {
   BureauKey,
   NormalizedReport,

@@ -1,24 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery, fetchMutation } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { storage } from "@/lib/storage";
 import { parseReportPdf } from "@/lib/report-parser";
 import { callClaude } from "@/lib/ai/client";
-import { writeAuditLog } from "@/lib/audit";
 
 // User uploads the bureau's response letter (PDF). We parse the text content,
 // send it to Claude haiku with a strict response-classification prompt, and
 // return a recommendation: re-dispute, escalate (CFPB), or accept as resolved.
 // The parsed response bytes are stored in secure storage as a CaseAttachment.
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const user = await requireUser().catch(() => null);
-  if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const { userId, getToken } = await auth();
+  if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
   const { id } = await ctx.params;
 
-  const dc = await prisma.disputeCase.findUnique({ where: { id } });
-  if (!dc) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
-  if (dc.userId !== user.id) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const caseBundle = await fetchQuery(
+    api.disputes.getById,
+    { id: id as Id<"disputeCases"> },
+    { token },
+  );
+  if (!caseBundle) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
   const form = await req.formData();
   const file = form.get("file") as File | null;
@@ -26,18 +32,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const buf = Buffer.from(await file.arrayBuffer());
   const hash = crypto.createHash("sha256").update(buf).digest("hex");
   const ref = await storage.put(
-    `responses/${user.id}/${hash}.pdf`,
+    `responses/${userId}/${hash}.pdf`,
     buf,
     "application/pdf",
   );
-
-  const attachment = await prisma.caseAttachment.create({
-    data: {
-      disputeCaseId: id,
-      kind: "BUREAU_RESPONSE",
-      secureFileRef: ref,
-    },
-  });
 
   // Extract raw text so the AI can classify the response.
   let responseText = "";
@@ -59,24 +57,26 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const verdict = extractVerdict(ai.text);
 
-  await writeAuditLog({
-    targetUserId: user.id,
-    actorUserId: user.id,
-    action: "BUREAU_RESPONSE_UPLOADED",
-    entityType: "DisputeCase",
-    entityId: id,
-    metadataJson: {
-      ref,
-      attachmentId: attachment.id,
-      aiLive: ai.live,
-      classification: verdict.classification,
-      recommendation: verdict.recommendation,
-      reasoning: verdict.reasoning,
+  const attachmentId = (await fetchMutation(
+    api.caseAttachments.create,
+    {
+      disputeCaseId: id as Id<"disputeCases">,
+      kind: "BUREAU_RESPONSE",
+      secureFileRef: ref,
+      auditAction: "BUREAU_RESPONSE_UPLOADED",
+      auditMetadata: {
+        ref,
+        aiLive: ai.live,
+        classification: verdict.classification,
+        recommendation: verdict.recommendation,
+        reasoning: verdict.reasoning,
+      },
     },
-  });
+    { token },
+  )) as Id<"caseAttachments">;
 
   return NextResponse.json({
-    attachmentId: attachment.id,
+    attachmentId,
     analysis: ai.text,
     verdict,
     aiLive: ai.live,

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { auth } from "@clerk/nextjs/server";
+import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { requireRole } from "@/lib/auth";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import {
   DeletionError,
-  deleteImport,
   expectedImportConfirmation,
   isConfirmationOk,
-  previewImportImpact,
 } from "@/lib/admin/deletion";
 
 type Params = { params: Promise<{ id: string }> };
@@ -16,26 +18,33 @@ const DeleteZ = z.object({
   confirmation: z.string().min(1).max(200),
 });
 
-// Preview the delete impact without making any change. The UI calls this
+// Preview the delete impact without changing anything. The UI calls this
 // first to build the confirmation screen.
 export async function GET(_req: NextRequest, ctx: Params) {
   const user = await requireRole(["OWNER", "ADMIN"]).catch(() => null);
   if (!user) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   const { id } = await ctx.params;
+
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+
   try {
-    const impact = await previewImportImpact(id);
+    const impact = await fetchQuery(
+      api.admin.previewImportImpact,
+      { importId: id as Id<"creditReportImports"> },
+      { token },
+    );
     return NextResponse.json({
       ...impact,
       expectedConfirmation: expectedImportConfirmation(id),
     });
   } catch (err) {
-    if (err instanceof DeletionError) {
-      return NextResponse.json({ error: err.code, message: err.message }, { status: 404 });
+    const msg = (err as Error).message;
+    if (msg.includes("NOT_FOUND")) {
+      return NextResponse.json({ error: "NOT_FOUND", message: msg }, { status: 404 });
     }
-    return NextResponse.json(
-      { error: "INTERNAL", message: (err as Error).message },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "INTERNAL", message: msg }, { status: 500 });
   }
 }
 
@@ -62,23 +71,28 @@ export async function POST(req: NextRequest, ctx: Params) {
     );
   }
 
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+
   try {
-    const result = await deleteImport({
-      importId: id,
-      reason: parsed.data.reason,
-      actorUserId: user.id,
-    });
+    const result = await fetchMutation(
+      api.admin.deleteImport,
+      {
+        importId: id as Id<"creditReportImports">,
+        reason: parsed.data.reason,
+      },
+      { token },
+    );
     return NextResponse.json(result);
   } catch (err) {
+    const msg = (err as Error).message;
     if (err instanceof DeletionError) {
-      return NextResponse.json(
-        { error: err.code, message: err.message },
-        { status: err.code === "NOT_FOUND" ? 404 : 400 },
-      );
+      return NextResponse.json({ error: err.code, message: err.message }, { status: 400 });
     }
-    return NextResponse.json(
-      { error: "INTERNAL", message: (err as Error).message },
-      { status: 500 },
-    );
+    if (msg.includes("NOT_FOUND")) {
+      return NextResponse.json({ error: "NOT_FOUND", message: msg }, { status: 404 });
+    }
+    return NextResponse.json({ error: "INTERNAL", message: msg }, { status: 500 });
   }
 }

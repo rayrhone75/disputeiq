@@ -1,17 +1,22 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 import { PageHeader, Surface, SectionHeader } from "@/components/ui/primitives";
 import { ReportUploader } from "@/components/dashboard/ReportUploader";
 import { ReportPasteImport } from "@/components/dashboard/ReportPasteImport";
 
 export default async function ReportsPage() {
-  const user = await requireUser();
-  const reports = await prisma.creditReport.findMany({
-    where: { userId: user.id },
-    include: { tradelines: true },
-    orderBy: { pulledAt: "desc" },
-  });
+  const { userId, getToken } = await auth();
+  if (!userId) redirect("/sign-in");
+  const token = await getToken({ template: "convex" });
+
+  const reports = await fetchQuery(
+    api.creditReports.listForCurrentUser,
+    {},
+    { token: token ?? undefined },
+  );
 
   return (
     <div className="space-y-10">
@@ -47,7 +52,7 @@ export default async function ReportsPage() {
               <div className="flex items-center justify-between">
                 <dt className="text-ink-500">Latest</dt>
                 <dd className="font-medium text-ink-900">
-                  {reports[0].pulledAt.toLocaleDateString()}
+                  {new Date(reports[0].pulledAt).toLocaleDateString()}
                 </dd>
               </div>
               <div className="flex items-center justify-between">
@@ -66,7 +71,7 @@ export default async function ReportsPage() {
           <SectionHeader title="Your reports" />
           <ul className="mt-4 divide-y divide-ink-100 text-sm">
             {reports.map((r) => (
-              <li key={r.id} className="flex items-center justify-between py-3">
+              <li key={r._id} className="flex items-center justify-between py-3">
                 <div>
                   <div className="font-semibold text-ink-900">
                     {r.source === "IDENTITYIQ" || r.source === "MYSCOREIQ"
@@ -76,11 +81,11 @@ export default async function ReportsPage() {
                         : "Manual upload"}
                   </div>
                   <div className="text-xs text-ink-500">
-                    {r.pulledAt.toLocaleDateString()} · {r.tradelines.length} tradelines
+                    {new Date(r.pulledAt).toLocaleDateString()} · {r.tradelines.length} tradelines
                   </div>
                 </div>
                 <Link
-                  href={`/dashboard/reports/${r.id}`}
+                  href={`/dashboard/reports/${r._id}`}
                   className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white"
                 >
                   Analyze →

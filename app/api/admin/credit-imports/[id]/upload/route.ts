@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth";
 import { captureRaw, ImportRunnerError } from "@/lib/credit-import/runner";
+import type { Id } from "@/convex/_generated/dataModel";
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB per spec
 const ACCEPTED_TYPES = new Set([
@@ -17,6 +19,9 @@ export async function POST(req: NextRequest, ctx: Params) {
   const user = await requireRole(["OWNER", "ADMIN"]).catch(() => null);
   if (!user) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   const { id } = await ctx.params;
+
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
 
   const form = await req.formData().catch(() => null);
   if (!form) {
@@ -76,7 +81,10 @@ export async function POST(req: NextRequest, ctx: Params) {
   }
 
   try {
-    const imp = await captureRaw({ importId: id, bodyText, actorUserId: user.id });
+    const imp = await captureRaw(
+      { token },
+      { importId: id as Id<"creditReportImports">, bodyText },
+    );
     return NextResponse.json({
       import: imp,
       file: { name: file.name, size: file.size, type: file.type || "application/json" },

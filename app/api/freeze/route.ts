@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { listFreezesForUser, queueFreezesForUser, setFreezeStatus } from "@/lib/freeze";
+import type { Id } from "@/convex/_generated/dataModel";
 
 export async function GET() {
   const user = await requireUser().catch(() => null);
   if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
-  const rows = await listFreezesForUser(user.id);
+  void user;
+  const rows = await listFreezesForUser();
   return NextResponse.json({ freezes: rows });
 }
 
@@ -17,7 +19,8 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
   const parsed = queueSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: "CONSENT_REQUIRED" }, { status: 400 });
-  const created = await queueFreezesForUser(user.id, "user_dashboard");
+  void user;
+  const created = await queueFreezesForUser("user_dashboard");
   return NextResponse.json({ created: created.length });
 }
 
@@ -33,6 +36,12 @@ export async function PATCH(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
   const parsed = updateSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: "INVALID_INPUT" }, { status: 400 });
-  const updated = await setFreezeStatus({ ...parsed.data, userId: user.id });
+  void user;
+  const updated = await setFreezeStatus({
+    id: parsed.data.id as Id<"shadowStrikeRequests">,
+    status: parsed.data.status,
+    confirmationRef: parsed.data.confirmationRef,
+    lastError: parsed.data.lastError,
+  });
   return NextResponse.json({ ok: true, freeze: updated });
 }
