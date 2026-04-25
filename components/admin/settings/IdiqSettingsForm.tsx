@@ -43,9 +43,9 @@ export function IdiqSettingsForm({ initial }: { initial: IdiqConfig }) {
   }
 
   const inputCls =
-    "w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none";
+    "w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none";
   const labelCls = "space-y-1 text-sm";
-  const labelTitle = "font-semibold text-ink-700";
+  const labelTitle = "font-semibold text-fg-muted";
 
   return (
     <div className="space-y-5">
@@ -109,7 +109,7 @@ export function IdiqSettingsForm({ initial }: { initial: IdiqConfig }) {
         type="button"
         onClick={save}
         disabled={busy}
-        className="rounded-xl bg-ink-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+        className="rounded-xl bg-fg px-4 py-2 text-sm font-semibold text-canvas hover:bg-fg/90 disabled:opacity-50"
       >
         {busy ? "Saving…" : "Save IDIQ settings"}
       </button>

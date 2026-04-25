@@ -108,8 +108,8 @@ export function DestructiveActionDialog({
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div
-            className={`w-full max-w-xl overflow-hidden rounded-2xl border bg-white shadow-xl ${
-              variant === "purge" ? "border-rose-400" : "border-ink-200"
+            className={`w-full max-w-xl overflow-hidden rounded-2xl border bg-surface shadow-xl ${
+              variant === "purge" ? "border-rose-400" : "border-border-strong"
             }`}
           >
             <header
@@ -136,43 +136,43 @@ export function DestructiveActionDialog({
                     ? "Destructive action"
                     : "Caution"}
               </p>
-              <h2 className="mt-1 font-display text-lg font-semibold text-ink-900">{title}</h2>
-              <p className="mt-1 text-xs text-ink-600">{description}</p>
+              <h2 className="mt-1 font-display text-lg font-semibold text-fg">{title}</h2>
+              <p className="mt-1 text-xs text-fg-muted">{description}</p>
             </header>
 
             <div className="space-y-4 px-6 py-5 text-sm">
-              {loadingPreview && <p className="text-xs text-ink-500">Loading impact…</p>}
+              {loadingPreview && <p className="text-xs text-fg-muted">Loading impact…</p>}
               {impact && (
-                <div className="rounded-lg border border-ink-100 bg-ink-50/60 p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+                <div className="rounded-lg border border-border bg-surface-muted/60 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-fg-muted">
                     Impact
                   </p>
-                  <pre className="mt-2 whitespace-pre-wrap break-all font-mono text-[11px] text-ink-800">
+                  <pre className="mt-2 whitespace-pre-wrap break-all font-mono text-[11px] text-fg">
                     {JSON.stringify(impact, null, 2)}
                   </pre>
                 </div>
               )}
               <label className="block space-y-1">
-                <span className="text-xs font-semibold text-ink-700">Reason (min 10 chars)</span>
+                <span className="text-xs font-semibold text-fg-muted">Reason (min 10 chars)</span>
                 <textarea
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   rows={3}
-                  className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm"
                   placeholder="Why is this being deleted? (audit log)"
                 />
               </label>
               <label className="block space-y-1">
-                <span className="text-xs font-semibold text-ink-700">
+                <span className="text-xs font-semibold text-fg-muted">
                   Type to confirm:{" "}
-                  <code className="rounded bg-ink-900 px-1.5 py-0.5 font-mono text-white">
+                  <code className="rounded bg-fg px-1.5 py-0.5 font-mono text-canvas">
                     {expectedConfirmation}
                   </code>
                 </span>
                 <input
                   value={confirmation}
                   onChange={(e) => setConfirmation(e.target.value)}
-                  className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 font-mono text-sm"
+                  className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 font-mono text-sm"
                 />
               </label>
               {error && (
@@ -182,11 +182,11 @@ export function DestructiveActionDialog({
               )}
             </div>
 
-            <footer className="flex items-center justify-end gap-2 border-t border-ink-100 bg-ink-50/40 px-6 py-3">
+            <footer className="flex items-center justify-end gap-2 border-t border-border bg-surface-muted/60 px-6 py-3">
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-xl px-3 py-1.5 text-sm font-semibold text-ink-700 hover:bg-ink-100"
+                className="rounded-xl px-3 py-1.5 text-sm font-semibold text-fg-muted hover:bg-surface-muted"
               >
                 Cancel
               </button>

@@ -32,12 +32,12 @@ export default async function AdminReportsPage() {
 
       {reports.length === 0 ? (
         <Surface className="p-6">
-          <p className="text-sm text-ink-600">No reports uploaded yet.</p>
+          <p className="text-sm text-fg-muted">No reports uploaded yet.</p>
         </Surface>
       ) : (
         <Surface className="overflow-x-auto p-4">
           <table className="w-full text-xs">
-            <thead className="text-left text-[10px] uppercase tracking-wide text-ink-500">
+            <thead className="text-left text-[10px] uppercase tracking-wide text-fg-muted">
               <tr>
                 <th className="py-2 pr-3">User</th>
                 <th className="py-2 pr-3">Source</th>
@@ -67,7 +67,7 @@ export default async function AdminReportsPage() {
                       : "empty";
 
                 return (
-                  <tr key={r._id as unknown as string} className="border-t border-ink-100">
+                  <tr key={r._id as unknown as string} className="border-t border-border">
                     <td className="py-2 pr-3 font-mono">{r.user.email}</td>
                     <td className="py-2 pr-3">{r.source}</td>
                     <td className="py-2 pr-3">
@@ -78,7 +78,7 @@ export default async function AdminReportsPage() {
                       {flags.length > 0 ? (
                         <span className="text-amber-700">{flags.join(", ")}</span>
                       ) : (
-                        <span className="text-ink-400">none</span>
+                        <span className="text-fg-subtle">none</span>
                       )}
                     </td>
                     <td className="py-2 pr-3">
@@ -88,7 +88,7 @@ export default async function AdminReportsPage() {
                             ? "bg-emerald-100 text-emerald-700"
                             : status === "partial/failed"
                               ? "bg-amber-100 text-amber-700"
-                              : "bg-ink-100 text-ink-600"
+                              : "bg-surface-muted text-fg-muted"
                         }`}
                       >
                         {status}

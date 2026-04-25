@@ -46,14 +46,14 @@ export function GrowthConsole() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <div className="space-y-3 rounded-2xl bg-white p-5 ring-1 ring-ink-200">
-        <label className="block text-xs font-semibold uppercase tracking-wide text-ink-600">
+      <div className="space-y-3 rounded-2xl bg-surface p-5 ring-1 ring-border-strong">
+        <label className="block text-xs font-semibold uppercase tracking-wide text-fg-muted">
           Generator
         </label>
         <select
           value={kind}
           onChange={(e) => setKind(e.target.value)}
-          className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm"
         >
           {KINDS.map((k) => (
             <option key={k.value} value={k.value}>
@@ -66,21 +66,21 @@ export function GrowthConsole() {
           onChange={(e) => setPrompt(e.target.value)}
           placeholder={placeholder}
           rows={8}
-          className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm"
         />
         <button
           onClick={generate}
           disabled={busy || !prompt.trim()}
-          className="rounded-lg bg-ink-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          className="rounded-lg bg-fg px-4 py-2 text-sm font-semibold text-canvas disabled:opacity-50 hover:bg-fg/90"
         >
           {busy ? "Generating…" : "Generate"}
         </button>
         {err && <p className="text-xs text-rose-600">{err}</p>}
       </div>
 
-      <div className="space-y-3 rounded-2xl bg-white p-5 ring-1 ring-ink-200">
+      <div className="space-y-3 rounded-2xl bg-surface p-5 ring-1 ring-border-strong">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold uppercase tracking-wide text-ink-600">Output</label>
+          <label className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Output</label>
           {live === false && (
             <span className="text-[10px] uppercase tracking-wide text-amber-600">offline AI fallback</span>
           )}
@@ -88,13 +88,13 @@ export function GrowthConsole() {
             <span className="text-[10px] uppercase tracking-wide text-emerald-600">live · claude-opus</span>
           )}
         </div>
-        <pre className="min-h-[300px] whitespace-pre-wrap rounded-lg bg-ink-50 p-4 text-xs text-ink-800">
+        <pre className="min-h-[300px] whitespace-pre-wrap rounded-lg bg-surface-muted p-4 text-xs text-fg">
           {output || "Generated content will appear here."}
         </pre>
         {output && (
           <button
             onClick={() => navigator.clipboard.writeText(output)}
-            className="rounded-lg bg-white px-3 py-1.5 text-xs ring-1 ring-ink-200 hover:bg-ink-50"
+            className="rounded-lg bg-surface px-3 py-1.5 text-xs ring-1 ring-border-strong hover:bg-surface-muted/60"
           >
             Copy
           </button>

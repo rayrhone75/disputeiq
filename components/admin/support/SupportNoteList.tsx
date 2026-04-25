@@ -64,19 +64,19 @@ export function SupportNoteList({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2 rounded-lg border border-ink-100 bg-white p-3">
+      <div className="space-y-2 rounded-lg border border-border bg-surface p-3">
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={3}
           placeholder="Add an internal note — staff-only, never shown to the customer."
-          className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm"
         />
         <div className="flex flex-wrap items-center gap-3 text-xs">
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value as (typeof CATEGORIES)[number])}
-            className="rounded-lg border border-ink-200 bg-white px-2 py-1"
+            className="rounded-lg border border-border-strong bg-surface px-2 py-1"
           >
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
@@ -84,7 +84,7 @@ export function SupportNoteList({
               </option>
             ))}
           </select>
-          <label className="flex items-center gap-1 text-ink-600">
+          <label className="flex items-center gap-1 text-fg-muted">
             <input
               type="checkbox"
               checked={pinned}
@@ -96,7 +96,7 @@ export function SupportNoteList({
             type="button"
             onClick={create}
             disabled={busy || !body.trim()}
-            className="ml-auto rounded-lg bg-ink-900 px-3 py-1.5 font-semibold text-white disabled:opacity-50"
+            className="ml-auto rounded-lg bg-fg px-3 py-1.5 font-semibold text-canvas hover:bg-fg/90 disabled:opacity-50"
           >
             {busy ? "Saving…" : "Add note"}
           </button>
@@ -109,7 +109,7 @@ export function SupportNoteList({
       </div>
 
       {notes.length === 0 ? (
-        <p className="text-xs text-ink-500">No notes yet.</p>
+        <p className="text-xs text-fg-muted">No notes yet.</p>
       ) : (
         <ul className="space-y-2">
           {notes.map((n) => (
@@ -118,11 +118,11 @@ export function SupportNoteList({
               className={`rounded-lg border p-3 text-sm ${
                 n.pinned
                   ? "border-amber-200 bg-amber-50/60"
-                  : "border-ink-100 bg-white"
+                  : "border-border bg-surface"
               }`}
             >
-              <div className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-wider text-ink-500">
-                <span className="rounded-full bg-ink-100 px-2 py-0.5 font-semibold text-ink-700">
+              <div className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-wider text-fg-muted">
+                <span className="rounded-full bg-surface-muted px-2 py-0.5 font-semibold text-fg-muted">
                   {n.category}
                 </span>
                 {n.pinned && (
@@ -136,12 +136,12 @@ export function SupportNoteList({
                 <button
                   type="button"
                   onClick={() => remove(n.id)}
-                  className="ml-2 rounded-md border border-ink-200 px-2 py-0.5 text-[10px] font-semibold text-ink-700 hover:bg-ink-50"
+                  className="ml-2 rounded-md border border-border-strong px-2 py-0.5 text-[10px] font-semibold text-fg-muted hover:bg-surface-muted/60"
                 >
                   delete
                 </button>
               </div>
-              <p className="whitespace-pre-wrap text-sm text-ink-800">{n.body}</p>
+              <p className="whitespace-pre-wrap text-sm text-fg">{n.body}</p>
             </li>
           ))}
         </ul>

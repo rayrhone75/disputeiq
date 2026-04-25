@@ -43,10 +43,10 @@ export default function SignUpPage() {
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-indigo-600">
           Create your account
         </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#0a0f1c] sm:text-4xl">
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-fg sm:text-4xl">
           Join DisputeIQ
         </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#4a4638]">
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-fg-muted">
           DisputeIQ is the DIY credit workflow platform for disciplined disputes, certified
           mail tracking, and escalation. Setup takes a few minutes and is fully guided.
         </p>
@@ -57,16 +57,16 @@ export default function SignUpPage() {
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-800">
           Switching from ScrewedUpCredit?
         </p>
-        <h2 className="mt-2 text-lg font-semibold text-[#0a0f1c]">
+        <h2 className="mt-2 text-lg font-semibold text-fg">
           Already a ScrewedUpCredit customer?
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-[#3d3a2e]">
+        <p className="mt-2 text-sm leading-relaxed text-fg-muted">
           If you previously used ScrewedUpCredit with MyFreeScoreIQ, you now need to switch
-          to <span className="font-semibold text-[#0a0f1c]">IdentityIQ</span> for report
+          to <span className="font-semibold text-fg">IdentityIQ</span> for report
           access and monitoring inside DisputeIQ. Create your DisputeIQ account below,
           complete your IdentityIQ enrollment, and then return to connect your report.
         </p>
-        <p className="mt-2 text-xs text-[#3d3a2e]">
+        <p className="mt-2 text-xs text-fg-muted">
           Already have a DisputeIQ account?{" "}
           <Link href="/sign-in" className="font-semibold text-amber-800 underline">
             Sign in here
@@ -76,9 +76,9 @@ export default function SignUpPage() {
       </section>
 
       {/* Disclosure bullets */}
-      <section className="mb-5 rounded-2xl border border-[#0a0f1c]/10 bg-white p-5">
-        <h3 className="text-sm font-semibold text-[#0a0f1c]">Before continuing, please note</h3>
-        <ul className="mt-3 space-y-2 text-xs leading-relaxed text-[#3d3a2e]">
+      <section className="mb-5 rounded-2xl border border-border bg-surface p-5">
+        <h3 className="text-sm font-semibold text-fg">Before continuing, please note</h3>
+        <ul className="mt-3 space-y-2 text-xs leading-relaxed text-fg-muted">
           <li>• DisputeIQ uses IdentityIQ for credit report access and monitoring.</li>
           <li>
             • If you are a former ScrewedUpCredit customer, you must switch to IdentityIQ to
@@ -99,7 +99,7 @@ export default function SignUpPage() {
 
       {/* Checkboxes */}
       <section className="mb-6 space-y-3">
-        <label className="flex items-start gap-2.5 text-xs leading-relaxed text-[#0a0f1c]/85">
+        <label className="flex items-start gap-2.5 text-xs leading-relaxed text-fg/85">
           <input
             type="checkbox"
             checked={ackMonitoring}
@@ -109,7 +109,7 @@ export default function SignUpPage() {
           I understand that IdentityIQ is required for report access and monitoring in
           DisputeIQ.
         </label>
-        <label className="flex items-start gap-2.5 text-xs leading-relaxed text-[#0a0f1c]/85">
+        <label className="flex items-start gap-2.5 text-xs leading-relaxed text-fg/85">
           <input
             type="checkbox"
             checked={ackBilling}
@@ -118,7 +118,7 @@ export default function SignUpPage() {
           />
           I understand that IdentityIQ billing is separate from my DisputeIQ subscription.
         </label>
-        <label className="flex items-start gap-2.5 text-xs leading-relaxed text-[#0a0f1c]/85">
+        <label className="flex items-start gap-2.5 text-xs leading-relaxed text-fg/85">
           <input
             type="checkbox"
             checked={ackDiy}
@@ -139,15 +139,15 @@ export default function SignUpPage() {
           />
         </section>
       ) : (
-        <section className="rounded-2xl border border-dashed border-[#0a0f1c]/15 bg-[#faf9f4] p-6 text-center text-sm text-[#4a4638]">
+        <section className="rounded-2xl border border-dashed border-border-strong bg-surface-muted p-6 text-center text-sm text-fg-muted">
           Check all three boxes above to continue to account creation.
         </section>
       )}
 
       {/* How setup works */}
-      <section className="mt-10 rounded-2xl border border-[#0a0f1c]/10 bg-white p-5">
-        <h3 className="text-sm font-semibold text-[#0a0f1c]">How setup works</h3>
-        <ol className="mt-4 space-y-3 text-xs leading-relaxed text-[#3d3a2e]">
+      <section className="mt-10 rounded-2xl border border-border bg-surface p-5">
+        <h3 className="text-sm font-semibold text-fg">How setup works</h3>
+        <ol className="mt-4 space-y-3 text-xs leading-relaxed text-fg-muted">
           {[
             ["Create your DisputeIQ account", "Set up your login so your dashboard is ready."],
             [
@@ -176,8 +176,8 @@ export default function SignUpPage() {
                 {i + 1}
               </span>
               <div>
-                <p className="font-semibold text-[#0a0f1c]">{title}</p>
-                <p className="mt-0.5 text-[#3d3a2e]">{body}</p>
+                <p className="font-semibold text-fg">{title}</p>
+                <p className="mt-0.5 text-fg-muted">{body}</p>
               </div>
             </li>
           ))}
@@ -185,13 +185,13 @@ export default function SignUpPage() {
       </section>
 
       {/* Helpful documents */}
-      <section className="mt-5 rounded-2xl border border-[#0a0f1c]/10 bg-white p-5">
-        <h3 className="text-sm font-semibold text-[#0a0f1c]">Helpful documents to upload</h3>
-        <p className="mt-1 text-xs text-[#6b6556]">
+      <section className="mt-5 rounded-2xl border border-border bg-surface p-5">
+        <h3 className="text-sm font-semibold text-fg">Helpful documents to upload</h3>
+        <p className="mt-1 text-xs text-fg-subtle">
           You don&apos;t need every item to start — more documentation gives you a stronger
           file.
         </p>
-        <ul className="mt-3 grid grid-cols-1 gap-2 text-xs leading-relaxed text-[#3d3a2e] sm:grid-cols-2">
+        <ul className="mt-3 grid grid-cols-1 gap-2 text-xs leading-relaxed text-fg-muted sm:grid-cols-2">
           {HELPFUL_DOCS.map((doc) => (
             <li key={doc} className="flex items-start gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
@@ -214,7 +214,7 @@ export default function SignUpPage() {
         </ul>
       </section>
 
-      <p className="mt-8 text-center text-xs text-[#0a0f1c]/55">
+      <p className="mt-8 text-center text-xs text-fg-subtle">
         Already have an account?{" "}
         <Link href="/sign-in" className="font-semibold underline">
           Sign in

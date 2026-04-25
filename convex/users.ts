@@ -40,10 +40,14 @@ export const upsertFromClerk = mutation({
       .unique();
     const now = Date.now();
     if (existing) {
-      const patch: Record<string, unknown> = { updatedAt: now };
+      const patch: Record<string, unknown> = {};
       if (existing.email !== email) patch.email = email;
       if (role && existing.role !== role) patch.role = role;
-      await ctx.db.patch(existing._id, patch);
+      // No-op when nothing actually changed — keeps idempotent calls cheap
+      // when getSessionUser fires this on every authenticated request.
+      if (Object.keys(patch).length > 0) {
+        await ctx.db.patch(existing._id, { ...patch, updatedAt: now });
+      }
       return existing._id;
     }
     return await ctx.db.insert("users", {

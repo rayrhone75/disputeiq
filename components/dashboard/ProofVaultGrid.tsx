@@ -19,7 +19,7 @@ const classBadge: Record<string, string> = {
   deleted: "bg-emerald-100 text-emerald-700 ring-emerald-200",
   stall: "bg-amber-100 text-amber-700 ring-amber-200",
   no_investigation: "bg-rose-100 text-rose-700 ring-rose-200",
-  unclear: "bg-ink-100 text-ink-700 ring-ink-200",
+  unclear: "bg-surface-muted text-fg-muted ring-border-strong",
 };
 
 const recLabel: Record<string, string> = {
@@ -37,9 +37,9 @@ const kindLabel: Record<string, string> = {
 export function ProofVaultGrid({ entries }: { entries: VaultEntry[] }) {
   if (entries.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-ink-200 bg-white p-10 text-center">
-        <h2 className="text-lg font-semibold text-ink-900">No proof uploaded yet</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-ink-600">
+      <div className="rounded-2xl border border-dashed border-border-strong bg-surface p-10 text-center">
+        <h2 className="text-lg font-semibold text-fg">No proof uploaded yet</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm text-fg-muted">
           When a bureau responds to a dispute, upload the letter from the dispute detail page.
           Our AI parses the response and files it here with a verdict and next-step recommendation.
         </p>
@@ -60,19 +60,19 @@ export function ProofVaultGrid({ entries }: { entries: VaultEntry[] }) {
         return (
           <article
             key={e.id}
-            className="flex flex-col justify-between rounded-2xl border border-ink-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="flex flex-col justify-between rounded-2xl border border-border-strong bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <div>
               <div className="flex items-center justify-between gap-2">
-                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-500">
+                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-fg-muted">
                   {kindLabel[e.kind] ?? e.kind}
                 </p>
-                <span className="text-[10px] text-ink-400">
+                <span className="text-[10px] text-fg-subtle">
                   {new Date(e.createdAt).toLocaleDateString()}
                 </span>
               </div>
-              <h3 className="mt-2 text-base font-semibold text-ink-900">{e.creditor}</h3>
-              <p className="text-xs text-ink-500">
+              <h3 className="mt-2 text-base font-semibold text-fg">{e.creditor}</h3>
+              <p className="text-xs text-fg-muted">
                 {e.bureau} · case {e.disputeCaseId.slice(0, 8)}
               </p>
 
@@ -92,7 +92,7 @@ export function ProofVaultGrid({ entries }: { entries: VaultEntry[] }) {
               )}
 
               {e.reasoning && (
-                <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-ink-600">
+                <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-fg-muted">
                   {e.reasoning}
                 </p>
               )}
@@ -107,7 +107,7 @@ export function ProofVaultGrid({ entries }: { entries: VaultEntry[] }) {
               </Link>
               <a
                 href={`/api/proof-vault/download?id=${e.id}`}
-                className="rounded-lg border border-ink-200 px-3 py-1.5 text-[11px] font-semibold text-ink-700 hover:bg-ink-50"
+                className="rounded-lg border border-border-strong px-3 py-1.5 text-[11px] font-semibold text-fg-muted hover:bg-surface-muted"
               >
                 Download PDF
               </a>

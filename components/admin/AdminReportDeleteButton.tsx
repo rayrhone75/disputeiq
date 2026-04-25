@@ -30,7 +30,7 @@ export function AdminReportDeleteButton({ reportId }: { reportId: string }) {
       <button
         onClick={handleDelete}
         disabled={busy}
-        className="rounded-md bg-white px-2.5 py-1 text-[11px] font-semibold text-rose-600 ring-1 ring-rose-200 hover:bg-rose-50 disabled:opacity-50"
+        className="rounded-md bg-surface px-2.5 py-1 text-[11px] font-semibold text-rose-600 ring-1 ring-rose-200 hover:bg-rose-50 disabled:opacity-50"
       >
         {busy ? "Deleting..." : "Delete"}
       </button>

@@ -17,7 +17,7 @@ function fmt(d: Date | string | null | undefined): string {
 export function StatusTimeline({ entries }: { entries: TimelineEntry[] }) {
   const visible = entries.filter((e) => !!e.occurredAt);
   if (visible.length === 0) {
-    return <p className="text-sm text-ink-500">No lifecycle events yet.</p>;
+    return <p className="text-sm text-fg-muted">No lifecycle events yet.</p>;
   }
   visible.sort((a, b) => {
     const da = new Date(a.occurredAt as string | Date).getTime();
@@ -30,17 +30,17 @@ export function StatusTimeline({ entries }: { entries: TimelineEntry[] }) {
         <li key={i} className="flex gap-3">
           <div className="flex flex-col items-center">
             <span className="h-2 w-2 rounded-full bg-accent-500" />
-            {i < visible.length - 1 && <span className="mt-1 w-px flex-1 bg-ink-200" />}
+            {i < visible.length - 1 && <span className="mt-1 w-px flex-1 bg-border-strong" />}
           </div>
           <div className="flex-1 pb-2">
             <div className="flex items-center gap-2">
               <Chip tone={e.tone ?? "neutral"}>{e.label}</Chip>
-              <span className="text-xs text-ink-500">{fmt(e.occurredAt)}</span>
+              <span className="text-xs text-fg-muted">{fmt(e.occurredAt)}</span>
               {e.actor && (
-                <span className="text-[11px] font-mono text-ink-400">by {e.actor}</span>
+                <span className="text-[11px] font-mono text-fg-subtle">by {e.actor}</span>
               )}
             </div>
-            {e.detail && <p className="mt-1 text-xs text-ink-600">{e.detail}</p>}
+            {e.detail && <p className="mt-1 text-xs text-fg-muted">{e.detail}</p>}
           </div>
         </li>
       ))}

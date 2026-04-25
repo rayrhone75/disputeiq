@@ -39,7 +39,7 @@ export default async function DisputeDetailPage({ params }: { params: Promise<{ 
     priorCount <= 1 ? "redispute" : priorCount === 2 ? "mov" : priorCount >= 3 ? "cfpb" : "redispute";
 
   const statusColor: Record<string, string> = {
-    DRAFT: "bg-ink-100 text-ink-700",
+    DRAFT: "bg-surface-muted text-fg-muted",
     READY_FOR_PAYMENT: "bg-amber-100 text-amber-700",
     PAID: "bg-indigo-100 text-indigo-700",
     MAILED: "bg-blue-100 text-blue-700",
@@ -51,31 +51,31 @@ export default async function DisputeDetailPage({ params }: { params: Promise<{ 
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/dashboard/disputes" className="text-xs text-ink-500 hover:underline">
+        <Link href="/dashboard/disputes" className="text-xs text-fg-muted hover:underline">
           ← All disputes
         </Link>
-        <h1 className="mt-2 text-2xl font-bold text-ink-900">
+        <h1 className="mt-2 text-2xl font-bold text-fg">
           {tradeline?.creditorName ?? "Bureau packet"}
         </h1>
         <div className="mt-2 flex items-center gap-3">
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${statusColor[dc.status] ?? "bg-ink-100 text-ink-700"}`}>
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${statusColor[dc.status] ?? "bg-surface-muted text-fg-muted"}`}>
             {dc.status}
           </span>
-          <span className="text-xs text-ink-500">
+          <span className="text-xs text-fg-muted">
             {dc.letterType.replace(/_/g, " ")} · Case {String(dc._id).slice(0, 8)}
           </span>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-ink-200 bg-white p-6">
-          <h2 className="text-sm font-semibold text-ink-900">Dispute basis</h2>
-          <p className="mt-2 text-sm text-ink-700">{dc.aiReasonSummary}</p>
+        <div className="rounded-2xl border border-border-strong bg-surface p-6">
+          <h2 className="text-sm font-semibold text-fg">Dispute basis</h2>
+          <p className="mt-2 text-sm text-fg-muted">{dc.aiReasonSummary}</p>
           {dc.legalBasisSummary && (
-            <p className="mt-2 text-xs text-ink-500">{dc.legalBasisSummary}</p>
+            <p className="mt-2 text-xs text-fg-subtle">{dc.legalBasisSummary}</p>
           )}
           {tradeline && (
-            <dl className="mt-4 space-y-1 text-xs text-ink-600">
+            <dl className="mt-4 space-y-1 text-xs text-fg-muted">
               <div className="flex justify-between">
                 <dt>Bureau</dt>
                 <dd className="font-semibold">{tradeline.bureau}</dd>
@@ -100,29 +100,29 @@ export default async function DisputeDetailPage({ params }: { params: Promise<{ 
           )}
         </div>
 
-        <div className="rounded-2xl border border-ink-200 bg-white p-6">
-          <h2 className="text-sm font-semibold text-ink-900">Locked preview</h2>
-          <p className="mt-1 text-[10px] text-ink-500">
+        <div className="rounded-2xl border border-border-strong bg-surface p-6">
+          <h2 className="text-sm font-semibold text-fg">Locked preview</h2>
+          <p className="mt-1 text-[10px] text-fg-subtle">
             Watermarked, screen-only. The mailable PDF is never downloadable.
           </p>
           <iframe
             title="letter preview"
             src={`/api/letters/preview?id=${dc._id}`}
-            className="mt-3 h-64 w-full rounded-lg border border-ink-200"
+            className="mt-3 h-64 w-full rounded-lg border border-border-strong"
           />
         </div>
       </div>
 
       {/* Action bar */}
       {dc.status === "DRAFT" && (
-        <div className="rounded-2xl bg-ink-900 p-6 text-white">
+        <div className="rounded-2xl bg-fg p-6 text-canvas">
           <h2 className="text-lg font-semibold">Ready to send?</h2>
-          <p className="mt-1 text-sm text-white/70">
+          <p className="mt-1 text-sm text-canvas/70">
             Review the letter above, then proceed to the consent screen and payment.
           </p>
           <Link
             href={`/dashboard/checkout/${dc._id}`}
-            className="mt-4 inline-block rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-ink-900"
+            className="mt-4 inline-block rounded-lg bg-surface px-5 py-2.5 text-sm font-semibold text-fg"
           >
             Continue to checkout →
           </Link>
@@ -140,15 +140,15 @@ export default async function DisputeDetailPage({ params }: { params: Promise<{ 
       )}
 
       {/* Timeline */}
-      <div className="rounded-2xl border border-ink-200 bg-white p-6">
-        <h2 className="text-sm font-semibold text-ink-900">Timeline</h2>
+      <div className="rounded-2xl border border-border-strong bg-surface p-6">
+        <h2 className="text-sm font-semibold text-fg">Timeline</h2>
         {logs.length === 0 ? (
-          <p className="mt-3 text-xs text-ink-500">No events yet.</p>
+          <p className="mt-3 text-xs text-fg-subtle">No events yet.</p>
         ) : (
           <ol className="mt-4 space-y-2 text-xs">
             {logs.map((l) => (
-              <li key={l._id} className="flex gap-3 text-ink-700">
-                <span className="w-36 shrink-0 text-ink-500">
+              <li key={l._id} className="flex gap-3 text-fg-muted">
+                <span className="w-36 shrink-0 text-fg-subtle">
                   {new Date(l.createdAt).toLocaleString()}
                 </span>
                 <span className="font-semibold">{l.action}</span>

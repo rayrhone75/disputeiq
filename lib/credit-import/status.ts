@@ -127,30 +127,48 @@ export function deriveCreditReportStatus(
 
 /**
  * Load the calling user's status. Caller must pass their Clerk Convex token.
+ *
+ * Defensive: guards against malformed/missing tokens (e.g. when the Clerk
+ * "convex" JWT template hasn't been configured yet) by returning the
+ * "not_started" empty state instead of crashing the page.
  */
 export async function loadCreditReportStatus(
   token: string | null,
 ): Promise<CreditReportStatusSummary> {
-  const opts = { token: token ?? undefined } as const;
-  const [latest, legacyReportCount, idiqClick] = await Promise.all([
-    fetchQuery(api.creditImports.latestForCurrentUser, {}, opts),
-    fetchQuery(api.creditReports.countForCurrentUser, {}, opts),
-    fetchQuery(api.creditReports.latestIdiqClickForCurrentUser, {}, opts),
-  ]);
+  // A real Convex JWT is exactly three base64-url segments separated by dots.
+  // Anything else (Clerk session id, plain user id, garbage) is rejected by
+  // Convex with InvalidAuthHeader. Skip the call entirely in that case.
+  const looksLikeJwt =
+    typeof token === "string" && token.split(".").length === 3 && token.length > 20;
+  const opts = { token: looksLikeJwt ? (token as string) : undefined } as const;
 
-  const latestImport = latest
-    ? {
-        id: latest._id as unknown as string,
-        status: latest.status,
-        createdAt: new Date(latest.createdAt),
-        updatedAt: new Date(latest.updatedAt),
-        normalizedAt: latest.normalizedAt ? new Date(latest.normalizedAt) : null,
-      }
-    : null;
+  try {
+    const [latest, legacyReportCount, idiqClick] = await Promise.all([
+      fetchQuery(api.creditImports.latestForCurrentUser, {}, opts),
+      fetchQuery(api.creditReports.countForCurrentUser, {}, opts),
+      fetchQuery(api.creditReports.latestIdiqClickForCurrentUser, {}, opts),
+    ]);
 
-  return deriveCreditReportStatus({
-    latestImport,
-    legacyReportCount: legacyReportCount ?? 0,
-    idiqClick: idiqClick ? { createdAt: new Date(idiqClick.createdAt) } : null,
-  });
+    const latestImport = latest
+      ? {
+          id: latest._id as unknown as string,
+          status: latest.status,
+          createdAt: new Date(latest.createdAt),
+          updatedAt: new Date(latest.updatedAt),
+          normalizedAt: latest.normalizedAt ? new Date(latest.normalizedAt) : null,
+        }
+      : null;
+
+    return deriveCreditReportStatus({
+      latestImport,
+      legacyReportCount: legacyReportCount ?? 0,
+      idiqClick: idiqClick ? { createdAt: new Date(idiqClick.createdAt) } : null,
+    });
+  } catch {
+    return deriveCreditReportStatus({
+      latestImport: null,
+      legacyReportCount: 0,
+      idiqClick: null,
+    });
+  }
 }

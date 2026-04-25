@@ -25,5 +25,3 @@ export const WEBHOOK_URLS = {
   square: `${URLS.app}/api/webhooks/square`,
   letterstream: `${URLS.app}/api/webhooks/letterstream`,
 };
-
-export const AUTH_CALLBACK = `${URLS.app}/api/auth/callback`;

@@ -71,9 +71,9 @@ export function ExecutiveRail({ tiles }: { tiles: readonly RailTile[] }) {
               <Glyph icon={c.icon} />
             </span>
           </div>
-          <p className="mt-3 text-4xl font-semibold tracking-tight text-ink-900">{c.value}</p>
-          <p className="mt-1 text-xs text-ink-600">{c.hint}</p>
-          <span className="absolute right-4 bottom-4 text-xs text-ink-400 opacity-0 transition group-hover:opacity-100">
+          <p className="mt-3 text-4xl font-semibold tracking-tight text-fg">{c.value}</p>
+          <p className="mt-1 text-xs text-fg-muted">{c.hint}</p>
+          <span className="absolute right-4 bottom-4 text-xs text-fg-subtle opacity-0 transition group-hover:opacity-100">
             →
           </span>
         </Link>

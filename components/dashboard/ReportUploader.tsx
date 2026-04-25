@@ -39,12 +39,12 @@ export function ReportUploader() {
 
   return (
     <div>
-      <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-ink-200 bg-ink-50/40 px-6 py-12 text-center transition hover:border-accent-500 hover:bg-accent-50/30">
-        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-ink-900 to-accent-600" />
-        <p className="font-display text-base font-semibold text-ink-900">
+      <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border-strong bg-surface-muted/40 px-6 py-12 text-center transition hover:border-accent-500 hover:bg-accent-50/30 dark:hover:bg-accent-500/10">
+        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-fg to-accent-600" />
+        <p className="font-display text-base font-semibold text-fg">
           {busy ? "Uploading & parsing…" : "Drop your tri-merge PDF"}
         </p>
-        <p className="text-xs text-ink-500">
+        <p className="text-xs text-fg-muted">
           Encrypted on upload · Parsed into tradelines automatically
         </p>
         <input
@@ -59,7 +59,7 @@ export function ReportUploader() {
       {err && <p className="mt-3 text-xs text-rose-600">{err}</p>}
 
       {result && result.parsedCount === 0 && (
-        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           <p className="font-semibold">
             {result.parseStatus === "partial_needs_review"
               ? "Report uploaded — parser needs help"
@@ -71,7 +71,7 @@ export function ReportUploader() {
             <strong>paste text</strong> method below, or contact support.
           </p>
           {result.reviewFlags.length > 0 && (
-            <p className="mt-2 text-[10px] text-amber-700">
+            <p className="mt-2 text-[10px] text-amber-700 dark:text-amber-300">
               Parser flags: {result.reviewFlags.join(", ")}
             </p>
           )}
@@ -79,7 +79,7 @@ export function ReportUploader() {
       )}
 
       {result && result.parsedCount > 0 && (
-        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
           <p className="font-semibold">
             Found {result.parsedCount} account(s)
             {result.signalCount > 0 && ` with ${result.signalCount} potential issue(s)`}

@@ -182,20 +182,20 @@ export default async function DashboardOverview() {
         {summaryCards.map((c) => (
           <div
             key={c.label}
-            className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm"
+            className="rounded-2xl border border-border-strong bg-surface p-5 shadow-sm"
           >
-            <p className="text-xs uppercase tracking-wide text-ink-500">{c.label}</p>
-            <p className="mt-2 text-3xl font-semibold text-ink-900">{c.value}</p>
+            <p className="text-xs uppercase tracking-wide text-fg-muted">{c.label}</p>
+            <p className="mt-2 text-3xl font-semibold text-fg">{c.value}</p>
           </div>
         ))}
       </section>
 
       <section
         id="dispute-history"
-        className="scroll-mt-20 rounded-2xl border border-ink-200 bg-gradient-to-br from-indigo-50 to-violet-50 p-6"
+        className="scroll-mt-20 rounded-2xl border border-border-strong bg-gradient-to-br from-indigo-50 to-violet-50 p-6"
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-xl font-semibold text-ink-900">AI analysis</h3>
+          <h3 className="text-xl font-semibold text-fg">AI analysis</h3>
           <Link
             href="/dashboard/reports"
             className="text-xs font-semibold text-indigo-600 hover:underline"
@@ -204,7 +204,7 @@ export default async function DashboardOverview() {
           </Link>
         </div>
         {recentDisputes.length === 0 ? (
-          <p className="mt-4 text-sm text-ink-600">
+          <p className="mt-4 text-sm text-fg-muted">
             No disputes yet. Upload a tri-merge report to begin — we'll surface every
             disputable item with confidence and recommended action.
           </p>
@@ -213,19 +213,19 @@ export default async function DashboardOverview() {
             {recentDisputes.map((d) => (
               <li
                 key={d._id as unknown as string}
-                className="rounded-xl bg-white/80 p-4 ring-1 ring-ink-200"
+                className="rounded-xl bg-surface/80 p-4 ring-1 ring-border-strong"
               >
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold text-ink-900">
+                  <div className="text-sm font-semibold text-fg">
                     {d.tradeline?.creditorName ?? "Packet"}
                   </div>
                   <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-indigo-700">
                     {d.status}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-ink-700">{d.aiReasonSummary}</p>
+                <p className="mt-2 text-sm text-fg-muted">{d.aiReasonSummary}</p>
                 {d.legalBasisSummary && (
-                  <p className="mt-1 text-[11px] text-ink-500">{d.legalBasisSummary}</p>
+                  <p className="mt-1 text-[11px] text-fg-subtle">{d.legalBasisSummary}</p>
                 )}
               </li>
             ))}
@@ -233,8 +233,8 @@ export default async function DashboardOverview() {
         )}
       </section>
 
-      <section className="rounded-2xl border border-ink-200 bg-white p-6">
-        <h3 className="text-lg font-semibold text-ink-900">Dispute progress</h3>
+      <section className="rounded-2xl border border-border-strong bg-surface p-6">
+        <h3 className="text-lg font-semibold text-fg">Dispute progress</h3>
         <ol className="mt-6 flex items-center justify-between gap-2">
           {PROGRESS_STEPS.map((step, i) => {
             const done = reached[i];
@@ -242,12 +242,12 @@ export default async function DashboardOverview() {
               <li key={step.key} className="flex flex-1 flex-col items-center text-center">
                 <div
                   className={`mb-2 flex h-10 w-10 items-center justify-center rounded-full text-xs font-semibold ${
-                    done ? "bg-indigo-600 text-white" : "bg-ink-100 text-ink-400"
+                    done ? "bg-indigo-600 text-white" : "bg-surface-muted text-fg-subtle"
                   }`}
                 >
                   {i + 1}
                 </div>
-                <span className={`text-xs ${done ? "text-ink-900" : "text-ink-400"}`}>
+                <span className={`text-xs ${done ? "text-fg" : "text-fg-subtle"}`}>
                   {step.label}
                 </span>
               </li>
@@ -256,15 +256,15 @@ export default async function DashboardOverview() {
         </ol>
       </section>
 
-      <section className="rounded-2xl border border-ink-200 bg-white p-6">
-        <h3 className="text-lg font-semibold text-ink-900">Recent certified mail</h3>
+      <section className="rounded-2xl border border-border-strong bg-surface p-6">
+        <h3 className="text-lg font-semibold text-fg">Recent certified mail</h3>
         {mailJobs.length === 0 ? (
-          <p className="mt-3 text-sm text-ink-600">
+          <p className="mt-3 text-sm text-fg-muted">
             No certified mail in flight yet. When you send a packet, we'll track delivery
             and signature here.
           </p>
         ) : (
-          <ul className="mt-4 divide-y divide-ink-100 text-sm">
+          <ul className="mt-4 divide-y divide-border text-sm">
             {mailJobs.slice(0, 5).map((j) => (
               <li
                 key={j._id as unknown as string}
@@ -274,7 +274,7 @@ export default async function DashboardOverview() {
                   <div className="font-semibold">
                     {j.providerJobId ?? (j._id as unknown as string)}
                   </div>
-                  <div className="text-xs text-ink-500">
+                  <div className="text-xs text-fg-muted">
                     {j.trackingCode
                       ? `Tracking: ${j.trackingCode}`
                       : "Awaiting tracking number"}
@@ -285,7 +285,7 @@ export default async function DashboardOverview() {
                     {j.status}
                   </div>
                   {j.deliveredAt && (
-                    <div className="text-[10px] text-ink-500">
+                    <div className="text-[10px] text-fg-muted">
                       delivered {new Date(j.deliveredAt).toLocaleDateString()}
                     </div>
                   )}
@@ -340,7 +340,7 @@ export default async function DashboardOverview() {
         }))}
       />
 
-      <footer className="rounded-2xl border border-ink-200 bg-ink-50 p-5 text-xs leading-relaxed text-ink-600">
+      <footer className="rounded-2xl border border-border-strong bg-surface-muted p-5 text-xs leading-relaxed text-fg-muted">
         DisputeIQ is a self-directed software platform that helps you analyze credit report
         data, prepare dispute packets, and track mailing and response activity. DisputeIQ is{" "}
         <strong>not a credit repair agency, law firm, or credit bureau</strong>, and does not

@@ -63,18 +63,18 @@ const TONE_CLASSES: Record<
   { pill: string; dot: string; border: string; bg: string; cta: string; ring: string }
 > = {
   neutral: {
-    pill: "bg-ink-100 text-ink-700",
-    dot: "bg-ink-400",
-    border: "border-ink-200",
-    bg: "bg-white",
-    cta: "bg-ink-900 text-white hover:bg-ink-800",
-    ring: "ring-ink-200",
+    pill: "bg-surface-muted text-fg-muted",
+    dot: "bg-fg-subtle",
+    border: "border-border-strong",
+    bg: "bg-surface",
+    cta: "bg-fg text-canvas hover:bg-fg/90",
+    ring: "ring-border-strong",
   },
   indigo: {
     pill: "bg-indigo-100 text-indigo-700",
     dot: "bg-indigo-500",
     border: "border-indigo-200",
-    bg: "bg-gradient-to-br from-indigo-50 to-white",
+    bg: "bg-gradient-to-br from-indigo-50 to-surface dark:from-indigo-500/10 dark:to-surface",
     cta: "bg-indigo-600 text-white hover:bg-indigo-700",
     ring: "ring-indigo-200",
   },
@@ -82,7 +82,7 @@ const TONE_CLASSES: Record<
     pill: "bg-emerald-100 text-emerald-700",
     dot: "bg-emerald-500",
     border: "border-emerald-200",
-    bg: "bg-gradient-to-br from-emerald-50 to-white",
+    bg: "bg-gradient-to-br from-emerald-50 to-surface dark:from-emerald-500/10 dark:to-surface",
     cta: "bg-emerald-600 text-white hover:bg-emerald-700",
     ring: "ring-emerald-200",
   },
@@ -90,7 +90,7 @@ const TONE_CLASSES: Record<
     pill: "bg-rose-100 text-rose-700",
     dot: "bg-rose-500",
     border: "border-rose-200",
-    bg: "bg-gradient-to-br from-rose-50 to-white",
+    bg: "bg-gradient-to-br from-rose-50 to-surface dark:from-rose-500/10 dark:to-surface",
     cta: "bg-rose-600 text-white hover:bg-rose-700",
     ring: "ring-rose-200",
   },
@@ -167,7 +167,7 @@ export function CreditReportStatusChip({
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-500">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-fg-muted">
             {eyebrow}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -188,10 +188,10 @@ export function CreditReportStatusChip({
               {meta.label}
             </span>
             {lastUpdated && (
-              <span className="text-[11px] text-ink-500">Updated {lastUpdated}</span>
+              <span className="text-[11px] text-fg-muted">Updated {lastUpdated}</span>
             )}
           </div>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-700">
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-fg-muted">
             {meta.description}
           </p>
         </div>

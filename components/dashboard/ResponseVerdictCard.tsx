@@ -46,8 +46,8 @@ const tone: Record<Verdict["classification"], { bg: string; fg: string; label: s
     desc: "The bureau declined to investigate. This is a CFPB-eligible scenario under §1681i.",
   },
   unclear: {
-    bg: "bg-ink-50 ring-ink-200",
-    fg: "text-ink-700",
+    bg: "bg-surface-muted ring-border-strong",
+    fg: "text-fg-muted",
     label: "Unclear",
     desc: "We could not cleanly classify the response. Read it manually and choose the next step.",
   },
@@ -74,28 +74,28 @@ export function ResponseVerdictCard({
           <p className={`font-mono text-[10px] uppercase tracking-[0.18em] ${t.fg}`}>
             AI verdict
           </p>
-          <h4 className="mt-1 text-base font-semibold text-ink-900">{t.label}</h4>
+          <h4 className="mt-1 text-base font-semibold text-fg">{t.label}</h4>
         </div>
-        <span className="rounded-full bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-700 ring-1 ring-ink-200">
+        <span className="rounded-full bg-surface/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-fg-muted ring-1 ring-border-strong">
           Next: {recLabel[verdict.recommendation]}
         </span>
       </div>
-      <p className="mt-2 text-sm text-ink-700">{t.desc}</p>
+      <p className="mt-2 text-sm text-fg-muted">{t.desc}</p>
       {verdict.reasoning && (
-        <p className="mt-2 border-l-2 border-ink-200 pl-3 text-xs italic text-ink-600">
+        <p className="mt-2 border-l-2 border-border-strong pl-3 text-xs italic text-fg-muted">
           AI reasoning: {verdict.reasoning}
         </p>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
         <Link
           href={`/dashboard/disputes/${disputeCaseId}`}
-          className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white"
+          className="rounded-lg bg-fg px-3 py-1.5 text-xs font-semibold text-canvas"
         >
           Open dispute →
         </Link>
         <Link
           href="/dashboard/proof-vault"
-          className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 ring-1 ring-ink-200 hover:bg-ink-50"
+          className="rounded-lg bg-surface px-3 py-1.5 text-xs font-semibold text-fg-muted ring-1 ring-border-strong hover:bg-surface-muted"
         >
           View in Proof Vault
         </Link>

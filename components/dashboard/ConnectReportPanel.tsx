@@ -184,7 +184,7 @@ export function ConnectReportPanel({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+          className="rounded-2xl bg-fg px-5 py-3 text-sm font-semibold text-canvas shadow-sm transition hover:opacity-90"
         >
           Connect Credit Report
         </button>
@@ -194,7 +194,7 @@ export function ConnectReportPanel({
             setMode("upload");
             setOpen(true);
           }}
-          className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+          className="rounded-2xl border border-border-strong bg-surface px-5 py-3 text-sm font-semibold text-fg hover:bg-surface-muted"
         >
           Upload JSON Manually
         </button>
@@ -204,7 +204,7 @@ export function ConnectReportPanel({
             setMode("paste");
             setOpen(true);
           }}
-          className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+          className="rounded-2xl border border-border-strong bg-surface px-5 py-3 text-sm font-semibold text-fg hover:bg-surface-muted"
         >
           Paste Report JSON
         </button>
@@ -213,18 +213,18 @@ export function ConnectReportPanel({
             type="button"
             disabled={busy}
             onClick={runRetry}
-            className="rounded-2xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+            className="rounded-2xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15"
           >
             {busy ? "Retrying…" : "Retry Import"}
           </button>
         )}
         {error && (
-          <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+          <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
             {error}
           </p>
         )}
         {success && (
-          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
             {success}
           </p>
         )}
@@ -233,20 +233,20 @@ export function ConnectReportPanel({
   }
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-3xl border border-border bg-surface p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-fg-muted">
             Connect your IdentityIQ report
           </p>
-          <h3 className="mt-1 text-lg font-semibold text-slate-900">
+          <h3 className="mt-1 text-lg font-semibold text-fg">
             Pick how you want to bring it in
           </h3>
         </div>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100"
+          className="rounded-lg px-2 py-1 text-sm text-fg-muted hover:bg-surface-muted"
         >
           Close
         </button>
@@ -270,8 +270,8 @@ export function ConnectReportPanel({
             }}
             className={`rounded-lg px-3 py-1.5 font-semibold ${
               mode === t.k
-                ? "bg-slate-950 text-white"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                ? "bg-fg text-canvas"
+                : "bg-surface-muted text-fg-muted hover:bg-surface-muted/80"
             }`}
           >
             {t.label}
@@ -281,8 +281,8 @@ export function ConnectReportPanel({
 
       {mode === "auto" && (
         <div className="space-y-3 text-sm">
-          <div className="rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-600">
-            <p className="font-semibold text-slate-900">How to get your session cookie</p>
+          <div className="rounded-xl bg-surface-muted p-3 text-xs leading-6 text-fg-muted">
+            <p className="font-semibold text-fg">How to get your session cookie</p>
             <ol className="mt-1 list-decimal space-y-1 pl-4">
               <li>Sign in to IdentityIQ in a new tab.</li>
               <li>
@@ -290,34 +290,34 @@ export function ConnectReportPanel({
               </li>
               <li>Copy the full Cookie header value and paste it below.</li>
             </ol>
-            <p className="mt-2 text-[11px] text-slate-500">
+            <p className="mt-2 text-[11px] text-fg-subtle">
               Your cookie is sent only to DisputeIQ&apos;s server to fetch your report — never
               stored as plaintext.
             </p>
           </div>
           <label className="block space-y-1">
-            <span className="text-xs font-semibold text-slate-700">Report URL</span>
+            <span className="text-xs font-semibold text-fg-muted">Report URL</span>
             <input
               value={reportUrl}
               onChange={(e) => setReportUrl(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"
+              className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 font-mono text-xs"
             />
           </label>
           <label className="block space-y-1">
-            <span className="text-xs font-semibold text-slate-700">Session cookie</span>
+            <span className="text-xs font-semibold text-fg-muted">Session cookie</span>
             <textarea
               value={cookieHeader}
               onChange={(e) => setCookieHeader(e.target.value)}
               rows={4}
               placeholder="ASP.NET_SessionId=...; other=..."
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"
+              className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 font-mono text-xs"
             />
           </label>
           <button
             type="button"
             disabled={busy}
             onClick={runAuto}
-            className="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+            className="w-full rounded-2xl bg-fg px-5 py-3 text-sm font-semibold text-canvas disabled:opacity-50"
           >
             {busy ? "Connecting…" : "Fetch my report"}
           </button>
@@ -326,7 +326,7 @@ export function ConnectReportPanel({
 
       {mode === "upload" && (
         <div className="space-y-3 text-sm">
-          <p className="text-xs text-slate-600">
+          <p className="text-xs text-fg-muted">
             Save your IdentityIQ report as a <code className="font-mono">.json</code> file and
             upload it (max 10 MB).
           </p>
@@ -334,10 +334,10 @@ export function ConnectReportPanel({
             type="file"
             accept="application/json,.json"
             onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
-            className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+            className="block w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm"
           />
           {uploadFile && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-fg-muted">
               Selected: <span className="font-mono">{uploadFile.name}</span> ·{" "}
               {(uploadFile.size / 1024).toFixed(1)} KB
             </p>
@@ -346,7 +346,7 @@ export function ConnectReportPanel({
             type="button"
             disabled={busy || !uploadFile}
             onClick={runUpload}
-            className="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+            className="w-full rounded-2xl bg-fg px-5 py-3 text-sm font-semibold text-canvas disabled:opacity-50"
           >
             {busy ? "Uploading…" : "Upload & import"}
           </button>
@@ -355,7 +355,7 @@ export function ConnectReportPanel({
 
       {mode === "paste" && (
         <div className="space-y-3 text-sm">
-          <p className="text-xs text-slate-600">
+          <p className="text-xs text-fg-muted">
             Paste the full JSON body from your IdentityIQ report page.
           </p>
           <textarea
@@ -363,13 +363,13 @@ export function ConnectReportPanel({
             onChange={(e) => setBodyText(e.target.value)}
             rows={12}
             placeholder='{"borrower": {...}, "tradelines": [...]}'
-            className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-xs"
+            className="w-full rounded-lg border border-border-strong bg-surface-muted px-3 py-2 font-mono text-xs"
           />
           <button
             type="button"
             disabled={busy || !bodyText.trim()}
             onClick={runPaste}
-            className="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+            className="w-full rounded-2xl bg-fg px-5 py-3 text-sm font-semibold text-canvas disabled:opacity-50"
           >
             {busy ? "Importing…" : "Import pasted JSON"}
           </button>
@@ -377,12 +377,12 @@ export function ConnectReportPanel({
       )}
 
       {error && (
-        <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+        <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
           {error}
         </p>
       )}
       {success && (
-        <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+        <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
           {success}
         </p>
       )}

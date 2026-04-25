@@ -7,7 +7,7 @@ export default async function AdminGrowthPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Growth console</h1>
-        <p className="text-sm text-ink-600">
+        <p className="text-sm text-fg-muted">
           AI-assisted content generator, comment responder, and inbound DM helper. Every generation is logged in the audit trail.
         </p>
       </header>

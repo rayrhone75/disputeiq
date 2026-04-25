@@ -32,7 +32,7 @@ export default async function ReportsPage() {
             <SectionHeader title="Upload PDF report" />
             <ReportUploader />
           </div>
-          <div className="border-t border-ink-100 pt-6">
+          <div className="border-t border-border pt-6">
             <ReportPasteImport />
           </div>
         </Surface>
@@ -40,24 +40,24 @@ export default async function ReportsPage() {
         <Surface className="p-8">
           <SectionHeader title="Report history" />
           {reports.length === 0 ? (
-            <p className="text-sm text-ink-500">
+            <p className="text-sm text-fg-muted">
               No reports uploaded yet. Continue with IdentityIQ and then upload your 3-bureau report.
             </p>
           ) : (
             <dl className="space-y-4 text-sm">
               <div className="flex items-center justify-between">
-                <dt className="text-ink-500">Reports</dt>
-                <dd className="font-medium text-ink-900">{reports.length}</dd>
+                <dt className="text-fg-muted">Reports</dt>
+                <dd className="font-medium text-fg">{reports.length}</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-ink-500">Latest</dt>
-                <dd className="font-medium text-ink-900">
+                <dt className="text-fg-muted">Latest</dt>
+                <dd className="font-medium text-fg">
                   {new Date(reports[0].pulledAt).toLocaleDateString()}
                 </dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-ink-500">Tradelines</dt>
-                <dd className="font-medium text-ink-900">
+                <dt className="text-fg-muted">Tradelines</dt>
+                <dd className="font-medium text-fg">
                   {reports[0].tradelines.length}
                 </dd>
               </div>
@@ -69,24 +69,24 @@ export default async function ReportsPage() {
       {reports.length > 0 && (
         <Surface className="p-8">
           <SectionHeader title="Your reports" />
-          <ul className="mt-4 divide-y divide-ink-100 text-sm">
+          <ul className="mt-4 divide-y divide-border text-sm">
             {reports.map((r) => (
               <li key={r._id} className="flex items-center justify-between py-3">
                 <div>
-                  <div className="font-semibold text-ink-900">
+                  <div className="font-semibold text-fg">
                     {r.source === "IDENTITYIQ" || r.source === "MYSCOREIQ"
                       ? "IdentityIQ"
                       : r.source === "MYFREESCORENOW"
                         ? "MyFreeScoreNow (legacy)"
                         : "Manual upload"}
                   </div>
-                  <div className="text-xs text-ink-500">
+                  <div className="text-xs text-fg-muted">
                     {new Date(r.pulledAt).toLocaleDateString()} · {r.tradelines.length} tradelines
                   </div>
                 </div>
                 <Link
                   href={`/dashboard/reports/${r._id}`}
-                  className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white"
+                  className="rounded-lg bg-fg px-3 py-1.5 text-xs font-semibold text-canvas hover:bg-fg/90"
                 >
                   Analyze →
                 </Link>

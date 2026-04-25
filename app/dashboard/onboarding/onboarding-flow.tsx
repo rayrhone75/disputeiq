@@ -43,7 +43,7 @@ export function OnboardingFlow({
                   ? "bg-emerald-100 text-emerald-700"
                   : active
                     ? "bg-indigo-100 text-indigo-700 ring-2 ring-indigo-300"
-                    : "bg-ink-100 text-ink-400"
+                    : "bg-surface-muted text-fg-subtle"
               }`}
             >
               {s.num}. {s.label}
@@ -56,15 +56,15 @@ export function OnboardingFlow({
       {currentStep === "subscription" && <SubscriptionStep />}
       {currentStep === "report_connect" && <ReportConnectStep />}
       {currentStep === "report_pending" && (
-        <div className="rounded-2xl border border-ink-200 bg-white p-6 text-center">
+        <div className="rounded-2xl border border-border-strong bg-surface p-6 text-center">
           <h2 className="text-lg font-semibold">Report processing</h2>
-          <p className="mt-2 text-sm text-ink-600">
+          <p className="mt-2 text-sm text-fg-muted">
             Your report was uploaded but we found 0 tradelines. This usually means the PDF
             format wasn't recognized. Try uploading again or contact support.
           </p>
           <Link
             href="/dashboard/reports"
-            className="mt-4 inline-block rounded-lg bg-ink-900 px-4 py-2 text-sm font-semibold text-white"
+            className="mt-4 inline-block rounded-lg bg-fg px-4 py-2 text-sm font-semibold text-canvas hover:bg-fg/90"
           >
             Re-upload report
           </Link>
@@ -105,12 +105,12 @@ function ProfileStep() {
     }
   }
 
-  const inputCls = "w-full rounded-lg border border-ink-200 px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none";
+  const inputCls = "w-full rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm text-fg focus:border-indigo-500 focus:outline-none";
 
   return (
-    <form onSubmit={submit} className="rounded-2xl border border-ink-200 bg-white p-6 space-y-4">
+    <form onSubmit={submit} className="rounded-2xl border border-border-strong bg-surface p-6 space-y-4">
       <h2 className="text-lg font-semibold">Step 1: Personal information</h2>
-      <p className="text-xs text-ink-600">
+      <p className="text-xs text-fg-muted">
         Required for dispute letters. All sensitive fields are encrypted at rest.
       </p>
       <input className={inputCls} placeholder="Full legal name" required value={form.fullName} onChange={(e) => set("fullName", e.target.value)} />
@@ -126,7 +126,7 @@ function ProfileStep() {
       </div>
       <input className={inputCls} placeholder="Phone (optional)" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
       {err && <p className="text-xs text-rose-600">{err}</p>}
-      <button disabled={busy} className="w-full rounded-xl bg-ink-900 py-3 text-sm font-semibold text-white disabled:opacity-50">
+      <button disabled={busy} className="w-full rounded-xl bg-fg py-3 text-sm font-semibold text-canvas hover:bg-fg/90 disabled:opacity-50">
         {busy ? "Saving…" : "Save and continue"}
       </button>
     </form>
@@ -163,24 +163,24 @@ function SubscriptionStep() {
   }
 
   return (
-    <div className="rounded-2xl border border-ink-200 bg-white p-6 space-y-4">
+    <div className="rounded-2xl border border-border-strong bg-surface p-6 space-y-4">
       <h2 className="text-lg font-semibold">Step 2: Choose your plan</h2>
-      <p className="text-xs text-ink-600">
+      <p className="text-xs text-fg-muted">
         {CREDIT_MONITORING.disclosure}
       </p>
       <div className="grid gap-3 md:grid-cols-3">
         {plans.map((p) => (
           <div
             key={p.code}
-            className={`rounded-xl border p-4 ${p.featured ? "border-indigo-300 bg-indigo-50/60 ring-1 ring-indigo-200" : "border-ink-200"}`}
+            className={`rounded-xl border p-4 ${p.featured ? "border-indigo-300 bg-indigo-50/60 ring-1 ring-indigo-200" : "border-border-strong"}`}
           >
-            <div className="text-xl font-bold text-ink-900">{p.price}</div>
+            <div className="text-xl font-bold text-fg">{p.price}</div>
             <div className="text-sm font-semibold">{p.name}</div>
-            <div className="mt-1 text-xs text-ink-600">{p.packets}</div>
+            <div className="mt-1 text-xs text-fg-muted">{p.packets}</div>
             <button
               onClick={() => choose(p.code)}
               disabled={busy === p.code}
-              className="mt-3 w-full rounded-lg bg-ink-900 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              className="mt-3 w-full rounded-lg bg-fg py-2 text-xs font-semibold text-canvas hover:bg-fg/90 disabled:opacity-50"
             >
               {busy === p.code ? "Loading…" : `Choose ${p.name}`}
             </button>
@@ -188,7 +188,7 @@ function SubscriptionStep() {
         ))}
       </div>
       {err && <p className="text-xs text-rose-600">{err}</p>}
-      <p className="text-[10px] text-ink-500">
+      <p className="text-[10px] text-fg-subtle">
         Extra packets after your included monthly amount: $19.95 each. Billed via Square.
       </p>
     </div>
@@ -198,9 +198,9 @@ function SubscriptionStep() {
 function ReportConnectStep() {
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-ink-200 bg-white p-6 space-y-4">
+      <div className="rounded-2xl border border-border-strong bg-surface p-6 space-y-4">
         <h2 className="text-lg font-semibold">Step 3: Get your credit report</h2>
-        <p className="text-sm text-ink-600">
+        <p className="text-sm text-fg-muted">
           DisputeIQ works best with our supported IDIQ credit report flow. Complete this
           step to unlock your report analysis and dispute workflow.
         </p>
@@ -221,21 +221,21 @@ function ReportConnectStep() {
 
           <Link
             href="/dashboard/reports"
-            className="flex flex-col items-center rounded-xl border border-ink-200 bg-white p-5 text-center hover:border-ink-300"
+            className="flex flex-col items-center rounded-xl border border-border-strong bg-surface p-5 text-center hover:border-border-strong"
           >
-            <div className="text-sm font-semibold text-ink-900">Already have your report?</div>
-            <div className="mt-1 text-xs text-ink-600">
+            <div className="text-sm font-semibold text-fg">Already have your report?</div>
+            <div className="mt-1 text-xs text-fg-muted">
               Upload it directly to begin analysis
             </div>
-            <span className="mt-3 text-xs font-semibold text-ink-900">
+            <span className="mt-3 text-xs font-semibold text-fg">
               Upload report →
             </span>
           </Link>
         </div>
       </div>
 
-      <div className="rounded-xl border border-ink-200 bg-white p-4 text-sm text-ink-600">
-        <p className="font-semibold text-ink-900">Need help getting started?</p>
+      <div className="rounded-xl border border-border-strong bg-surface p-4 text-sm text-fg-muted">
+        <p className="font-semibold text-fg">Need help getting started?</p>
         <p className="mt-1 text-xs">
           Our support team can guide you through the IDIQ setup if you get stuck. Email
           support@disputeiq.org and we&apos;ll walk you through it.

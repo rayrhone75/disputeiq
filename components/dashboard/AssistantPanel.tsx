@@ -60,15 +60,15 @@ export function AssistantPanel() {
   }
 
   return (
-    <section className="rounded-2xl border border-ink-200 bg-white">
-      <div className="flex items-center justify-between border-b border-ink-100 px-6 py-4">
+    <section className="rounded-2xl border border-border-strong bg-surface">
+      <div className="flex items-center justify-between border-b border-border px-6 py-4">
         <div>
-          <h3 className="text-lg font-semibold text-ink-900">AI assistant</h3>
-          <p className="text-xs text-ink-500">
+          <h3 className="text-lg font-semibold text-fg">AI assistant</h3>
+          <p className="text-xs text-fg-muted">
             Grounded in your real report data. Will not invent facts.
           </p>
         </div>
-        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-700">
+        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
           live
         </span>
       </div>
@@ -79,7 +79,7 @@ export function AssistantPanel() {
             key={i}
             className={
               m.role === "assistant"
-                ? "max-w-[90%] rounded-2xl rounded-tl-sm bg-ink-50 p-3 text-sm text-ink-800"
+                ? "max-w-[90%] rounded-2xl rounded-tl-sm bg-surface-muted p-3 text-sm text-fg"
                 : "ml-auto max-w-[90%] rounded-2xl rounded-tr-sm bg-indigo-600 p-3 text-sm text-white"
             }
           >
@@ -87,7 +87,7 @@ export function AssistantPanel() {
           </div>
         ))}
         {busy && (
-          <div className="max-w-[90%] rounded-2xl rounded-tl-sm bg-ink-50 p-3 text-sm text-ink-500">
+          <div className="max-w-[90%] rounded-2xl rounded-tl-sm bg-surface-muted p-3 text-sm text-fg-muted">
             Thinking…
           </div>
         )}
@@ -98,7 +98,8 @@ export function AssistantPanel() {
                 key={q}
                 type="button"
                 onClick={() => send(q)}
-                className="rounded-lg border border-ink-200 bg-white px-3 py-2 text-left text-xs text-ink-700 hover:border-indigo-300 hover:bg-indigo-50"
+                className="rounded-lg border border-border-strong bg-surface px-3 py-2 text-left text-xs text-fg-muted hover:border-indigo-300 hover:bg-indigo-50 dark:hover:border-indigo-500/40 dark:hover:bg-indigo-500/10"
+                suppressHydrationWarning
               >
                 {q}
               </button>
@@ -112,25 +113,27 @@ export function AssistantPanel() {
           e.preventDefault();
           if (input.trim() && !busy) send(input.trim());
         }}
-        className="border-t border-ink-100 bg-ink-50/40 p-3"
+        className="border-t border-border bg-surface-muted/40 p-3"
       >
-        <div className="flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-3 py-2">
+        <div className="flex items-center gap-2 rounded-xl border border-border-strong bg-surface px-3 py-2">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about your report, disputes, or next step…"
             className="flex-1 bg-transparent text-sm focus:outline-none"
+            suppressHydrationWarning
           />
           <button
             type="submit"
             disabled={busy}
-            className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+            className="rounded-lg bg-fg px-3 py-1.5 text-xs font-semibold text-canvas disabled:opacity-50"
+            suppressHydrationWarning
           >
             Send
           </button>
         </div>
-        <p className="mt-2 text-[10px] text-ink-400">
+        <p className="mt-2 text-[10px] text-fg-subtle">
           Informational only. Not legal or financial advice.
         </p>
       </form>

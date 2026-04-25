@@ -4,9 +4,9 @@ export const metadata = { title: "Terms of Service — DisputeIQ" };
 
 export default function TermsPage() {
   return (
-    <article className="mx-auto max-w-3xl px-6 py-16 text-[#0a0f1c]">
+    <article className="mx-auto max-w-3xl px-6 py-16 text-fg">
       <h1 className="text-4xl font-semibold tracking-tight">Terms of Service</h1>
-      <p className="mt-2 text-sm text-[#0a0f1c]/60">Version {TERMS_VERSION}</p>
+      <p className="mt-2 text-sm text-fg/60">Version {TERMS_VERSION}</p>
 
       <div className="prose prose-neutral mt-10 max-w-none">
         <h2>1. Service Description</h2>

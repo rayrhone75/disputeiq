@@ -50,7 +50,7 @@ export function MarkActivatedButton({
       disabled={busy}
       className={
         className ||
-        "rounded-2xl border border-slate-300 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-50"
+        "rounded-2xl border border-border-strong bg-surface px-4 py-3 text-center text-sm font-semibold text-fg hover:bg-surface-muted disabled:opacity-50"
       }
     >
       {busy ? "Marking…" : label}

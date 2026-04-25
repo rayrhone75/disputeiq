@@ -15,7 +15,7 @@ export default function SignInPage() {
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-indigo-600">
           Welcome back
         </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#0a0f1c]">
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-fg">
           Sign in to DisputeIQ
         </h1>
       </header>
@@ -25,19 +25,23 @@ export default function SignInPage() {
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-800">
           Switching from ScrewedUpCredit?
         </p>
-        <p className="mt-2 text-sm leading-relaxed text-[#3d3a2e]">
+        <p className="mt-2 text-sm leading-relaxed text-fg-muted">
           If you previously used ScrewedUpCredit with MyFreeScoreIQ, DisputeIQ now uses{" "}
-          <span className="font-semibold text-[#0a0f1c]">IdentityIQ</span> for report access
+          <span className="font-semibold text-fg">IdentityIQ</span> for report access
           and monitoring. Create a fresh account below, then we&apos;ll guide you through
           IdentityIQ setup.
         </p>
       </div>
 
       <div className="flex justify-center">
-        <SignIn signUpUrl="/sign-up" />
+        <SignIn
+          signUpUrl="/sign-up"
+          forceRedirectUrl="/dashboard"
+          fallbackRedirectUrl="/dashboard"
+        />
       </div>
 
-      <p className="mt-8 text-center text-xs text-[#0a0f1c]/55">
+      <p className="mt-8 text-center text-xs text-fg-subtle">
         New here?{" "}
         <Link href="/sign-up" className="font-semibold underline">
           Create your DisputeIQ account

@@ -87,11 +87,11 @@ export default async function AdminCreditImportsPage({
       <Surface className="p-4">
         <form method="GET" className="flex flex-wrap items-end gap-3 text-xs">
           <label className="flex flex-col gap-1">
-            <span className="font-semibold text-ink-500">Status</span>
+            <span className="font-semibold text-fg-muted">Status</span>
             <select
               name="status"
               defaultValue={q.status ?? ""}
-              className="rounded-lg border border-ink-200 bg-white px-2 py-1"
+              className="rounded-lg border border-border-strong bg-surface px-2 py-1"
             >
               <option value="">Any</option>
               {STATUSES.map((s) => (
@@ -102,11 +102,11 @@ export default async function AdminCreditImportsPage({
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span className="font-semibold text-ink-500">Provider</span>
+            <span className="font-semibold text-fg-muted">Provider</span>
             <select
               name="provider"
               defaultValue={q.provider ?? ""}
-              className="rounded-lg border border-ink-200 bg-white px-2 py-1"
+              className="rounded-lg border border-border-strong bg-surface px-2 py-1"
             >
               <option value="">Any</option>
               {PROVIDERS.map((p) => (
@@ -117,30 +117,30 @@ export default async function AdminCreditImportsPage({
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span className="font-semibold text-ink-500">Email contains</span>
+            <span className="font-semibold text-fg-muted">Email contains</span>
             <input
               name="email"
               defaultValue={q.email ?? ""}
-              className="rounded-lg border border-ink-200 bg-white px-2 py-1"
+              className="rounded-lg border border-border-strong bg-surface px-2 py-1"
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="font-semibold text-ink-500">User id</span>
+            <span className="font-semibold text-fg-muted">User id</span>
             <input
               name="userId"
               defaultValue={q.userId ?? ""}
-              className="rounded-lg border border-ink-200 bg-white px-2 py-1 font-mono"
+              className="rounded-lg border border-border-strong bg-surface px-2 py-1 font-mono"
             />
           </label>
           <button
             type="submit"
-            className="rounded-lg bg-ink-900 px-3 py-1.5 font-semibold text-white"
+            className="rounded-lg bg-fg px-3 py-1.5 font-semibold text-canvas hover:bg-fg/90"
           >
             Filter
           </button>
           <Link
             href="/admin/credit-imports"
-            className="rounded-lg border border-ink-200 px-3 py-1.5 font-semibold text-ink-700"
+            className="rounded-lg border border-border-strong px-3 py-1.5 font-semibold text-fg-muted"
           >
             Clear
           </Link>
@@ -149,14 +149,14 @@ export default async function AdminCreditImportsPage({
 
       {imports.length === 0 ? (
         <Surface className="p-6">
-          <p className="text-sm text-ink-600">
+          <p className="text-sm text-fg-muted">
             No credit imports match these filters.
           </p>
         </Surface>
       ) : (
         <Surface className="overflow-x-auto p-4">
           <table className="w-full text-xs">
-            <thead className="text-left text-[10px] uppercase tracking-wide text-ink-500">
+            <thead className="text-left text-[10px] uppercase tracking-wide text-fg-muted">
               <tr>
                 <th className="py-2 pr-3">User</th>
                 <th className="py-2 pr-3">Provider</th>
@@ -174,7 +174,7 @@ export default async function AdminCreditImportsPage({
             </thead>
             <tbody>
               {imports.map((imp) => (
-                <tr key={imp._id} className="border-t border-ink-100">
+                <tr key={imp._id} className="border-t border-border">
                   <td className="py-2 pr-3 font-mono">{imp.user?.email ?? "—"}</td>
                   <td className="py-2 pr-3">{imp.provider}</td>
                   <td className="py-2 pr-3">

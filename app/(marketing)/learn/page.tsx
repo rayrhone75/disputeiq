@@ -12,7 +12,7 @@ export default function LearnIndex() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">
       <h1 className="text-4xl font-semibold tracking-tight">Learn</h1>
-      <p className="mt-3 text-lg text-[#0a0f1c]/70">
+      <p className="mt-3 text-lg text-fg/70">
         Real, FCRA-grounded guides written by people who actually do this work. No fluff, no scams.
       </p>
       <ul className="mt-10 grid gap-4 sm:grid-cols-2">
@@ -20,10 +20,10 @@ export default function LearnIndex() {
           <li key={t.slug}>
             <Link
               href={`/learn/${t.slug}`}
-              className="block rounded-2xl border border-[#0a0f1c]/10 bg-white p-6 transition hover:border-indigo-400 hover:shadow-lg"
+              className="block rounded-2xl border border-border bg-surface p-6 transition hover:border-indigo-400 hover:shadow-lg"
             >
               <h2 className="text-lg font-semibold">{t.title}</h2>
-              <p className="mt-2 text-sm text-[#0a0f1c]/70">{t.metaDescription}</p>
+              <p className="mt-2 text-sm text-fg/70">{t.metaDescription}</p>
               <span className="mt-3 inline-block text-xs font-semibold text-indigo-600">
                 Read guide →
               </span>

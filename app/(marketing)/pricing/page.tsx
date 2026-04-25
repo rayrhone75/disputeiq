@@ -42,13 +42,13 @@ const FAQ = [
 
 export default function PricingPage() {
   return (
-    <div className="bg-[#f7f5ee]">
+    <div className="bg-canvas">
       {/* Hero */}
       <div className="mx-auto max-w-5xl px-6 pt-20 text-center">
-        <h1 className="font-serif text-4xl text-[#0a0f1c] md:text-5xl">
+        <h1 className="font-serif text-4xl text-fg md:text-5xl">
           Powerful DIY credit repair tools without confusing per-item pricing
         </h1>
-        <p className="mt-4 text-lg text-[#0a0f1c]/65">
+        <p className="mt-4 text-lg text-fg/65">
           Connect your required credit monitoring, choose your monthly plan, and send dispute
           packets with AI-powered guidance and built-in mailing.
         </p>
@@ -73,8 +73,8 @@ export default function PricingPage() {
             key={plan.code}
             className={`flex flex-col rounded-3xl border p-8 shadow-sm ${
               plan.code === "pro"
-                ? "border-indigo-300 bg-gradient-to-b from-indigo-50 to-white ring-2 ring-indigo-200"
-                : "border-[#0a0f1c]/10 bg-white"
+                ? "border-indigo-300 bg-gradient-to-b from-indigo-50 to-surface ring-2 ring-indigo-200"
+                : "border-border bg-surface"
             }`}
           >
             {plan.code === "pro" && (
@@ -82,13 +82,13 @@ export default function PricingPage() {
                 Most popular
               </span>
             )}
-            <div className="text-3xl font-bold text-[#0a0f1c]">
+            <div className="text-3xl font-bold text-fg">
               {formatMonthly(plan.monthlyPriceCents)}
             </div>
-            <div className="mt-1 text-lg font-semibold text-[#0a0f1c]">{plan.name}</div>
-            <p className="mt-2 text-sm text-[#0a0f1c]/70">{plan.tagline}</p>
+            <div className="mt-1 text-lg font-semibold text-fg">{plan.name}</div>
+            <p className="mt-2 text-sm text-fg/70">{plan.tagline}</p>
 
-            <ul className="mt-6 flex-1 space-y-2 text-sm text-[#0a0f1c]/80">
+            <ul className="mt-6 flex-1 space-y-2 text-sm text-fg/80">
               {plan.features.map((f) => (
                 <li key={f} className="flex gap-2">
                   <span className="text-indigo-600">✔</span>
@@ -99,12 +99,12 @@ export default function PricingPage() {
 
             <Link
               href="/sign-up"
-              className="mt-8 block rounded-xl bg-[#0a0f1c] py-3 text-center text-sm font-semibold text-white hover:bg-[#0a0f1c]/90"
+              className="mt-8 block rounded-xl bg-fg py-3 text-center text-sm font-semibold text-canvas hover:bg-fg/90"
             >
               Start with {plan.name}
             </Link>
 
-            <p className="mt-4 text-[10px] leading-relaxed text-[#0a0f1c]/50">
+            <p className="mt-4 text-[10px] leading-relaxed text-fg/50">
               {DISCLOSURES.planFooter}
             </p>
           </div>
@@ -113,44 +113,44 @@ export default function PricingPage() {
 
       {/* What is a packet */}
       <div className="mx-auto mt-20 max-w-3xl px-6">
-        <div className="rounded-2xl border border-[#0a0f1c]/10 bg-white p-8">
-          <h2 className="text-xl font-semibold text-[#0a0f1c]">What counts as a packet?</h2>
-          <p className="mt-3 text-sm text-[#0a0f1c]/80">
+        <div className="rounded-2xl border border-border bg-surface p-8">
+          <h2 className="text-xl font-semibold text-fg">What counts as a packet?</h2>
+          <p className="mt-3 text-sm text-fg/80">
             A packet is one dispute submission round for the billing period.
           </p>
-          <p className="mt-3 text-sm text-[#0a0f1c]/80">Each packet can include:</p>
-          <ul className="mt-2 space-y-1 text-sm text-[#0a0f1c]/80">
+          <p className="mt-3 text-sm text-fg/80">Each packet can include:</p>
+          <ul className="mt-2 space-y-1 text-sm text-fg/80">
             <li>• Multiple dispute items</li>
             <li>• Multiple accounts</li>
             <li>• Multiple reasons for challenge</li>
             <li>• Bureau-specific letters generated as needed</li>
           </ul>
-          <p className="mt-3 text-sm font-semibold text-[#0a0f1c]/80">
+          <p className="mt-3 text-sm font-semibold text-fg/80">
             You are not charged per item.
           </p>
-          <p className="mt-1 text-sm text-[#0a0f1c]/70">
+          <p className="mt-1 text-sm text-fg/70">
             If you challenge many items in one round, they are grouped into your packet submission
             for that cycle.
           </p>
-          <p className="mt-4 text-[10px] text-[#0a0f1c]/50">{PACKET_DEFINITION.legalNote}</p>
+          <p className="mt-4 text-[10px] text-fg/50">{PACKET_DEFINITION.legalNote}</p>
         </div>
       </div>
 
       {/* FAQ */}
       <div className="mx-auto mt-16 max-w-3xl px-6">
-        <h2 className="text-2xl font-semibold text-[#0a0f1c]">Frequently asked questions</h2>
+        <h2 className="text-2xl font-semibold text-fg">Frequently asked questions</h2>
         <div className="mt-6 space-y-6">
           {FAQ.map((item) => (
             <div key={item.q}>
-              <h3 className="text-base font-semibold text-[#0a0f1c]">{item.q}</h3>
-              <p className="mt-2 text-sm text-[#0a0f1c]/75">{item.a}</p>
+              <h3 className="text-base font-semibold text-fg">{item.q}</h3>
+              <p className="mt-2 text-sm text-fg/75">{item.a}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Disclaimers */}
-      <div className="mx-auto mt-16 max-w-3xl space-y-3 px-6 pb-20 text-[11px] leading-relaxed text-[#0a0f1c]/50">
+      <div className="mx-auto mt-16 max-w-3xl space-y-3 px-6 pb-20 text-[11px] leading-relaxed text-fg/50">
         <p>{DISCLOSURES.software}</p>
         <p>{DISCLOSURES.separateBilling}</p>
         <p>{DISCLOSURES.packet}</p>

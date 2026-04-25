@@ -79,12 +79,12 @@ export default function DisclosuresPage() {
           <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-indigo-600">
             Disclosures
           </p>
-          <h1 className="mx-auto mt-5 max-w-3xl font-serif text-[52px] leading-[1.05] tracking-[-0.01em] text-[#0a0f1c] sm:text-[64px]">
+          <h1 className="mx-auto mt-5 max-w-3xl font-serif text-[52px] leading-[1.05] tracking-[-0.01em] text-fg sm:text-[64px]">
             Full transparency,
             <br />
             <span className="italic">in plain language.</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-[16px] leading-relaxed text-[#4a4638]">
+          <p className="mx-auto mt-6 max-w-2xl text-[16px] leading-relaxed text-fg-muted">
             What DisputeIQ is, what it isn't, and how the Screwed Up Credit ecosystem fits
             together.
           </p>
@@ -98,7 +98,7 @@ export default function DisclosuresPage() {
             {blocks.map((b) => (
               <article
                 key={b.t}
-                className="relative overflow-hidden rounded-[24px] border border-[#e8e4d8] bg-white p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_18px_36px_-24px_rgba(10,15,28,0.12)]"
+                className="relative overflow-hidden rounded-[24px] border border-border bg-surface p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_18px_36px_-24px_rgba(10,15,28,0.12)]"
               >
                 <div className="grid gap-8 lg:grid-cols-[180px_1fr]">
                   <div>
@@ -107,10 +107,10 @@ export default function DisclosuresPage() {
                     </p>
                   </div>
                   <div>
-                    <h2 className="font-serif text-[24px] leading-tight tracking-tight text-[#0a0f1c]">
+                    <h2 className="font-serif text-[24px] leading-tight tracking-tight text-fg">
                       {b.t}
                     </h2>
-                    <div className="mt-5 space-y-4 text-[14px] leading-relaxed text-[#3d3a2e]">
+                    <div className="mt-5 space-y-4 text-[14px] leading-relaxed text-fg-muted">
                       {b.body.map((p, i) => (
                         <p key={i}>{p}</p>
                       ))}
@@ -126,11 +126,11 @@ export default function DisclosuresPage() {
       {/* Footer CTAs */}
       <section className="relative">
         <div className="mx-auto max-w-5xl px-6 pb-28">
-          <div className="rounded-[24px] border border-[#e8e4d8] bg-[#faf9f4] p-10 text-center shadow-[0_1px_0_0_rgba(10,15,28,0.03)]">
-            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#8a8472]">
+          <div className="rounded-[24px] border border-border bg-surface-muted p-10 text-center shadow-[0_1px_0_0_rgba(10,15,28,0.03)]">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-subtle">
               Questions?
             </p>
-            <p className="mx-auto mt-4 max-w-xl font-serif text-[22px] leading-tight text-[#0a0f1c]">
+            <p className="mx-auto mt-4 max-w-xl font-serif text-[22px] leading-tight text-fg">
               Email us at{" "}
               <a
                 href="mailto:support@disputeiq.org"
@@ -143,13 +143,13 @@ export default function DisclosuresPage() {
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link
                 href="/trust-center"
-                className="inline-flex items-center gap-2 rounded-xl border border-[#0a0f1c] bg-[#0a0f1c] px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#111827]"
+                className="inline-flex items-center gap-2 rounded-xl border border-fg bg-fg px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-canvas transition hover:bg-fg/90"
               >
                 Trust center →
               </Link>
               <Link
                 href="/get-started"
-                className="inline-flex items-center gap-2 rounded-xl border border-[#d9d3c0] bg-white px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#0a0f1c] transition hover:border-[#0a0f1c]"
+                className="inline-flex items-center gap-2 rounded-xl border border-border-strong bg-surface px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-fg transition hover:border-fg"
               >
                 Start your file
               </Link>

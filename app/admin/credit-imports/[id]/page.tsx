@@ -243,40 +243,40 @@ export default async function CreditImportDetailPage({
           <p className="text-xs font-semibold uppercase tracking-wide text-danger-600">
             Error: {imp.errorCode}
           </p>
-          {imp.errorMessage && <p className="mt-1 text-sm text-ink-700">{imp.errorMessage}</p>}
+          {imp.errorMessage && <p className="mt-1 text-sm text-fg-muted">{imp.errorMessage}</p>}
         </Surface>
       )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Surface className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">Raw</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">Raw</p>
           {payload.raw ? (
             <>
-              <p className="mt-1 text-sm font-semibold text-ink-900">
+              <p className="mt-1 text-sm font-semibold text-fg">
                 {payload.raw.payloadBytes.toLocaleString()} bytes
               </p>
-              <p className="mt-1 break-all font-mono text-[10px] text-ink-500">
+              <p className="mt-1 break-all font-mono text-[10px] text-fg-muted">
                 sha256: {payload.raw.payloadHash.slice(0, 24)}…
               </p>
-              <p className="mt-1 text-xs text-ink-500">
+              <p className="mt-1 text-xs text-fg-muted">
                 captured {new Date(payload.raw.capturedAt).toLocaleString()}
               </p>
             </>
           ) : (
-            <p className="mt-1 text-sm text-ink-500">Not captured yet</p>
+            <p className="mt-1 text-sm text-fg-muted">Not captured yet</p>
           )}
         </Surface>
         <Surface className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
             Bureau coverage
           </p>
-          <p className="mt-1 text-sm font-semibold text-ink-900">
+          <p className="mt-1 text-sm font-semibold text-fg">
             {imp.bureauCoverage.length ? imp.bureauCoverage.join(", ") : "—"}
           </p>
         </Surface>
         <Surface className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">Schema</p>
-          <p className="mt-1 text-sm font-semibold text-ink-900">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">Schema</p>
+          <p className="mt-1 text-sm font-semibold text-fg">
             {imp.schemaVersion} · parser {imp.parserVersion}
           </p>
         </Surface>
@@ -289,7 +289,7 @@ export default async function CreditImportDetailPage({
       />
 
       <Surface className="p-4">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Lifecycle timeline
         </h2>
         <div className="mt-3">
@@ -298,7 +298,7 @@ export default async function CreditImportDetailPage({
       </Surface>
 
       <Surface className="p-4">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Unmapped fields
         </h2>
         <div className="mt-3">
@@ -307,15 +307,15 @@ export default async function CreditImportDetailPage({
       </Surface>
 
       <Surface className="p-4">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Tradelines ({tradelines.length})
         </h2>
         {tradelines.length === 0 ? (
-          <p className="mt-3 text-sm text-ink-500">None yet.</p>
+          <p className="mt-3 text-sm text-fg-muted">None yet.</p>
         ) : (
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className="text-left text-[10px] uppercase tracking-wide text-ink-500">
+              <thead className="text-left text-[10px] uppercase tracking-wide text-fg-muted">
                 <tr>
                   <th className="py-2 pr-3">Bureau</th>
                   <th className="py-2 pr-3">Creditor</th>
@@ -328,7 +328,7 @@ export default async function CreditImportDetailPage({
               </thead>
               <tbody>
                 {tradelines.map((t) => (
-                  <tr key={t._id as unknown as string} className="border-t border-ink-100">
+                  <tr key={t._id as unknown as string} className="border-t border-border">
                     <td className="py-2 pr-3 font-mono">{t.bureau}</td>
                     <td className="py-2 pr-3 font-semibold">{t.creditorName}</td>
                     <td className="py-2 pr-3 font-mono">{t.accountRefMasked}</td>
@@ -350,17 +350,17 @@ export default async function CreditImportDetailPage({
       </Surface>
 
       <Surface className="p-4">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Dispute candidates ({payload.disputeCandidates.length})
         </h2>
         {payload.disputeCandidates.length === 0 ? (
-          <p className="mt-3 text-sm text-ink-500">None.</p>
+          <p className="mt-3 text-sm text-fg-muted">None.</p>
         ) : (
           <ul className="mt-3 space-y-2">
             {payload.disputeCandidates.map((c) => (
               <li
                 key={c._id as unknown as string}
-                className="flex items-start justify-between gap-3 rounded-lg border border-ink-100 bg-white/60 p-3 text-xs"
+                className="flex items-start justify-between gap-3 rounded-lg border border-border bg-surface/70 p-3 text-xs"
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -379,12 +379,12 @@ export default async function CreditImportDetailPage({
                     <Chip tone="neutral">{c.bureau}</Chip>
                     <Chip tone="neutral">{c.stage}</Chip>
                   </div>
-                  <p className="text-sm text-ink-800">{c.summary}</p>
+                  <p className="text-sm text-fg">{c.summary}</p>
                   {c.legalBasis.length > 0 && (
-                    <p className="text-[10px] text-ink-500">{c.legalBasis.join(" · ")}</p>
+                    <p className="text-[10px] text-fg-muted">{c.legalBasis.join(" · ")}</p>
                   )}
                 </div>
-                <span className="shrink-0 text-[10px] uppercase text-ink-400">{c.confidence}</span>
+                <span className="shrink-0 text-[10px] uppercase text-fg-subtle">{c.confidence}</span>
               </li>
             ))}
           </ul>
@@ -395,7 +395,7 @@ export default async function CreditImportDetailPage({
         <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-rose-600">
           Destructive actions
         </h2>
-        <p className="mt-1 text-xs text-ink-500">
+        <p className="mt-1 text-xs text-fg-muted">
           Deleting this import removes the raw payload, normalized rows, and generated dispute
           candidates. The user account and legacy credit reports are not touched.
         </p>
@@ -413,15 +413,15 @@ export default async function CreditImportDetailPage({
       </Surface>
 
       <Surface className="p-4">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Normalized summary
         </h2>
         {payload.normalized ? (
-          <pre className="mt-3 max-h-[360px] overflow-auto rounded-lg bg-ink-900/5 p-3 font-mono text-[11px] text-ink-800">
+          <pre className="mt-3 max-h-[360px] overflow-auto rounded-lg bg-fg/5 p-3 font-mono text-[11px] text-fg">
 {JSON.stringify(payload.normalized.summaryJson, null, 2)}
           </pre>
         ) : (
-          <p className="mt-3 text-sm text-ink-500">Not normalized yet.</p>
+          <p className="mt-3 text-sm text-fg-muted">Not normalized yet.</p>
         )}
         {payload.normalized?.validationWarnings?.length ? (
           <p className="mt-3 text-xs text-warning-700">

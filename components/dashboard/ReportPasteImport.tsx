@@ -43,8 +43,8 @@ export function ReportPasteImport() {
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-ink-900">Paste report text</h3>
-      <p className="text-xs text-ink-600">
+      <h3 className="text-sm font-semibold text-fg">Paste report text</h3>
+      <p className="text-xs text-fg-muted">
         Open your IdentityIQ report, select all text (Ctrl+A), copy it (Ctrl+C), then paste it
         below. We&apos;ll extract tradelines from the text automatically.
       </p>
@@ -53,28 +53,28 @@ export function ReportPasteImport() {
         onChange={(e) => setText(e.target.value)}
         placeholder="Paste your full credit report text here…"
         rows={10}
-        className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-xs font-mono focus:border-indigo-500 focus:outline-none"
+        className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs font-mono text-fg focus:border-indigo-500 focus:outline-none"
       />
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-ink-400">{text.length.toLocaleString()} characters</span>
+        <span className="text-[10px] text-fg-subtle">{text.length.toLocaleString()} characters</span>
         <button
           onClick={submit}
           disabled={busy || text.length < 100}
-          className="rounded-lg bg-ink-900 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+          className="rounded-lg bg-fg px-4 py-2 text-xs font-semibold text-canvas disabled:opacity-50"
         >
           {busy ? "Parsing…" : "Import from text"}
         </button>
       </div>
       {err && <p className="text-xs text-rose-600">{err}</p>}
       {result && result.parsedCount === 0 && (
-        <div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-900 ring-1 ring-amber-200">
+        <div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-900 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-500/30">
           <p className="font-semibold">Parser couldn't extract tradelines</p>
           <p className="mt-1">
             The text was saved but no structured data was found. This often happens with
             non-standard report formats. Try uploading the PDF instead, or contact support.
           </p>
           {result.reviewFlags.length > 0 && (
-            <p className="mt-1 text-[10px] text-amber-700">
+            <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">
               Flags: {result.reviewFlags.join(", ")}
             </p>
           )}

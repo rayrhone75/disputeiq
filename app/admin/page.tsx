@@ -34,32 +34,32 @@ export default async function AdminHome() {
         ].map((c) => (
           <div
             key={c.label}
-            className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm"
+            className="rounded-2xl border border-border-strong bg-surface p-5 shadow-sm"
           >
-            <p className="text-xs uppercase tracking-wide text-ink-500">{c.label}</p>
-            <p className="mt-2 text-3xl font-semibold text-ink-900">{c.value}</p>
+            <p className="text-xs uppercase tracking-wide text-fg-muted">{c.label}</p>
+            <p className="mt-2 text-3xl font-semibold text-fg">{c.value}</p>
           </div>
         ))}
       </section>
 
       <Surface className="p-6">
-        <h2 className="text-lg font-semibold text-ink-900">Recent audit log</h2>
+        <h2 className="text-lg font-semibold text-fg">Recent audit log</h2>
         {recentLogs.length === 0 ? (
-          <p className="mt-3 text-sm text-ink-600">No audit entries yet.</p>
+          <p className="mt-3 text-sm text-fg-muted">No audit entries yet.</p>
         ) : (
-          <ul className="mt-4 divide-y divide-ink-100 text-sm">
+          <ul className="mt-4 divide-y divide-border text-sm">
             {recentLogs.map((l) => (
               <li
                 key={l._id as unknown as string}
                 className="flex items-center justify-between py-3"
               >
                 <div>
-                  <div className="font-semibold text-ink-900">{l.action}</div>
-                  <div className="text-xs text-ink-500">
+                  <div className="font-semibold text-fg">{l.action}</div>
+                  <div className="text-xs text-fg-muted">
                     {l.entityType} · {l.entityId.slice(0, 12)}
                   </div>
                 </div>
-                <div className="text-xs text-ink-500">
+                <div className="text-xs text-fg-muted">
                   {new Date(l.createdAt).toLocaleString()}
                 </div>
               </li>

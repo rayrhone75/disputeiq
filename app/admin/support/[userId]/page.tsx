@@ -84,49 +84,49 @@ export default async function SupportCustomerConsole({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <Surface className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
             Imports
           </p>
-          <p className="mt-1 text-2xl font-semibold text-ink-900">
+          <p className="mt-1 text-2xl font-semibold text-fg">
             {creditImports.length}
           </p>
         </Surface>
         <Surface className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
             Disputes
           </p>
-          <p className="mt-1 text-2xl font-semibold text-ink-900">
+          <p className="mt-1 text-2xl font-semibold text-fg">
             {disputes.length}
           </p>
         </Surface>
         <Surface className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
             Payments
           </p>
-          <p className="mt-1 text-2xl font-semibold text-ink-900">
+          <p className="mt-1 text-2xl font-semibold text-fg">
             {payments.length}
           </p>
         </Surface>
         <Surface className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
             Notes
           </p>
-          <p className="mt-1 text-2xl font-semibold text-ink-900">
+          <p className="mt-1 text-2xl font-semibold text-fg">
             {notes.length}
           </p>
         </Surface>
       </div>
 
       <Surface className="p-5">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Import history
         </h2>
         {creditImports.length === 0 ? (
-          <p className="mt-3 text-sm text-ink-500">No credit imports yet.</p>
+          <p className="mt-3 text-sm text-fg-muted">No credit imports yet.</p>
         ) : (
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className="text-left text-[10px] uppercase tracking-wide text-ink-500">
+              <thead className="text-left text-[10px] uppercase tracking-wide text-fg-muted">
                 <tr>
                   <th className="py-2 pr-3">Created</th>
                   <th className="py-2 pr-3">Provider</th>
@@ -140,7 +140,7 @@ export default async function SupportCustomerConsole({
               </thead>
               <tbody>
                 {creditImports.map((imp) => (
-                  <tr key={imp._id as unknown as string} className="border-t border-ink-100">
+                  <tr key={imp._id as unknown as string} className="border-t border-border">
                     <td className="py-2 pr-3 font-mono">
                       {new Date(imp.createdAt).toLocaleDateString()}
                     </td>
@@ -183,11 +183,11 @@ export default async function SupportCustomerConsole({
       </Surface>
 
       <Surface className="p-5">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Error timeline
         </h2>
         {errorRows.length === 0 ? (
-          <p className="mt-3 text-sm text-ink-500">
+          <p className="mt-3 text-sm text-fg-muted">
             No error events in recent history.
           </p>
         ) : (
@@ -199,12 +199,12 @@ export default async function SupportCustomerConsole({
               >
                 <div>
                   <p className="font-mono font-semibold text-rose-700">{r.action}</p>
-                  <p className="text-[11px] text-ink-600">
+                  <p className="text-[11px] text-fg-muted">
                     {r.entityType} / {r.entityId.slice(0, 10)}… ·{" "}
                     {r.actorEmail ?? "system"}
                   </p>
                 </div>
-                <span className="text-[10px] text-ink-400">
+                <span className="text-[10px] text-fg-subtle">
                   {new Date(r.createdAt).toLocaleString()}
                 </span>
               </li>
@@ -214,17 +214,17 @@ export default async function SupportCustomerConsole({
       </Surface>
 
       <Surface className="p-5">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Audit trail (recent 30)
         </h2>
         <ul className="mt-3 space-y-1 text-xs">
           {recentAudit.map((r) => (
             <li
               key={r._id as unknown as string}
-              className="flex items-center justify-between gap-3 border-b border-ink-100 py-1 last:border-0"
+              className="flex items-center justify-between gap-3 border-b border-border py-1 last:border-0"
             >
-              <span className="font-mono text-ink-800">{r.action}</span>
-              <span className="text-[10px] text-ink-500">
+              <span className="font-mono text-fg">{r.action}</span>
+              <span className="text-[10px] text-fg-muted">
                 {r.actorEmail ?? "system"} · {new Date(r.createdAt).toLocaleString()}
               </span>
             </li>
@@ -233,7 +233,7 @@ export default async function SupportCustomerConsole({
       </Surface>
 
       <Surface className="p-5">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Support notes (internal)
         </h2>
         <div className="mt-3">
@@ -256,7 +256,7 @@ export default async function SupportCustomerConsole({
         <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-rose-600">
           Action rail — destructive
         </h2>
-        <p className="mt-1 text-xs text-ink-500">
+        <p className="mt-1 text-xs text-fg-muted">
           Visually separated and typed-confirmation-gated. Archive first; hard purge only when
           required and only by OWNER.
         </p>

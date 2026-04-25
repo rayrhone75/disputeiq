@@ -10,6 +10,8 @@
 // into Prisma must be rewritten to query Convex instead.
 
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { fetchMutation } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 
 export type UserRole = "OWNER" | "ADMIN" | "SUPPORT" | "USER";
 
@@ -37,7 +39,7 @@ function roleFromClerk(
 }
 
 export async function getSessionUser(): Promise<SessionUser | null> {
-  const { userId } = await auth();
+  const { userId, getToken } = await auth();
   if (!userId) return null;
   const u = await currentUser();
   if (!u) return null;
@@ -45,13 +47,35 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     u.primaryEmailAddress?.emailAddress ??
     u.emailAddresses?.[0]?.emailAddress ??
     "";
+  const role = roleFromClerk(
+    u.publicMetadata as Record<string, unknown> | undefined,
+    u.privateMetadata as Record<string, unknown> | undefined,
+  );
+
+  // Auto-mirror the Clerk identity into Convex on every authenticated server
+  // call. The mutation is a true no-op when nothing has changed (we only
+  // patch on email/role drift), so this is cheap. Failures are swallowed —
+  // downstream Convex queries that actually need the row will throw their
+  // own clearer error if Convex is unreachable.
+  if (email) {
+    try {
+      const token = await getToken({ template: "convex" });
+      if (token) {
+        await fetchMutation(
+          api.users.upsertFromClerk,
+          { email, role },
+          { token },
+        );
+      }
+    } catch {
+      // ignore — keep page-render robust against transient Convex blips
+    }
+  }
+
   return {
     id: userId,
     email,
-    role: roleFromClerk(
-      u.publicMetadata as Record<string, unknown> | undefined,
-      u.privateMetadata as Record<string, unknown> | undefined,
-    ),
+    role,
     isGraceUser: Boolean(
       (u.publicMetadata as { isGraceUser?: boolean } | undefined)?.isGraceUser,
     ),

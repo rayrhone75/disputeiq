@@ -15,17 +15,17 @@ export default async function AdminPricingPage() {
     <div className="space-y-8">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Pricing administration</h1>
-        <p className="text-sm text-ink-600">
-          Source of truth: <code className="rounded bg-ink-100 px-1">lib/billing/plans.ts</code>.
+        <p className="text-sm text-fg-muted">
+          Source of truth: <code className="rounded bg-surface-muted px-1">lib/billing/plans.ts</code>.
           All public pricing, checkout, and API calculations read from that file.
         </p>
       </header>
 
       {/* Plan table */}
-      <section className="rounded-2xl bg-white p-6 ring-1 ring-ink-200">
+      <section className="rounded-2xl bg-surface p-6 ring-1 ring-border-strong">
         <h2 className="text-lg font-semibold">Active plans</h2>
         <table className="mt-4 w-full text-sm">
-          <thead className="text-xs uppercase tracking-wide text-ink-500">
+          <thead className="text-xs uppercase tracking-wide text-fg-muted">
             <tr>
               <th className="py-2 text-left">Plan</th>
               <th className="py-2 text-right">Monthly</th>
@@ -35,7 +35,7 @@ export default async function AdminPricingPage() {
           </thead>
           <tbody>
             {PLAN_LIST.map((p) => (
-              <tr key={p.code} className="border-t border-ink-100">
+              <tr key={p.code} className="border-t border-border">
                 <td className="py-3 font-semibold">{p.name}</td>
                 <td className="py-3 text-right">{formatCents(p.monthlyPriceCents)}</td>
                 <td className="py-3 text-right">{p.includedPackets}</td>
@@ -47,33 +47,33 @@ export default async function AdminPricingPage() {
       </section>
 
       {/* Credit monitoring */}
-      <section className="rounded-2xl bg-white p-6 ring-1 ring-ink-200">
+      <section className="rounded-2xl bg-surface p-6 ring-1 ring-border-strong">
         <h2 className="text-lg font-semibold">Credit monitoring (separate billing)</h2>
         <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
           <div>
-            <dt className="text-ink-500">Provider</dt>
+            <dt className="text-fg-muted">Provider</dt>
             <dd className="font-semibold">{CREDIT_MONITORING.provider}</dd>
           </div>
           <div>
-            <dt className="text-ink-500">Customer price</dt>
+            <dt className="text-fg-muted">Customer price</dt>
             <dd className="font-semibold">{formatCents(CREDIT_MONITORING.monthlyPriceCents)}/mo</dd>
           </div>
           <div>
-            <dt className="text-ink-500">Your commission</dt>
+            <dt className="text-fg-muted">Your commission</dt>
             <dd className="font-semibold">{formatCents(CREDIT_MONITORING.affiliateCommissionCents)}/mo</dd>
           </div>
           <div>
-            <dt className="text-ink-500">Billed separately</dt>
+            <dt className="text-fg-muted">Billed separately</dt>
             <dd className="font-semibold">Yes</dd>
           </div>
         </dl>
       </section>
 
       {/* Margin calculator */}
-      <section className="rounded-2xl bg-white p-6 ring-1 ring-ink-200">
+      <section className="rounded-2xl bg-surface p-6 ring-1 ring-border-strong">
         <h2 className="text-lg font-semibold">Gross margin estimate (per customer/month)</h2>
         <table className="mt-4 w-full text-sm">
-          <thead className="text-xs uppercase tracking-wide text-ink-500">
+          <thead className="text-xs uppercase tracking-wide text-fg-muted">
             <tr>
               <th className="py-2 text-left">Plan</th>
               <th className="py-2 text-right">Revenue</th>
@@ -91,7 +91,7 @@ export default async function AdminPricingPage() {
               const commission = CREDIT_MONITORING.affiliateCommissionCents;
               const margin = revenue - mailing - processing + commission;
               return (
-                <tr key={p.code} className="border-t border-ink-100">
+                <tr key={p.code} className="border-t border-border">
                   <td className="py-3 font-semibold">{p.name}</td>
                   <td className="py-3 text-right">{formatCents(revenue)}</td>
                   <td className="py-3 text-right text-rose-600">-{formatCents(mailing)}</td>
@@ -103,39 +103,39 @@ export default async function AdminPricingPage() {
             })}
           </tbody>
         </table>
-        <p className="mt-4 text-[10px] text-ink-500">
+        <p className="mt-4 text-[10px] text-fg-muted">
           Estimates assume {formatCents(ESTIMATED_MAILING_COST_CENTS)} mailing cost per packet (LetterStream certified + ERR),
           {" "}{PAYMENT_PROCESSING_PCT}% + {formatCents(PAYMENT_PROCESSING_FIXED_CENTS)} payment processing. Real costs may vary.
         </p>
       </section>
 
       {/* Disclosures in use */}
-      <section className="rounded-2xl bg-white p-6 ring-1 ring-ink-200">
+      <section className="rounded-2xl bg-surface p-6 ring-1 ring-border-strong">
         <h2 className="text-lg font-semibold">Active disclosure copy</h2>
-        <div className="mt-4 space-y-3 text-xs text-ink-700">
+        <div className="mt-4 space-y-3 text-xs text-fg-muted">
           <div>
-            <span className="font-semibold text-ink-500">Software:</span> {DISCLOSURES.software}
+            <span className="font-semibold text-fg-muted">Software:</span> {DISCLOSURES.software}
           </div>
           <div>
-            <span className="font-semibold text-ink-500">Separate billing:</span> {DISCLOSURES.separateBilling}
+            <span className="font-semibold text-fg-muted">Separate billing:</span> {DISCLOSURES.separateBilling}
           </div>
           <div>
-            <span className="font-semibold text-ink-500">Packet:</span> {DISCLOSURES.packet}
+            <span className="font-semibold text-fg-muted">Packet:</span> {DISCLOSURES.packet}
           </div>
           <div>
-            <span className="font-semibold text-ink-500">Outcome:</span> {DISCLOSURES.outcome}
+            <span className="font-semibold text-fg-muted">Outcome:</span> {DISCLOSURES.outcome}
           </div>
           <div>
-            <span className="font-semibold text-ink-500">Plan footer:</span> {DISCLOSURES.planFooter}
+            <span className="font-semibold text-fg-muted">Plan footer:</span> {DISCLOSURES.planFooter}
           </div>
         </div>
       </section>
 
       {/* Packet definition */}
-      <section className="rounded-2xl bg-white p-6 ring-1 ring-ink-200">
+      <section className="rounded-2xl bg-surface p-6 ring-1 ring-border-strong">
         <h2 className="text-lg font-semibold">Packet definition (public-facing)</h2>
-        <p className="mt-2 text-sm text-ink-700">{PACKET_DEFINITION.publicDescription}</p>
-        <p className="mt-2 text-[10px] text-ink-500">{PACKET_DEFINITION.legalNote}</p>
+        <p className="mt-2 text-sm text-fg-muted">{PACKET_DEFINITION.publicDescription}</p>
+        <p className="mt-2 text-[10px] text-fg-muted">{PACKET_DEFINITION.legalNote}</p>
       </section>
     </div>
   );
