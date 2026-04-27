@@ -5,7 +5,7 @@ import { IdiqContinueButton } from "@/components/dashboard/IdiqContinueButton";
 import { MarkActivatedButton } from "@/components/dashboard/MarkActivatedButton";
 import { CreditReportStatusChip } from "@/components/dashboard/CreditReportStatusChip";
 import { ConnectReportPanel } from "@/components/dashboard/ConnectReportPanel";
-import { buildIdiqEnrollUrl, IDIQ, loadIdiqConfig } from "@/lib/integrations/identityiq";
+import { buildMsiqEnrollUrl, MSIQ, loadMsiqConfig } from "@/lib/integrations/myscoreiq";
 import { loadCreditReportStatus } from "@/lib/credit-import/status";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Get your credit report — DisputeIQ",
   description:
-    "Guided IdentityIQ setup for DisputeIQ — activate your monitoring, connect your 3-bureau report, and start your dispute workflow.",
+    "Guided MyScoreIQ setup for DisputeIQ — activate your monitoring, connect your 3-bureau report, and start your dispute workflow.",
 };
 
 const HELPFUL_DOCS = [
@@ -30,15 +30,15 @@ const HELPFUL_DOCS = [
 ];
 
 const WHAT_HAPPENS_NEXT = [
-  { title: "Activate IdentityIQ", detail: "Complete your monitoring setup first." },
-  { title: "Connect your credit report", detail: "Use auto-connect or fallback upload." },
-  { title: "Upload your documents", detail: "Add proof and supporting paperwork." },
+  { title: "Activate MyScoreIQ", detail: "Complete your monitoring setup first." },
+  { title: "Connect Credit Report", detail: "Auto import JSON or upload manually." },
+  { title: "Upload Documents", detail: "Add proof and supporting paperwork." },
   {
-    title: "Review negative items and opportunities",
+    title: "Review Report",
     detail: "DisputeIQ summarizes what needs attention.",
   },
   {
-    title: "Start your dispute workflow",
+    title: "Agree and start disputes",
     detail: "Choose what to challenge and begin tracking.",
   },
 ];
@@ -76,10 +76,10 @@ export default async function GetReportPage({
   const welcoming = params.welcome === "1";
 
   const [config, status] = await Promise.all([
-    loadIdiqConfig(token),
+    loadMsiqConfig(token),
     loadCreditReportStatus(token),
   ]);
-  const idiqUrl = buildIdiqEnrollUrl({
+  const msiqUrl = buildMsiqEnrollUrl({
     baseUrl: config.affiliateUrl,
     userId: user.id,
     campaign: "dashboard_get_report",
@@ -96,20 +96,20 @@ export default async function GetReportPage({
   }> = [
     {
       n: "01",
-      title: "Activate IdentityIQ",
+      title: "Activate MyScoreIQ",
       body:
-        "Use your IdentityIQ link to activate monitoring and report access. When finished, return here to continue.",
-      cta: "Activate IdentityIQ",
-      secondary: "I already activated IdentityIQ",
+        "Use your MyScoreIQ link to activate monitoring and report access. When finished, return here to continue.",
+      cta: "Activate MyScoreIQ",
+      secondary: "I already activated MyScoreIQ",
       status: stepStatus(status.kind, 0),
     },
     {
       n: "02",
       title: "Connect Credit Report",
       body:
-        "Click connect to attempt automatic import. If auto-connect isn't available, upload JSON or paste report data manually.",
+        "Click connect to attempt automatic JSON import. If auto-connect isn't available, upload JSON or paste report data manually.",
       cta: "Connect Credit Report",
-      secondary: "Upload / Paste JSON",
+      secondary: "Upload JSON Manually / Paste Report JSON",
       status: stepStatus(status.kind, 1),
     },
     {
@@ -126,7 +126,7 @@ export default async function GetReportPage({
       title: "Review Report",
       body:
         "Once your report is connected, review tradelines, inquiries, collections, public records, and dispute opportunities.",
-      cta: "Review Report Summary",
+      cta: "Review Report",
       secondary: "Go to dashboard",
       status: stepStatus(status.kind, 3),
     },
@@ -134,7 +134,7 @@ export default async function GetReportPage({
 
   const step1Status: string =
     status.kind === "not_started"
-      ? "Waiting for IdentityIQ activation"
+      ? "Waiting for MyScoreIQ activation"
       : status.kind === "in_progress"
         ? "Awaiting report import"
         : status.kind === "failed"
@@ -151,30 +151,30 @@ export default async function GetReportPage({
           </div>
         )}
 
-        {/* Top migration banner */}
+        {/* Top provider banner */}
         <div className="mb-6 rounded-3xl border border-violet-200 bg-surface p-6 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="mb-2 inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-violet-700">
-                ScrewedUpCredit migration
+                Supported provider
               </div>
               <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                Connect your credit report the right way
+                Connect your MyScoreIQ report
               </h1>
               <p className="mt-3 max-w-3xl text-base leading-7 text-fg-muted">
-                DisputeIQ now uses{" "}
-                <span className="font-semibold text-fg">IdentityIQ</span> for report access
-                and monitoring. If you previously used ScrewedUpCredit with MyFreeScoreIQ, switch
-                to IdentityIQ, then return here to connect your report and continue onboarding.
+                DisputeIQ uses{" "}
+                <span className="font-semibold text-fg">MyScoreIQ</span> for report access
+                and monitoring. Activate MyScoreIQ, then return here to connect your report
+                and continue onboarding.
               </p>
             </div>
             <div className="grid w-full max-w-sm grid-cols-2 gap-3">
-              <IdiqContinueButton href={idiqUrl} label="Activate IdentityIQ" />
+              <IdiqContinueButton href={msiqUrl} label="Activate MyScoreIQ" />
               <Link
                 href="#connect"
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border-strong bg-surface px-4 py-3 text-sm font-semibold text-fg transition hover:bg-surface-muted"
               >
-                Connect Report
+                Connect Credit Report
               </Link>
             </div>
           </div>
@@ -209,7 +209,7 @@ export default async function GetReportPage({
             <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
               <CreditReportStatusChip
                 status={status}
-                notStartedCtaHref={idiqUrl}
+                notStartedCtaHref={msiqUrl}
                 eyebrow="Credit Report Status"
                 className="!bg-transparent !border-0 !p-0 !shadow-none"
               />
@@ -298,7 +298,7 @@ export default async function GetReportPage({
                       </div>
                       <div className="flex flex-col gap-2 lg:w-64">
                         {/* Primary CTA — wired per step */}
-                        {i === 0 && <IdiqContinueButton href={idiqUrl} label={step.cta} />}
+                        {i === 0 && <IdiqContinueButton href={msiqUrl} label={step.cta} />}
                         {i === 1 && (
                           <Link
                             href="#connect-panel"
@@ -335,7 +335,7 @@ export default async function GetReportPage({
                         {/* Secondary — wired per step */}
                         {i === 0 && (
                           <MarkActivatedButton
-                            label="I already activated IdentityIQ"
+                            label="I already activated MyScoreIQ"
                             scrollTo="#connect-panel"
                           />
                         )}
@@ -344,7 +344,7 @@ export default async function GetReportPage({
                             href="#connect-panel"
                             className="rounded-2xl border border-border-strong bg-surface px-4 py-3 text-center text-sm font-semibold text-fg hover:bg-surface-muted"
                           >
-                            Upload / Paste JSON
+                            Upload JSON Manually
                           </Link>
                         )}
                         {i === 2 && (
@@ -374,6 +374,7 @@ export default async function GetReportPage({
           <div className="space-y-6">
             <div id="connect-panel" className="scroll-mt-24">
               <ConnectReportPanel
+                jsonReportUrl={config.jsonReportUrl}
                 retryImportId={
                   status.kind === "failed" ? status.latestImportId : null
                 }
@@ -408,25 +409,11 @@ export default async function GetReportPage({
               </Link>
             </div>
 
-            <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-              <div className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-amber-700">
-                Former ScrewedUpCredit users
-              </div>
-              <h3 className="text-lg font-semibold text-slate-900">
-                You need to switch to IdentityIQ
-              </h3>
-              <p className="mt-2 text-sm leading-7 text-slate-700">
-                If you previously used MyFreeScoreIQ with ScrewedUpCredit, complete your
-                IdentityIQ setup first. After that, return here to connect your report and
-                continue with the updated DisputeIQ system.
-              </p>
-            </div>
-
             <div className="rounded-3xl border border-border-strong bg-surface p-6 shadow-sm">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-fg-muted">
                 Supported provider
               </p>
-              <p className="mt-2 text-sm text-fg-muted">{IDIQ.supportedNote}</p>
+              <p className="mt-2 text-sm text-fg-muted">{MSIQ.supportedNote}</p>
               <p className="mt-3 text-[11px] leading-relaxed text-fg-subtle">
                 {config.disclaimer}
               </p>

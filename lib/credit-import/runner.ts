@@ -1,6 +1,6 @@
 // Import job orchestrator (Convex-backed).
 //
-// Responsibilities (unchanged from the Prisma version):
+// Responsibilities:
 //   - Create an import record (PENDING)
 //   - Fetch or accept-pasted raw JSON
 //   - Encrypt + persist the raw body (creditReportRaws)

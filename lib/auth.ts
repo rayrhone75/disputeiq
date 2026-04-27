@@ -1,13 +1,9 @@
-// Server-side auth helpers — now backed by Clerk (no more NextAuth).
+// Server-side auth helpers — backed by Clerk.
 //
-// Previously these returned a Prisma User row. Now they return the Clerk
-// identity plus a role derived from Clerk's publicMetadata. Convex owns
-// the durable `users` row; fetch/upsert it via `api.users.*` when needed.
-//
-// Shape is deliberately close to the old SessionUser so migration of call
-// sites is mostly mechanical. The `id` field is now the Clerk user id
-// (e.g. "user_2abc…"), NOT a Prisma cuid. Anything that still passes it
-// into Prisma must be rewritten to query Convex instead.
+// These return the Clerk identity plus a role derived from Clerk's
+// publicMetadata. Convex owns the durable `users` row; fetch/upsert it via
+// `api.users.*` when needed. The `id` field is the Clerk user id
+// (e.g. "user_2abc…").
 
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { fetchMutation } from "convex/nextjs";

@@ -18,7 +18,10 @@ const STATUSES = [
 ] as const;
 type Status = (typeof STATUSES)[number];
 
-const PROVIDERS = ["IDENTITYIQ", "MYSCOREIQ", "MYFREESCORENOW", "MANUAL"] as const;
+// Filter dropdown order — MYSCOREIQ first since it's the active provider.
+// IDENTITYIQ stays on the list for filtering legacy rows that still hold the
+// older enum value.
+const PROVIDERS = ["MYSCOREIQ", "IDENTITYIQ", "MYFREESCORENOW", "MANUAL"] as const;
 type Provider = (typeof PROVIDERS)[number];
 
 const STATUS_TONE: Record<string, "neutral" | "accent" | "success" | "warning" | "danger"> = {
@@ -76,7 +79,7 @@ export default async function AdminCreditImportsPage({
       <PageHeader
         eyebrow="Admin"
         title="Credit report imports"
-        description="IdentityIQ and MyScoreIQ JSON ingestion — create, capture, normalize, inspect."
+        description="MyScoreIQ JSON ingestion (IdentityIQ legacy supported) — create, capture, normalize, inspect."
         actions={
           <Button href="/admin/credit-imports/new" variant="primary">
             New import

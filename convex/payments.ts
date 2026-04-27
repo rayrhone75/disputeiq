@@ -1,7 +1,9 @@
 // Payment intent + dispute checkout helpers.
 //
-// The Next.js layer creates the Square checkout URL after this mutation
-// returns the payment intent id. Webhooks then patch the row to SUCCEEDED.
+// The Next.js layer creates the Stripe Checkout Session after this mutation
+// returns the payment intent id. The Stripe webhook then patches the row to
+// SUCCEEDED via `recordStripePayment`. Square equivalents remain below as
+// legacy and are no longer hit by the live flow.
 
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
@@ -94,7 +96,48 @@ export const recordCheckoutConsent = mutation({
   },
 });
 
-// Square webhook hook for one-time payment events (packet charge).
+// Stripe webhook hook for one-time payment events (packet charge).
+export const recordStripePayment = mutation({
+  args: {
+    secret: v.string(),
+    paymentIntentId: v.id("paymentIntents"),
+    providerPaymentId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const expected = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+    if (!expected || args.secret !== expected) throw new Error("FORBIDDEN");
+    const payment = await ctx.db.get(args.paymentIntentId);
+    if (!payment) return { matched: false };
+    if (
+      payment.status === "SUCCEEDED" &&
+      payment.providerPaymentId === args.providerPaymentId
+    ) {
+      return { matched: true, idempotent: true };
+    }
+    const now = Date.now();
+    await ctx.db.patch(payment._id, {
+      providerPaymentId: args.providerPaymentId,
+      status: "SUCCEEDED",
+      updatedAt: now,
+    });
+    if (payment.disputeCaseId) {
+      const dc = await ctx.db.get(payment.disputeCaseId);
+      if (dc) await ctx.db.patch(dc._id, { status: "PAID" });
+    }
+    await ctx.db.insert("auditLogs", {
+      actorUserId: undefined,
+      targetUserId: payment.userId,
+      action: "PAYMENT_SUCCEEDED",
+      entityType: "PaymentIntent",
+      entityId: payment._id as unknown as string,
+      metadataJson: { providerPaymentId: args.providerPaymentId, provider: "STRIPE" },
+      createdAt: now,
+    });
+    return { matched: true, disputeCaseId: payment.disputeCaseId ?? null };
+  },
+});
+
+// Square webhook hook for one-time payment events (packet charge). LEGACY.
 export const recordSquarePayment = mutation({
   args: {
     secret: v.string(),

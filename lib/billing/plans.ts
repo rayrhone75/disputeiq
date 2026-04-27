@@ -1,26 +1,26 @@
 // Single source of truth for all pricing and billing constants.
 // Every pricing display, checkout calculation, and admin view reads from here.
 
-// Customer-facing credit-monitoring provider. DisputeIQ now uses IdentityIQ
-// (IDIQ) as the supported report source for every new customer. Legacy
-// rows from the prior MFSN era remain readable in admin/support views,
-// but new-user onboarding and marketing CTAs route through IDIQ.
+// Customer-facing credit-monitoring provider. DisputeIQ uses MyScoreIQ as
+// the supported report source for every new customer. Legacy IdentityIQ +
+// MFSN rows remain readable in admin/support views, but new-user onboarding
+// and marketing CTAs route through MyScoreIQ.
 //
-// Server code should prefer `loadIdiqConfig()` from
-// `lib/integrations/identityiq.ts` so admin-managed settings win over
+// Server code should prefer `loadMsiqConfig()` from
+// `lib/integrations/myscoreiq.ts` so admin-managed settings win over
 // this fallback constant.
 export const CREDIT_MONITORING = {
-  provider: "IdentityIQ",
+  provider: "MyScoreIQ",
   monthlyPriceCents: 2495,
   billedSeparately: true,
   required: true,
   affiliateCommissionCents: 850,
   enrollUrl:
-    process.env.IDIQ_AFFILIATE_URL ??
-    process.env.NEXT_PUBLIC_IDIQ_AFFILIATE_URL ??
-    "https://www.identityiq.com/securepreferred.aspx?offercode=431298HW",
+    process.env.MYSCOREIQ_AFFILIATE_URL ??
+    process.env.NEXT_PUBLIC_MYSCOREIQ_AFFILIATE_URL ??
+    "https://gcpstage.myscoreiq.com/get-fico-preferred.aspx?offercode=432500C3",
   disclosure:
-    "IdentityIQ membership is the supported report source for DisputeIQ and is billed separately by IdentityIQ. This charge is not included in your DisputeIQ subscription.",
+    "MyScoreIQ membership is the supported report source for DisputeIQ and is billed separately by MyScoreIQ. This charge is not included in your DisputeIQ subscription.",
 } as const;
 
 export type PlanCode = "starter" | "pro" | "elite";
@@ -33,6 +33,8 @@ export interface Plan {
   overagePacketPriceCents: number;
   tagline: string;
   features: string[];
+  /** Stripe Price ID, set in env after creating the price in the Dashboard. */
+  stripePriceId?: string;
 }
 
 export const PLANS: Record<PlanCode, Plan> = {
@@ -51,6 +53,7 @@ export const PLANS: Record<PlanCode, Plan> = {
       "Freeze tracker",
       "Document history",
     ],
+    stripePriceId: process.env.STRIPE_PRICE_STARTER,
   },
   pro: {
     code: "pro",
@@ -67,6 +70,7 @@ export const PLANS: Record<PlanCode, Plan> = {
       "Faster packet workflow",
       "Stronger progress tracking",
     ],
+    stripePriceId: process.env.STRIPE_PRICE_PRO,
   },
   elite: {
     code: "elite",
@@ -82,6 +86,7 @@ export const PLANS: Record<PlanCode, Plan> = {
       "Premium workflow tools",
       "Advanced escalation support content",
     ],
+    stripePriceId: process.env.STRIPE_PRICE_ELITE,
   },
 } as const;
 

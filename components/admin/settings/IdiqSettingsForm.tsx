@@ -1,12 +1,17 @@
 "use client";
 
+// Admin form for the supported report provider (MyScoreIQ).
+// File name retained as `IdiqSettingsForm` for git history; the form now
+// manages MyScoreIQ settings and writes to `msiq.*` platformSettings keys.
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { IdiqConfig } from "@/lib/integrations/identityiq";
+import type { MsiqConfig } from "@/lib/integrations/myscoreiq";
 
-export function IdiqSettingsForm({ initial }: { initial: IdiqConfig }) {
+export function IdiqSettingsForm({ initial }: { initial: MsiqConfig }) {
   const router = useRouter();
   const [affiliateUrl, setAffiliateUrl] = useState(initial.affiliateUrl);
+  const [jsonReportUrl, setJsonReportUrl] = useState(initial.jsonReportUrl);
   const [stageUrl, setStageUrl] = useState(initial.stageUrl ?? "");
   const [displayName, setDisplayName] = useState(initial.displayName);
   const [instructions, setInstructions] = useState(initial.instructions);
@@ -25,6 +30,7 @@ export function IdiqSettingsForm({ initial }: { initial: IdiqConfig }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           affiliateUrl,
+          jsonReportUrl,
           stageUrl: stageUrl.trim() || null,
           displayName,
           instructions,
@@ -55,7 +61,16 @@ export function IdiqSettingsForm({ initial }: { initial: IdiqConfig }) {
           className={inputCls}
           value={affiliateUrl}
           onChange={(e) => setAffiliateUrl(e.target.value)}
-          placeholder="https://www.identityiq.com/..."
+          placeholder="https://gcpstage.myscoreiq.com/get-fico-preferred.aspx?offercode=..."
+        />
+      </label>
+      <label className={labelCls}>
+        <span className={labelTitle}>JSON report URL</span>
+        <input
+          className={inputCls}
+          value={jsonReportUrl}
+          onChange={(e) => setJsonReportUrl(e.target.value)}
+          placeholder="https://member.myscoreiq.com/CreditReport.aspx?view=json"
         />
       </label>
       <label className={labelCls}>
@@ -64,7 +79,7 @@ export function IdiqSettingsForm({ initial }: { initial: IdiqConfig }) {
           className={inputCls}
           value={stageUrl}
           onChange={(e) => setStageUrl(e.target.value)}
-          placeholder="https://stage.identityiq.com/..."
+          placeholder="https://stage.myscoreiq.com/..."
         />
       </label>
       <label className={labelCls}>
@@ -111,7 +126,7 @@ export function IdiqSettingsForm({ initial }: { initial: IdiqConfig }) {
         disabled={busy}
         className="rounded-xl bg-fg px-4 py-2 text-sm font-semibold text-canvas hover:bg-fg/90 disabled:opacity-50"
       >
-        {busy ? "Saving…" : "Save IDIQ settings"}
+        {busy ? "Saving…" : "Save MyScoreIQ settings"}
       </button>
     </div>
   );

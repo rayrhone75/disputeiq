@@ -1,17 +1,21 @@
+// Admin endpoint to update the supported report provider (MyScoreIQ).
+// Route URL is `/api/admin/settings/idiq` for backwards compatibility with
+// the existing admin form; values are written under `msiq.*` platformSettings
+// keys going forward. Legacy `idiq.*` rows remain readable as a fallback in
+// `loadMsiqConfig`.
+
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@clerk/nextjs/server";
 import { fetchMutation } from "convex/nextjs";
 import { requireRole } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
-import { IDIQ_SETTING_KEYS, loadIdiqConfig } from "@/lib/integrations/identityiq";
-// TODO: agent1 — `convex/platformSettings.ts` is owned by Agent 1. Once
-// it exists, swap this import to `import { api } from "@/convex/_generated/api"`
-// and call `fetchMutation(api.platformSettings.upsert, ...)`.
+import { MSIQ_SETTING_KEYS, loadMsiqConfig } from "@/lib/integrations/myscoreiq";
 import { api } from "@/convex/_generated/api";
 
 const UpdateZ = z.object({
   affiliateUrl: z.string().url().max(2048),
+  jsonReportUrl: z.string().url().max(2048),
   stageUrl: z.string().url().max(2048).optional().nullable(),
   displayName: z.string().min(1).max(120),
   instructions: z.string().max(4000),
@@ -22,7 +26,7 @@ const UpdateZ = z.object({
 export async function GET() {
   const user = await requireRole(["OWNER", "ADMIN"]).catch(() => null);
   if (!user) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-  const config = await loadIdiqConfig();
+  const config = await loadMsiqConfig();
   return NextResponse.json({ config });
 }
 
@@ -44,25 +48,21 @@ export async function POST(req: NextRequest) {
   if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
   const values: Array<[string, unknown]> = [
-    [IDIQ_SETTING_KEYS.affiliateUrl, parsed.data.affiliateUrl],
-    [IDIQ_SETTING_KEYS.stageUrl, parsed.data.stageUrl ?? null],
-    [IDIQ_SETTING_KEYS.displayName, parsed.data.displayName],
-    [IDIQ_SETTING_KEYS.instructions, parsed.data.instructions],
-    [IDIQ_SETTING_KEYS.disclaimer, parsed.data.disclaimer],
-    [IDIQ_SETTING_KEYS.featureFlags, parsed.data.featureFlags ?? {}],
+    [MSIQ_SETTING_KEYS.affiliateUrl, parsed.data.affiliateUrl],
+    [MSIQ_SETTING_KEYS.jsonReportUrl, parsed.data.jsonReportUrl],
+    [MSIQ_SETTING_KEYS.stageUrl, parsed.data.stageUrl ?? null],
+    [MSIQ_SETTING_KEYS.displayName, parsed.data.displayName],
+    [MSIQ_SETTING_KEYS.instructions, parsed.data.instructions],
+    [MSIQ_SETTING_KEYS.disclaimer, parsed.data.disclaimer],
+    [MSIQ_SETTING_KEYS.featureFlags, parsed.data.featureFlags ?? {}],
   ];
 
-  // TODO: agent1 — once `convex/platformSettings.ts` exists, replace this
-  // with a single batched `fetchMutation(api.platformSettings.upsertMany, ...)`.
-  // For now we attempt to call a per-key mutation; if Agent 1 hasn't shipped
-  // the function yet the calls below will throw and we'll surface that to
-  // the operator.
   try {
     for (const [key, valueJson] of values) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const platformSettingsApi = (api as any).platformSettings;
       if (!platformSettingsApi?.upsert) {
-        throw new Error("platformSettings.upsert not implemented yet (Agent 1)");
+        throw new Error("platformSettings.upsert not implemented yet");
       }
       await fetchMutation(
         platformSettingsApi.upsert,
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
   await writeAuditLog({
     action: "PLATFORM_SETTING_UPDATED",
     entityType: "PlatformSetting",
-    entityId: "idiq",
+    entityId: "msiq",
     metadataJson: { keys: values.map(([k]) => k) },
   });
 

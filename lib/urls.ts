@@ -16,9 +16,9 @@ function clean(u: string | undefined, fallback: string) {
 
 export const URLS = {
   marketing: clean(process.env.NEXT_PUBLIC_MARKETING_URL ?? process.env.MARKETING_BASE_URL, "https://disputeiq.org"),
-  app: clean(process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_BASE_URL, "https://app.disputeiq.org"),
-  admin: clean(process.env.ADMIN_BASE_URL, "https://app.disputeiq.org/admin"),
-  api: clean(process.env.API_BASE_URL, "https://app.disputeiq.org/api"),
+  app: clean(process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_BASE_URL, "https://disputeiq.org"),
+  admin: clean(process.env.ADMIN_BASE_URL, "https://disputeiq.org/admin"),
+  api: clean(process.env.API_BASE_URL, "https://disputeiq.org/api"),
 };
 
 export const WEBHOOK_URLS = {

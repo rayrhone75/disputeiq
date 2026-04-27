@@ -5,9 +5,8 @@
 // dashboard. `toUserFacingStatus` collapses it into a 5-step user journey
 // (queued → mailed → in_transit → delivered → signed) plus a failure state.
 //
-// The MailJobStatus type is duplicated here from `convex/schema.ts` rather
-// than imported from `@prisma/client` (which is gone). It must stay in sync
-// with the `mailJobStatus` v.union in the schema.
+// The MailJobStatus type is duplicated here from `convex/schema.ts`. It must
+// stay in sync with the `mailJobStatus` v.union in the schema.
 
 export type MailJobStatus =
   | "QUEUED"

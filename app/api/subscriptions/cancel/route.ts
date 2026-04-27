@@ -1,30 +1,22 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { fetchMutation } from "convex/nextjs";
-import { api } from "@/convex/_generated/api";
-import { cancelSquareSubscription } from "@/lib/square-subscriptions";
 
+// LEGACY (replaced by Stripe Customer Portal on 2026-04-27).
+//
+// Cancellation now happens inside Stripe's hosted Customer Portal, accessed
+// via POST /api/subscriptions/portal. Stripe fires
+// `customer.subscription.deleted`, our webhook flips the local row to
+// `canceled` — so this route is no longer needed by the live flow.
+//
+// Kept on disk so any older client code that still calls it gets a clear
+// 410 Gone response (rather than a 404) and a pointer to the new endpoint.
 export async function POST() {
-  const { userId, getToken } = await auth();
-  if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
-  const token = await getToken({ template: "convex" });
-  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
-
-  try {
-    const result = await fetchMutation(
-      api.subscriptions.cancelForUser,
-      {},
-      { token },
-    );
-    if (result.squareSubscriptionId) {
-      await cancelSquareSubscription(result.squareSubscriptionId);
-    }
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    const msg = (err as Error).message;
-    if (msg.includes("NO_SUBSCRIPTION")) {
-      return NextResponse.json({ error: "NO_SUBSCRIPTION" }, { status: 404 });
-    }
-    return NextResponse.json({ error: "INTERNAL", message: msg }, { status: 500 });
-  }
+  return NextResponse.json(
+    {
+      error: "GONE",
+      message:
+        "Subscription cancel is now handled via the Stripe Customer Portal. POST /api/subscriptions/portal to get a portal URL.",
+      portal: "/api/subscriptions/portal",
+    },
+    { status: 410 },
+  );
 }

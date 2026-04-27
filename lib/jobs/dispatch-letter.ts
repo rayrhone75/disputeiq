@@ -2,15 +2,12 @@
 // mail packet, persists the MailJob row + events, and advances the dispute
 // case to MAILED on success.
 //
-// Convex migration notes:
-// - All DB I/O now goes through `fetchQuery`/`fetchMutation` against the
-//   functions in `convex/mailJobs.ts`. Those functions are gated by an
-//   `INTERNAL_SERVICE_SECRET` env var rather than a Clerk token, because
-//   the dispatcher runs from background contexts (queue handler, square
-//   webhook callback) that don't carry a user session.
-// - We no longer use Prisma `include` to eager-load the user/profile/
-//   tradeline; `getDispatchBundle` does the join server-side and returns a
-//   plain object.
+// All DB I/O goes through `fetchQuery`/`fetchMutation` against the functions
+// in `convex/mailJobs.ts`. Those functions are gated by an
+// `INTERNAL_SERVICE_SECRET` env var rather than a Clerk token, because the
+// dispatcher runs from background contexts (queue handler, square webhook
+// callback) that don't carry a user session. `getDispatchBundle` does the
+// user/profile/tradeline join server-side and returns a plain object.
 
 import { fetchQuery, fetchMutation } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";

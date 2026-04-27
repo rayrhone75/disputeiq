@@ -23,12 +23,12 @@ const HELPFUL_DOCS = [
 ];
 
 const NEXT_STEPS = [
-  "Activate your IdentityIQ monitoring",
-  "Connect or import your credit report",
-  "Upload supporting documents",
-  "Review your report summary",
-  "Plan and start disputes",
-  "Track progress from your dashboard",
+  "Activate MyScoreIQ",
+  "Connect Credit Report",
+  "Auto import JSON",
+  "Upload Documents",
+  "Review Report",
+  "Agree and start disputes",
 ];
 
 export default function SignUpPage() {
@@ -52,23 +52,23 @@ export default function SignUpPage() {
         </p>
       </header>
 
-      {/* ScrewedUpCredit migration banner */}
-      <section className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-800">
-          Switching from ScrewedUpCredit?
+      {/* Provider notice */}
+      <section className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-indigo-800">
+          Supported report provider
         </p>
         <h2 className="mt-2 text-lg font-semibold text-fg">
-          Already a ScrewedUpCredit customer?
+          DisputeIQ uses MyScoreIQ for report access and monitoring.
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">
-          If you previously used ScrewedUpCredit with MyFreeScoreIQ, you now need to switch
-          to <span className="font-semibold text-fg">IdentityIQ</span> for report
-          access and monitoring inside DisputeIQ. Create your DisputeIQ account below,
-          complete your IdentityIQ enrollment, and then return to connect your report.
+          DisputeIQ uses{" "}
+          <span className="font-semibold text-fg">MyScoreIQ</span> for report access and
+          monitoring. After creating your account, activate MyScoreIQ, then return to connect
+          your report.
         </p>
         <p className="mt-2 text-xs text-fg-muted">
           Already have a DisputeIQ account?{" "}
-          <Link href="/sign-in" className="font-semibold text-amber-800 underline">
+          <Link href="/sign-in" className="font-semibold text-indigo-800 underline">
             Sign in here
           </Link>
           .
@@ -79,17 +79,15 @@ export default function SignUpPage() {
       <section className="mb-5 rounded-2xl border border-border bg-surface p-5">
         <h3 className="text-sm font-semibold text-fg">Before continuing, please note</h3>
         <ul className="mt-3 space-y-2 text-xs leading-relaxed text-fg-muted">
-          <li>• DisputeIQ uses IdentityIQ for credit report access and monitoring.</li>
+          <li>• DisputeIQ uses MyScoreIQ for credit report access and monitoring.</li>
           <li>
-            • If you are a former ScrewedUpCredit customer, you must switch to IdentityIQ to
-            continue with the updated system.
+            • MyScoreIQ billing is separate from your DisputeIQ subscription.
           </li>
-          <li>• IdentityIQ billing is separate from your DisputeIQ subscription.</li>
           <li>
             • Your DisputeIQ subscription covers dispute workflow, document organization,
             tracking, and automation tools.
           </li>
-          <li>• Credit report access depends on an active IdentityIQ membership.</li>
+          <li>• Credit report access depends on an active MyScoreIQ membership.</li>
           <li>
             • Results vary based on bureau responses, furnisher investigations, documentation,
             and report history.
@@ -106,7 +104,7 @@ export default function SignUpPage() {
             onChange={(e) => setAckMonitoring(e.target.checked)}
             className="mt-0.5"
           />
-          I understand that IdentityIQ is required for report access and monitoring in
+          I understand that MyScoreIQ is required for report access and monitoring in
           DisputeIQ.
         </label>
         <label className="flex items-start gap-2.5 text-xs leading-relaxed text-fg/85">
@@ -116,7 +114,7 @@ export default function SignUpPage() {
             onChange={(e) => setAckBilling(e.target.checked)}
             className="mt-0.5"
           />
-          I understand that IdentityIQ billing is separate from my DisputeIQ subscription.
+          I understand that MyScoreIQ billing is separate from my DisputeIQ subscription.
         </label>
         <label className="flex items-start gap-2.5 text-xs leading-relaxed text-fg/85">
           <input
@@ -151,23 +149,23 @@ export default function SignUpPage() {
           {[
             ["Create your DisputeIQ account", "Set up your login so your dashboard is ready."],
             [
-              "Activate IdentityIQ",
-              "Use the IdentityIQ link inside DisputeIQ to activate monitoring + report access.",
+              "Activate MyScoreIQ",
+              "Use the MyScoreIQ link inside DisputeIQ to activate monitoring + report access.",
             ],
             [
-              "Access your report",
-              "Once IdentityIQ is active, return to DisputeIQ and connect or import your report.",
+              "Connect Credit Report",
+              "Once MyScoreIQ is active, return to DisputeIQ and connect or import your report.",
             ],
             [
-              "Upload your documents",
+              "Upload Documents",
               "Add your ID, proof of address, prior bureau letters, collection notices.",
             ],
             [
-              "Review your report summary",
+              "Review Report",
               "DisputeIQ walks you through negatives, inquiries, public records, opportunities.",
             ],
             [
-              "Start your dispute workflow",
+              "Agree and start disputes",
               "Choose what to challenge, organize evidence, begin tracking progress.",
             ],
           ].map(([title, body], i) => (

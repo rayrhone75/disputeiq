@@ -1,7 +1,11 @@
 // Subscription / plan management.
 //
-// `userSubscriptions` mirrors a Square recurring subscription. The
-// Next.js layer talks to Square; Convex stores billing state.
+// `userSubscriptions` mirrors a Stripe recurring subscription. The Next.js
+// layer talks to Stripe (Checkout + Customer Portal); webhook events flow
+// into `recordStripeEvent` which keeps Convex billing state in sync.
+// Square mutations (`recordSquareEvent`) remain in this file as legacy
+// — gated off in the routes layer but kept here so any in-flight Square
+// events still validate.
 
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
@@ -80,6 +84,8 @@ export const upsertForUser = mutation({
     cycleEnd: v.number(),
     includedPackets: v.number(),
     overagePacketPriceCents: v.number(),
+    stripeSubscriptionId: v.optional(v.string()),
+    stripeCustomerId: v.optional(v.string()),
     squareSubscriptionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -97,7 +103,11 @@ export const upsertForUser = mutation({
         cycleEnd: args.cycleEnd,
         includedPackets: args.includedPackets,
         overagePacketPriceCents: args.overagePacketPriceCents,
-        squareSubscriptionId: args.squareSubscriptionId,
+        stripeSubscriptionId:
+          args.stripeSubscriptionId ?? existing.stripeSubscriptionId,
+        stripeCustomerId: args.stripeCustomerId ?? existing.stripeCustomerId,
+        squareSubscriptionId:
+          args.squareSubscriptionId ?? existing.squareSubscriptionId,
         updatedAt: now,
       });
       await ctx.db.insert("auditLogs", {
@@ -108,7 +118,8 @@ export const upsertForUser = mutation({
         entityId: existing._id as unknown as string,
         metadataJson: {
           planCode: args.planCode,
-          squareSubscriptionId: args.squareSubscriptionId,
+          stripeSubscriptionId: args.stripeSubscriptionId,
+          stripeCustomerId: args.stripeCustomerId,
         },
         createdAt: now,
       });
@@ -122,6 +133,8 @@ export const upsertForUser = mutation({
       cycleEnd: args.cycleEnd,
       includedPackets: args.includedPackets,
       overagePacketPriceCents: args.overagePacketPriceCents,
+      stripeSubscriptionId: args.stripeSubscriptionId,
+      stripeCustomerId: args.stripeCustomerId,
       squareSubscriptionId: args.squareSubscriptionId,
       createdAt: now,
       updatedAt: now,
@@ -134,7 +147,8 @@ export const upsertForUser = mutation({
       entityId: id as unknown as string,
       metadataJson: {
         planCode: args.planCode,
-        squareSubscriptionId: args.squareSubscriptionId,
+        stripeSubscriptionId: args.stripeSubscriptionId,
+        stripeCustomerId: args.stripeCustomerId,
       },
       createdAt: now,
     });
@@ -162,11 +176,163 @@ export const cancelForUser = mutation({
       metadataJson: { planCode: sub.planCode },
       createdAt: now,
     });
-    return { ok: true, squareSubscriptionId: sub.squareSubscriptionId ?? null };
+    return {
+      ok: true,
+      stripeSubscriptionId: sub.stripeSubscriptionId ?? null,
+      stripeCustomerId: sub.stripeCustomerId ?? null,
+      squareSubscriptionId: sub.squareSubscriptionId ?? null,
+    };
   },
 });
 
-// ─── Square webhook (system-secret guarded) ────────────────────────────────
+// ─── Stripe webhook (system-secret guarded) ────────────────────────────────
+
+const STRIPE_KIND = v.union(
+  v.literal("subscription_event"),
+  v.literal("invoice_payment_succeeded"),
+  v.literal("invoice_payment_failed"),
+  v.literal("checkout_completed"),
+);
+
+export const recordStripeEvent = mutation({
+  args: {
+    secret: v.string(),
+    kind: STRIPE_KIND,
+    eventType: v.string(),
+    stripeSubscriptionId: v.optional(v.string()),
+    stripeCustomerId: v.optional(v.string()),
+    stripeStatus: v.optional(v.string()),
+    currentPeriodStart: v.optional(v.number()), // unix seconds (Stripe convention)
+    currentPeriodEnd: v.optional(v.number()),
+    planCode: v.optional(v.string()),
+    includedPackets: v.optional(v.number()),
+    overagePacketPriceCents: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const expected = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+    if (!expected || args.secret !== expected) throw new Error("FORBIDDEN");
+
+    let sub: Doc<"userSubscriptions"> | null = null;
+    if (args.stripeSubscriptionId) {
+      sub =
+        (await ctx.db
+          .query("userSubscriptions")
+          .withIndex("by_stripe_subscription", (q) =>
+            q.eq("stripeSubscriptionId", args.stripeSubscriptionId),
+          )
+          .unique()) ?? null;
+    }
+    if (!sub && args.stripeCustomerId) {
+      sub =
+        (await ctx.db
+          .query("userSubscriptions")
+          .withIndex("by_stripe_customer", (q) =>
+            q.eq("stripeCustomerId", args.stripeCustomerId),
+          )
+          .unique()) ?? null;
+    }
+    if (!sub) return { matched: false };
+
+    const now = Date.now();
+
+    if (args.kind === "subscription_event" || args.kind === "checkout_completed") {
+      const mappedStatus = mapStripeStatus(args.stripeStatus ?? "");
+      const cycleStart = args.currentPeriodStart
+        ? args.currentPeriodStart * 1000
+        : sub.cycleStart;
+      const cycleEnd = args.currentPeriodEnd
+        ? args.currentPeriodEnd * 1000
+        : sub.cycleEnd;
+      await ctx.db.patch(sub._id, {
+        status: mappedStatus,
+        stripeSubscriptionId:
+          args.stripeSubscriptionId ?? sub.stripeSubscriptionId,
+        stripeCustomerId: args.stripeCustomerId ?? sub.stripeCustomerId,
+        planCode: args.planCode ?? sub.planCode,
+        includedPackets: args.includedPackets ?? sub.includedPackets,
+        overagePacketPriceCents:
+          args.overagePacketPriceCents ?? sub.overagePacketPriceCents,
+        cycleStart,
+        cycleEnd,
+        updatedAt: now,
+      });
+      await ctx.db.insert("auditLogs", {
+        actorUserId: undefined,
+        targetUserId: sub.userId,
+        action: `SUBSCRIPTION_${args.eventType.toUpperCase().replace(/[.\s]/g, "_")}`,
+        entityType: "UserSubscription",
+        entityId: sub._id as unknown as string,
+        metadataJson: {
+          stripeStatus: args.stripeStatus,
+          mappedStatus,
+          stripeSubscriptionId: args.stripeSubscriptionId,
+          stripeCustomerId: args.stripeCustomerId,
+        },
+        createdAt: now,
+      });
+    } else if (args.kind === "invoice_payment_failed") {
+      await ctx.db.patch(sub._id, { status: "past_due", updatedAt: now });
+      await ctx.db.insert("auditLogs", {
+        actorUserId: undefined,
+        targetUserId: sub.userId,
+        action: "SUBSCRIPTION_PAYMENT_FAILED",
+        entityType: "UserSubscription",
+        entityId: sub._id as unknown as string,
+        metadataJson: { stripeCustomerId: args.stripeCustomerId },
+        createdAt: now,
+      });
+    } else if (args.kind === "invoice_payment_succeeded") {
+      const cycleStart = args.currentPeriodStart
+        ? args.currentPeriodStart * 1000
+        : now;
+      const cycleEnd = args.currentPeriodEnd
+        ? args.currentPeriodEnd * 1000
+        : now + 30 * 86400000;
+      await ctx.db.patch(sub._id, {
+        status: "active",
+        cycleStart,
+        cycleEnd,
+        includedPackets: args.includedPackets ?? sub.includedPackets,
+        updatedAt: now,
+      });
+      await ctx.db.insert("auditLogs", {
+        actorUserId: undefined,
+        targetUserId: sub.userId,
+        action: "SUBSCRIPTION_RENEWED",
+        entityType: "UserSubscription",
+        entityId: sub._id as unknown as string,
+        metadataJson: { stripeCustomerId: args.stripeCustomerId },
+        createdAt: now,
+      });
+    }
+
+    return { matched: true };
+  },
+});
+
+function mapStripeStatus(s: string): string {
+  // Stripe subscription.status values:
+  // active | past_due | unpaid | canceled | incomplete | incomplete_expired |
+  // trialing | paused
+  switch ((s ?? "").toLowerCase()) {
+    case "active":
+    case "trialing":
+      return "active";
+    case "canceled":
+    case "incomplete_expired":
+      return "canceled";
+    case "past_due":
+    case "unpaid":
+    case "paused":
+      return "past_due";
+    case "incomplete":
+      return "pending";
+    default:
+      return "active";
+  }
+}
+
+// ─── Square webhook (system-secret guarded) ─ LEGACY ──────────────────────
 
 const KIND = v.union(
   v.literal("subscription_event"),

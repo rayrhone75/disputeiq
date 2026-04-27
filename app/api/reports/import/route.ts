@@ -3,8 +3,10 @@ import { auth } from "@clerk/nextjs/server";
 import { createImport, ImportRunnerError } from "@/lib/credit-import/runner";
 
 // Customer-facing import creation. A logged-in user creates a new
-// CreditReportImport belonging to themselves. Default provider is
-// IDENTITYIQ — users don't see legacy providers.
+// CreditReportImport belonging to themselves. Default provider is MYSCOREIQ
+// — the supported provider for new users. Legacy IDENTITYIQ + MFSN values
+// remain in the schema enum so admin/support can read older rows, but they
+// are not selectable from the customer flow.
 export async function POST(req: NextRequest) {
   const { userId, getToken } = await auth();
   if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
@@ -15,7 +17,7 @@ export async function POST(req: NextRequest) {
     const imp = await createImport(
       { token },
       {
-        provider: "IDENTITYIQ",
+        provider: "MYSCOREIQ",
         sourceUrl: typeof body.sourceUrl === "string" ? body.sourceUrl : undefined,
       },
     );

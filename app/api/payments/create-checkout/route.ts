@@ -6,7 +6,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { assertCompliantAction } from "@/lib/compliance";
 import { getUserPacketUsage } from "@/lib/billing/usage";
-import { createSquareCheckout } from "@/lib/square";
+import { createStripeCheckoutSession } from "@/lib/stripe-checkout";
 import { writeAuditLog } from "@/lib/audit";
 import { CHECKOUT_CONSENT_ITEMS, TERMS_VERSION } from "@/lib/legal";
 
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     api.payments.createForDispute,
     {
       disputeCaseId: body.disputeCaseId as Id<"disputeCases">,
-      provider: "SQUARE",
+      provider: "STRIPE",
       amountCents: totalCents,
       description,
     },
@@ -103,17 +103,33 @@ export async function POST(req: NextRequest) {
     ).catch(() => null);
   }
 
-  const checkout = await createSquareCheckout({
-    amountCents: totalCents,
-    referenceId: paymentIntentId as unknown as string,
-    description,
-  });
+  // Look up the user's existing Stripe customer (set when they subscribed)
+  // so the checkout session is attached to the same customer record. New
+  // signups without a subscription will have customerId undefined; Stripe
+  // creates an anonymous customer in that case.
+  const sub = await fetchQuery(api.subscriptions.getForUser, {}, { token });
+  const stripeCustomerId = sub?.stripeCustomerId ?? undefined;
+
+  let checkout: { checkoutUrl: string; sessionId: string };
+  try {
+    checkout = await createStripeCheckoutSession({
+      amountCents: totalCents,
+      referenceId: paymentIntentId as unknown as string,
+      description,
+      customerId: stripeCustomerId,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { error: "STRIPE_CHECKOUT_FAILED", message: (err as Error).message },
+      { status: 502 },
+    );
+  }
 
   await writeAuditLog({
     action: "CHECKOUT_CREATED",
     entityType: "PaymentIntent",
     entityId: paymentIntentId as unknown as string,
-    metadataJson: { amountCents: totalCents, provider: "SQUARE" },
+    metadataJson: { amountCents: totalCents, provider: "STRIPE" },
   }).catch(() => null);
 
   return NextResponse.json({

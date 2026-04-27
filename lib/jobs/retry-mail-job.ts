@@ -1,12 +1,11 @@
 // Manual, admin-only retry for a failed mail job.
 //
-// Convex migration: the state-prep work (retry event row, audit log,
-// status flip) lives in `api.mailJobs.prepareRetry`, which authenticates
-// the actor via Clerk identity. The actual re-dispatch (which contacts
-// LetterStream) is then run from this Next.js helper using the dispatcher
-// in `dispatch-letter.ts`.
+// The state-prep work (retry event row, audit log, status flip) lives in
+// `api.mailJobs.prepareRetry`, which authenticates the actor via Clerk
+// identity. The actual re-dispatch (which contacts LetterStream) is then
+// run from this Next.js helper using the dispatcher in `dispatch-letter.ts`.
 //
-// Policy (unchanged from Prisma era):
+// Policy:
 //   - Only mail jobs in FAILED state can be retried (enforced inside the
 //     Convex mutation).
 //   - Every retry writes a RETRY MailJobEvent + AuditLog entry with the

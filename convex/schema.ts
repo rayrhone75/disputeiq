@@ -1,11 +1,10 @@
-// DisputeIQ Convex schema — full port from the former Prisma schema.
+// DisputeIQ Convex schema.
 //
 // Identity model: Clerk owns authentication. Every `users` row is keyed by
 // `clerkUserId` (Clerk's stable subject) and mirrors Clerk's email +
 // publicMetadata.role into the DB so Convex functions can FK against it.
 //
-// Enums: Convex doesn't have Postgres-style enums. We use v.union of
-// v.literal strings — same on-wire values as the Prisma enum cases.
+// Enums are modeled as `v.union` of `v.literal` strings.
 
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
@@ -269,10 +268,17 @@ export default defineSchema({
     cycleEnd: v.number(),
     includedPackets: v.number(),
     overagePacketPriceCents: v.number(),
+    // Stripe is the live provider; squareSubscriptionId is retained as an
+    // optional legacy field so any pre-cutover rows keep validating.
+    stripeSubscriptionId: v.optional(v.string()),
+    stripeCustomerId: v.optional(v.string()),
     squareSubscriptionId: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    .index("by_stripe_subscription", ["stripeSubscriptionId"])
+    .index("by_stripe_customer", ["stripeCustomerId"]),
 
   leads: defineTable({
     email: v.string(),

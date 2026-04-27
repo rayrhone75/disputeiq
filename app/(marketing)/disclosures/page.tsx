@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { COMPLIANCE_NOTICE } from "@/lib/compliance";
-import { IDIQ } from "@/lib/integrations/identityiq";
+import { MSIQ } from "@/lib/integrations/myscoreiq";
 
 export const metadata = {
   title: "Disclosures — DisputeIQ",
   description:
-    "Full disclosures for DisputeIQ, our Screwed Up Credit ecosystem, and the IdentityIQ supported report provider.",
+    "Full disclosures for DisputeIQ, our Screwed Up Credit ecosystem, and the MyScoreIQ supported report provider.",
 };
 
 const blocks = [
@@ -42,9 +42,9 @@ const blocks = [
     t: "DisputeIQ and Screwed Up Credit.",
     body: [
       "DisputeIQ is operated within the Screwed Up Credit ecosystem. Screwed Up Credit is the parent ecosystem that connects DisputeIQ with supported partner products.",
-      `${IDIQ.productName} is the supported credit report provider used by the DisputeIQ customer journey. When you continue through IdentityIQ from our website, you are beginning that journey.`,
+      `${MSIQ.productName} is the supported credit report provider used by the DisputeIQ customer journey. When you start through MyScoreIQ from our website, you are beginning that journey.`,
       "DisputeIQ may receive a referral fee when you enroll through our supported provider. This does not change what you pay.",
-      "Historical reports associated with our prior intake partner remain readable for admin/support review only. New customer onboarding runs through IdentityIQ.",
+      "Historical reports associated with prior intake partners remain readable for admin/support review only. New customer onboarding runs through MyScoreIQ.",
     ],
   },
   {

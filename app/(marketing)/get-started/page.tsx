@@ -1,19 +1,19 @@
 import Link from "next/link";
 import { URLS } from "@/lib/urls";
-import { IDIQ, buildIdiqEnrollUrl } from "@/lib/integrations/identityiq";
+import { MSIQ, buildMsiqEnrollUrl } from "@/lib/integrations/myscoreiq";
 
 export const metadata = {
   title: "Get started — DisputeIQ",
   description:
-    "Three steps to turn your live 3-bureau IdentityIQ report into disciplined credit action: get your report, return to DisputeIQ, import and begin analysis.",
+    "Three steps to turn your live 3-bureau MyScoreIQ report into disciplined credit action: get your report, return to DisputeIQ, import and begin analysis.",
 };
 
-const IDIQ_BASE =
-  process.env.IDIQ_AFFILIATE_URL ??
-  process.env.NEXT_PUBLIC_IDIQ_AFFILIATE_URL ??
-  "https://www.identityiq.com/securepreferred.aspx?offercode=431298HW";
-const idiqLink = buildIdiqEnrollUrl({
-  baseUrl: IDIQ_BASE,
+const MSIQ_BASE =
+  process.env.MYSCOREIQ_AFFILIATE_URL ??
+  process.env.NEXT_PUBLIC_MYSCOREIQ_AFFILIATE_URL ??
+  "https://gcpstage.myscoreiq.com/get-fico-preferred.aspx?offercode=432500C3";
+const msiqLink = buildMsiqEnrollUrl({
+  baseUrl: MSIQ_BASE,
   campaign: "get_started_primary",
   source: "disputeiq",
 });
@@ -23,15 +23,15 @@ const steps = [
     n: "01",
     k: "Report intake",
     t: "Get your real 3-bureau report",
-    d: "Continue with IdentityIQ to pull a live Experian, Equifax, and TransUnion file. This is the report DisputeIQ will analyze.",
+    d: "Activate MyScoreIQ to pull a live Experian, Equifax, and TransUnion file. This is the report DisputeIQ will analyze.",
     bullets: [
       "Live tri-merge report",
       "All three bureaus",
       "Refresh on demand",
       "Delivered to you, not to us",
     ],
-    cta: { label: "Continue with IdentityIQ →", href: idiqLink, external: true },
-    meta: `${IDIQ.productName} · the supported provider for DisputeIQ`,
+    cta: { label: "Start with MyScoreIQ →", href: msiqLink, external: true },
+    meta: `${MSIQ.productName} · the supported provider for DisputeIQ`,
   },
   {
     n: "02",
@@ -49,16 +49,20 @@ const steps = [
   },
   {
     n: "03",
-    k: "Upload & analyze",
-    t: "Upload your report and begin",
-    d: "Upload the tri-merge PDF to DisputeIQ. Cross-bureau analysis runs in minutes, surfacing actionable findings ranked by severity with drafted next-best actions.",
+    k: "Connect & analyze",
+    t: "Connect your MyScoreIQ report and begin",
+    d: "Connect your MyScoreIQ report into DisputeIQ. Cross-bureau analysis runs in minutes, surfacing actionable findings ranked by severity with drafted next-best actions.",
     bullets: [
       "Cross-bureau diff engine",
       "Severity-ranked findings",
       "AI next-best action",
       "Draft disputes from facts",
     ],
-    cta: { label: "Upload your report →", href: `${URLS.app}/dashboard/reports`, external: true },
+    cta: {
+      label: "Connect your MyScoreIQ report →",
+      href: `${URLS.app}/dashboard/get-report`,
+      external: true,
+    },
     meta: "Lands directly in the tri-merge action center",
   },
 ];
@@ -82,7 +86,7 @@ export default function GetStartedPage() {
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-[16px] leading-relaxed text-fg-muted">
             Every DisputeIQ workflow begins with a real 3-bureau report. Start with our
-            supported provider IdentityIQ, return to DisputeIQ, and turn the file into action.
+            supported provider MyScoreIQ, return to DisputeIQ, and turn the file into action.
           </p>
         </div>
       </section>
@@ -207,10 +211,10 @@ export default function GetStartedPage() {
             </h3>
             <ul className="mt-7 grid gap-5 text-[14px] leading-relaxed text-fg-muted sm:grid-cols-2">
               <li>
-                <p className="font-semibold text-fg">Why IdentityIQ?</p>
+                <p className="font-semibold text-fg">Why MyScoreIQ?</p>
                 <p className="mt-1 text-fg-muted">
-                  IdentityIQ is the supported report provider for DisputeIQ. It delivers the
-                  3-bureau file DisputeIQ uses for analysis — reliable imports, accurate
+                  MyScoreIQ is the supported report provider for DisputeIQ. It delivers the
+                  3-bureau JSON file DisputeIQ uses for analysis — reliable imports, accurate
                   dispute workflow.
                 </p>
               </li>

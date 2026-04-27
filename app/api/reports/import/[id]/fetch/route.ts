@@ -6,11 +6,11 @@ import type { Id } from "@/convex/_generated/dataModel";
 
 type Params = { params: Promise<{ id: string }> };
 
-// Customer-initiated fetch. Requires the user to supply their own IdentityIQ
-// session Cookie header (captured from their browser after login). The URL
-// is locked to the IdentityIQ JSON endpoint pattern so users can't fetch
-// arbitrary hosts through DisputeIQ's servers.
-const ALLOWED_HOST_SUFFIX = ".identityiq.com";
+// Customer-initiated fetch. Requires the user to supply their own
+// MyScoreIQ (or legacy IdentityIQ) session Cookie header captured from
+// their browser after login. The URL is locked to the supported provider
+// hosts so users can't fetch arbitrary hosts through DisputeIQ's servers.
+const ALLOWED_HOST_SUFFIXES = [".myscoreiq.com", ".identityiq.com"] as const;
 
 export async function POST(req: NextRequest, ctx: Params) {
   const { userId, getToken } = await auth();
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest, ctx: Params) {
     return NextResponse.json(
       {
         error: "MISSING_INPUT",
-        message: "Both the IdentityIQ report URL and your session cookie are required.",
+        message: "Both the MyScoreIQ report URL and your session cookie are required.",
       },
       { status: 400 },
     );
@@ -36,11 +36,11 @@ export async function POST(req: NextRequest, ctx: Params) {
   } catch {
     return NextResponse.json({ error: "BAD_URL", message: "Report URL is malformed." }, { status: 400 });
   }
-  if (!host.endsWith(ALLOWED_HOST_SUFFIX)) {
+  if (!ALLOWED_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix))) {
     return NextResponse.json(
       {
         error: "HOST_NOT_ALLOWED",
-        message: "Report URL must be an IdentityIQ address.",
+        message: "Report URL must be a MyScoreIQ (or legacy IdentityIQ) address.",
       },
       { status: 400 },
     );

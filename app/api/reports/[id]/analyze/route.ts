@@ -18,11 +18,10 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
   );
   if (!report) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
-  // analyzeReport historically expected the Prisma `Tradeline` shape — the
-  // Convex `tradelines` table has the same conceptual fields but uses
-  // millisecond timestamps and Convex `Id` strings. Re-shape into what
-  // analyzeReport reads (id, bureau, creditorName, accountRefMasked,
-  // balanceCents, statusLabel, isCollection, isMedical).
+  // Re-shape Convex `tradelines` rows (millisecond timestamps, Convex `Id`
+  // strings) into the structural shape `analyzeReport` reads: id, bureau,
+  // creditorName, accountRefMasked, balanceCents, statusLabel, isCollection,
+  // isMedical.
   const adapted = report.tradelines.map((t) => ({
     id: t._id as unknown as string,
     reportId: t.reportId as unknown as string,

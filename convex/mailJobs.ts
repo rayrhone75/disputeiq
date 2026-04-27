@@ -188,7 +188,8 @@ function assertInternalSecret(secret: string) {
 
 /**
  * Bundle of data the `dispatchLetter` job needs to assemble a LetterStream
- * submission. Replaces the old Prisma `findUniqueOrThrow` with `include`.
+ * submission. Returns the dispute case joined with its user, profile, and
+ * tradeline as a plain object.
  */
 export const getDispatchBundle = query({
   args: {

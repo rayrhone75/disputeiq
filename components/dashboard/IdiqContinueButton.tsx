@@ -1,10 +1,14 @@
 "use client";
 
-// Premium CTA for the IDIQ onboarding step. Tracks the click client-side so
-// we can surface "opened IDIQ but didn't return" on the support console.
+// Premium CTA for the MyScoreIQ activation step. Tracks the click
+// client-side so we can surface "opened MyScoreIQ but didn't return" on the
+// support console. The click is recorded under the legacy `IDIQ_CLICK`
+// audit action — the action name is an internal identifier and renaming it
+// would require backfilling existing audit rows. Customer-facing copy is
+// MyScoreIQ.
 export function IdiqContinueButton({
   href,
-  label = "Continue with IDIQ",
+  label = "Activate MyScoreIQ",
 }: {
   href: string;
   label?: string;

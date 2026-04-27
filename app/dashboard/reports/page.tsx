@@ -41,7 +41,7 @@ export default async function ReportsPage() {
           <SectionHeader title="Report history" />
           {reports.length === 0 ? (
             <p className="text-sm text-fg-muted">
-              No reports uploaded yet. Continue with IdentityIQ and then upload your 3-bureau report.
+              No reports uploaded yet. Activate MyScoreIQ and then connect your 3-bureau report.
             </p>
           ) : (
             <dl className="space-y-4 text-sm">
@@ -74,10 +74,10 @@ export default async function ReportsPage() {
               <li key={r._id} className="flex items-center justify-between py-3">
                 <div>
                   <div className="font-semibold text-fg">
-                    {r.source === "IDENTITYIQ" || r.source === "MYSCOREIQ"
-                      ? "IdentityIQ"
+                    {r.source === "MYSCOREIQ" || r.source === "IDENTITYIQ"
+                      ? "MyScoreIQ"
                       : r.source === "MYFREESCORENOW"
-                        ? "MyFreeScoreNow (legacy)"
+                        ? "Legacy upload"
                         : "Manual upload"}
                   </div>
                   <div className="text-xs text-fg-muted">

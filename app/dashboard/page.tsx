@@ -10,6 +10,7 @@ import { AssistantPanel } from "@/components/dashboard/AssistantPanel";
 import { PacketMeter } from "@/components/dashboard/PacketMeter";
 import { ExecutiveRail, type RailTile } from "@/components/dashboard/ExecutiveRail";
 import { CreditReportStatusChip } from "@/components/dashboard/CreditReportStatusChip";
+import { BillingPortalButton } from "@/components/dashboard/BillingPortalButton";
 import { PLANS, type PlanCode } from "@/lib/billing/plans";
 
 const PROGRESS_STEPS = [
@@ -364,9 +365,14 @@ function SubscriptionBanner({ status }: { status: string | null }) {
           your payment method is updated.
         </p>
         <p className="mt-3 text-xs text-rose-900/60">
-          Your card on file may have expired or been declined. Update your payment method
-          through Square, or contact support@disputeiq.org for help.
+          Your card on file may have expired or been declined. Update your payment method in
+          the Stripe billing portal, or contact support@disputeiq.org for help.
         </p>
+        <div className="mt-4">
+          <BillingPortalButton className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-50">
+            Update payment method →
+          </BillingPortalButton>
+        </div>
       </section>
     );
   }
@@ -416,9 +422,9 @@ function OnboardingBanner({
     },
     report_connect: {
       title: "Get your credit report",
-      body: "Continue with IDIQ — our supported credit report provider — to pull your 3-bureau file into DisputeIQ.",
+      body: "Activate MyScoreIQ — our supported credit report provider — to pull your 3-bureau file into DisputeIQ.",
       href: "/dashboard/get-report",
-      label: "Continue with IDIQ →",
+      label: "Activate MyScoreIQ →",
     },
     report_pending: {
       title: "Report needs attention",

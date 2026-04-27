@@ -1,7 +1,6 @@
 // Rules-first reason engine. Detects factual mismatches across bureau snapshots.
-// Originally typed against the Prisma `Tradeline` row; now accepts a structural
-// shape so it can run on either legacy `tradelines` or the new `creditTradelines`
-// pipeline rows. Caller adapts the input.
+// Accepts a structural shape so it can run on either legacy `tradelines` or
+// the new `creditTradelines` pipeline rows. Caller adapts the input.
 
 export type AuditTradeline = {
   id: string;

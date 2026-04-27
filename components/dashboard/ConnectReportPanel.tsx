@@ -5,13 +5,16 @@ import { useRouter } from "next/navigation";
 
 type Mode = "auto" | "upload" | "paste";
 
-// ConnectReportPanel — customer-facing handoff for importing an IdentityIQ
+const DEFAULT_JSON_REPORT_URL =
+  "https://member.myscoreiq.com/CreditReport.aspx?view=json";
+
+// ConnectReportPanel — customer-facing handoff for importing a MyScoreIQ
 // credit report. Opens as an inline expandable drawer on /dashboard/get-report.
 //
 // Four paths, all real, none simulated:
-//   1. Auto-connect — user pastes the IdentityIQ JSON URL + their session
+//   1. Auto-connect — user pastes the MyScoreIQ JSON URL + their session
 //      cookie; DisputeIQ's server fetches the report directly.
-//   2. Upload .json — user saves the IdentityIQ report as JSON and uploads it.
+//   2. Upload .json — user saves the MyScoreIQ report as JSON and uploads it.
 //   3. Paste JSON — user pastes the raw body text.
 //   4. Retry — surfaced when the user's latest import failed; re-runs
 //      normalization against the already-captured raw JSON without asking
@@ -21,8 +24,11 @@ type Mode = "auto" | "upload" | "paste";
 // tradelines / inquiries / dispute candidates, then refresh the page so the
 // status chip updates.
 export function ConnectReportPanel({
+  jsonReportUrl = DEFAULT_JSON_REPORT_URL,
   retryImportId,
 }: {
+  /** Default URL to seed the auto-connect form. Sourced from MSIQ config. */
+  jsonReportUrl?: string;
   /** If the user has a FAILED import with raw captured, pass its id to
    *  render the Retry Import button. */
   retryImportId?: string | null;
@@ -36,9 +42,7 @@ export function ConnectReportPanel({
   const [success, setSuccess] = useState<string | null>(null);
 
   // Auto-connect inputs
-  const [reportUrl, setReportUrl] = useState(
-    "https://member.identityiq.com/CreditReport.aspx?view=json",
-  );
+  const [reportUrl, setReportUrl] = useState(jsonReportUrl);
   const [cookieHeader, setCookieHeader] = useState("");
 
   // Upload input
@@ -67,7 +71,7 @@ export function ConnectReportPanel({
 
   async function runAuto() {
     if (!cookieHeader.trim()) {
-      setError("Paste your IdentityIQ session cookie first.");
+      setError("Paste your MyScoreIQ session cookie first.");
       return;
     }
     setBusy(true);
@@ -237,7 +241,7 @@ export function ConnectReportPanel({
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-fg-muted">
-            Connect your IdentityIQ report
+            Connect your MyScoreIQ report
           </p>
           <h3 className="mt-1 text-lg font-semibold text-fg">
             Pick how you want to bring it in
@@ -256,8 +260,8 @@ export function ConnectReportPanel({
         {(
           [
             { k: "auto", label: "Auto-connect (URL + cookie)" },
-            { k: "upload", label: "Upload .json" },
-            { k: "paste", label: "Paste JSON" },
+            { k: "upload", label: "Upload JSON Manually" },
+            { k: "paste", label: "Paste Report JSON" },
           ] as Array<{ k: Mode; label: string }>
         ).map((t) => (
           <button
@@ -284,9 +288,9 @@ export function ConnectReportPanel({
           <div className="rounded-xl bg-surface-muted p-3 text-xs leading-6 text-fg-muted">
             <p className="font-semibold text-fg">How to get your session cookie</p>
             <ol className="mt-1 list-decimal space-y-1 pl-4">
-              <li>Sign in to IdentityIQ in a new tab.</li>
+              <li>Sign in to MyScoreIQ in a new tab.</li>
               <li>
-                Open Developer Tools (F12) → Application → Cookies → select the IdentityIQ site.
+                Open Developer Tools (F12) → Application → Cookies → select the MyScoreIQ site.
               </li>
               <li>Copy the full Cookie header value and paste it below.</li>
             </ol>
@@ -327,7 +331,7 @@ export function ConnectReportPanel({
       {mode === "upload" && (
         <div className="space-y-3 text-sm">
           <p className="text-xs text-fg-muted">
-            Save your IdentityIQ report as a <code className="font-mono">.json</code> file and
+            Save your MyScoreIQ report as a <code className="font-mono">.json</code> file and
             upload it (max 10 MB).
           </p>
           <input
@@ -356,7 +360,7 @@ export function ConnectReportPanel({
       {mode === "paste" && (
         <div className="space-y-3 text-sm">
           <p className="text-xs text-fg-muted">
-            Paste the full JSON body from your IdentityIQ report page.
+            Paste the full JSON body from your MyScoreIQ report page.
           </p>
           <textarea
             value={bodyText}

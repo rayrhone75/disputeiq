@@ -8,8 +8,7 @@
 // Any field the adapter cannot confidently produce is left undefined and
 // captured under `unmapped` so we never silently drop data.
 
-// Provider + bureau enums used to live in @prisma/client. Now that Prisma
-// is gone, we redeclare them as string-literal unions that match the Convex
+// Provider + bureau enums are string-literal unions that match the Convex
 // schema (convex/schema.ts) exactly. Keeps adapters provider-agnostic
 // without coupling to the database layer.
 export type CreditProvider =

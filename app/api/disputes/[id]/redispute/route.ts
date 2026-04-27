@@ -98,8 +98,7 @@ Generate a STRONGER follow-up dispute letter body. Requirements:
         pages: pdf.pages,
         pdfRef,
       },
-      // The original Prisma flow closed the prior case so it didn't keep
-      // showing as actionable. Preserve that behavior.
+      // Close the prior case so it doesn't keep showing as actionable.
       closePrior: true,
     },
     { token },

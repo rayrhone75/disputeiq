@@ -10,7 +10,7 @@ type Provider = "IDENTITYIQ" | "MYSCOREIQ" | "MANUAL";
 export function NewImportPanel({ users }: { users: UserOpt[] }) {
   const router = useRouter();
   const [userId, setUserId] = useState(users[0]?.id ?? "");
-  const [provider, setProvider] = useState<Provider>("IDENTITYIQ");
+  const [provider, setProvider] = useState<Provider>("MYSCOREIQ");
   const [sourceUrl, setSourceUrl] = useState("");
   const [providerRef, setProviderRef] = useState("");
   const [bodyText, setBodyText] = useState("");
@@ -94,7 +94,6 @@ export function NewImportPanel({ users }: { users: UserOpt[] }) {
             onChange={(e) => setProvider(e.target.value as Provider)}
             className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm"
           >
-            <option value="IDENTITYIQ">IdentityIQ</option>
             <option value="MYSCOREIQ">MyScoreIQ</option>
             <option value="MANUAL">Manual / other (auto-detect)</option>
           </select>

@@ -5,13 +5,24 @@ import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { PLANS, type PlanCode } from "@/lib/billing/plans";
 import {
-  getOrCreateSquareCustomer,
-  createSquareSubscription,
-} from "@/lib/square-subscriptions";
+  getOrCreateStripeCustomer,
+  createSubscriptionCheckoutSession,
+} from "@/lib/stripe-subscriptions";
 
-// Real recurring subscription via Square Subscriptions API.
-// Creates a Square customer, then a subscription with the plan variation.
-// Square handles recurring billing. Webhook events keep UserSubscription in sync.
+// Subscription creation via Stripe hosted Checkout.
+//
+// Flow:
+//   1. Validate plan code, ensure no active subscription.
+//   2. Get/create Stripe customer (keyed off Clerk user id metadata).
+//   3. Create a Stripe Checkout Session (mode=subscription).
+//   4. Pre-stamp a `pending` userSubscriptions row with stripeCustomerId so
+//      the webhook can match by customer even before the subscription id
+//      lands.
+//   5. Return { checkoutUrl } — the client redirects to Stripe.
+//
+// Stripe creates the actual subscription server-side and fires
+// `checkout.session.completed` + `customer.subscription.created`. Our
+// webhook patches the row to `active` + stamps `stripeSubscriptionId`.
 const schema = z.object({
   planCode: z.enum(["starter", "pro", "elite"]),
 });
@@ -28,11 +39,7 @@ export async function POST(req: NextRequest) {
   const planCode = parsed.data.planCode as PlanCode;
   const plan = PLANS[planCode];
 
-  const existing = await fetchQuery(
-    api.subscriptions.getForUser,
-    {},
-    { token },
-  );
+  const existing = await fetchQuery(api.subscriptions.getForUser, {}, { token });
   if (existing?.status === "active") {
     return NextResponse.json(
       { error: "ALREADY_SUBSCRIBED", plan: existing.planCode },
@@ -47,40 +54,61 @@ export async function POST(req: NextRequest) {
     u?.emailAddresses?.[0]?.emailAddress ??
     "";
 
-  const squareCustomerId = await getOrCreateSquareCustomer(
-    userId,
-    email,
-    profile?.fullName ?? undefined,
-  );
+  let stripeCustomerId: string;
+  try {
+    stripeCustomerId = await getOrCreateStripeCustomer({
+      clerkUserId: userId,
+      email,
+      fullName: profile?.fullName ?? undefined,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { error: "STRIPE_CUSTOMER_FAILED", message: (err as Error).message },
+      { status: 502 },
+    );
+  }
 
-  const result = await createSquareSubscription({
-    customerId: squareCustomerId,
-    planCode,
-  });
+  const base = process.env.APP_BASE_URL ?? new URL(req.url).origin;
+  const successUrl = `${base}/dashboard?subscribed=1&plan=${planCode}`;
+  const cancelUrl = `${base}/dashboard/onboarding?canceled=1`;
 
+  let checkout: { url: string; sessionId: string };
+  try {
+    checkout = await createSubscriptionCheckoutSession({
+      customerId: stripeCustomerId,
+      planCode,
+      successUrl,
+      cancelUrl,
+      clerkUserId: userId,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { error: "STRIPE_CHECKOUT_FAILED", message: (err as Error).message },
+      { status: 502 },
+    );
+  }
+
+  // Pre-stamp a pending row so the customer-portal button has a customer id
+  // to talk to, and so the webhook can find this subscription by customer
+  // even if `stripeSubscriptionId` lookup misses on the first event.
   const now = Date.now();
-  const cycleEnd = result.chargedThroughDate
-    ? new Date(result.chargedThroughDate).getTime()
-    : now + 30 * 86400000;
-
-  const subId = await fetchMutation(
+  await fetchMutation(
     api.subscriptions.upsertForUser,
     {
       planCode,
-      status: result.status === "ACTIVE" ? "active" : "pending",
+      status: "pending",
       cycleStart: now,
-      cycleEnd,
+      cycleEnd: now + 30 * 86400000,
       includedPackets: plan.includedPackets,
       overagePacketPriceCents: plan.overagePacketPriceCents,
-      squareSubscriptionId: result.subscriptionId,
+      stripeCustomerId,
     },
     { token },
   );
 
   return NextResponse.json({
-    subscriptionId: subId,
-    squareSubscriptionId: result.subscriptionId,
-    status: result.status === "ACTIVE" ? "active" : "pending",
+    checkoutUrl: checkout.url,
+    sessionId: checkout.sessionId,
     planCode,
   });
 }

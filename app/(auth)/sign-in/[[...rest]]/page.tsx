@@ -20,24 +20,24 @@ export default function SignInPage() {
         </h1>
       </header>
 
-      {/* ScrewedUpCredit migration notice */}
-      <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-800">
-          Switching from ScrewedUpCredit?
+      {/* Provider notice */}
+      <div className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-indigo-800">
+          Supported report provider
         </p>
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">
-          If you previously used ScrewedUpCredit with MyFreeScoreIQ, DisputeIQ now uses{" "}
-          <span className="font-semibold text-fg">IdentityIQ</span> for report access
-          and monitoring. Create a fresh account below, then we&apos;ll guide you through
-          IdentityIQ setup.
+          DisputeIQ uses{" "}
+          <span className="font-semibold text-fg">MyScoreIQ</span> for report access and
+          monitoring. After signing in, activate MyScoreIQ from your dashboard, then
+          return to connect your report.
         </p>
       </div>
 
       <div className="flex justify-center">
         <SignIn
           signUpUrl="/sign-up"
-          forceRedirectUrl="/dashboard"
-          fallbackRedirectUrl="/dashboard"
+          forceRedirectUrl="/after-sign-in"
+          fallbackRedirectUrl="/after-sign-in"
         />
       </div>
 

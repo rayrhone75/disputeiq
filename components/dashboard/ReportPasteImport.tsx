@@ -43,9 +43,9 @@ export function ReportPasteImport() {
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-fg">Paste report text</h3>
+      <h3 className="text-sm font-semibold text-fg">Paste Report JSON</h3>
       <p className="text-xs text-fg-muted">
-        Open your IdentityIQ report, select all text (Ctrl+A), copy it (Ctrl+C), then paste it
+        Open your MyScoreIQ report, select all text (Ctrl+A), copy it (Ctrl+C), then paste it
         below. We&apos;ll extract tradelines from the text automatically.
       </p>
       <textarea

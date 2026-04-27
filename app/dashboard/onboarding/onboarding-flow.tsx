@@ -201,7 +201,7 @@ function ReportConnectStep() {
       <div className="rounded-2xl border border-border-strong bg-surface p-6 space-y-4">
         <h2 className="text-lg font-semibold">Step 3: Get your credit report</h2>
         <p className="text-sm text-fg-muted">
-          DisputeIQ works best with our supported IDIQ credit report flow. Complete this
+          DisputeIQ works best with our supported MyScoreIQ credit report flow. Complete this
           step to unlock your report analysis and dispute workflow.
         </p>
 
@@ -210,7 +210,7 @@ function ReportConnectStep() {
             href="/dashboard/get-report"
             className="flex flex-col items-center rounded-xl border border-indigo-200 bg-indigo-50/60 p-5 text-center hover:border-indigo-300"
           >
-            <div className="text-sm font-semibold text-indigo-900">Continue with IDIQ</div>
+            <div className="text-sm font-semibold text-indigo-900">Activate MyScoreIQ</div>
             <div className="mt-1 text-xs text-indigo-900/70">
               Our supported credit report provider flow
             </div>
@@ -237,7 +237,7 @@ function ReportConnectStep() {
       <div className="rounded-xl border border-border-strong bg-surface p-4 text-sm text-fg-muted">
         <p className="font-semibold text-fg">Need help getting started?</p>
         <p className="mt-1 text-xs">
-          Our support team can guide you through the IDIQ setup if you get stuck. Email
+          Our support team can guide you through the MyScoreIQ setup if you get stuck. Email
           support@disputeiq.org and we&apos;ll walk you through it.
         </p>
       </div>

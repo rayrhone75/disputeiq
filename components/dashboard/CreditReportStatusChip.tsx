@@ -2,8 +2,9 @@
 //
 // Pure presentation: takes a `CreditReportStatusSummary` (derived elsewhere
 // from the CreditReportImport pipeline, legacy CreditReport rows, and the
-// IDIQ_CLICK audit signal) and renders a premium status pill + next-step
-// CTA. Does not read from the DB; does not introduce a second source of truth.
+// IDIQ_CLICK audit signal — legacy enum name kept for stability) and renders
+// a premium status pill + next-step CTA. Does not read from the DB; does
+// not introduce a second source of truth.
 
 import Link from "next/link";
 import type { CreditReportStatusSummary } from "@/lib/credit-import/status";
@@ -24,8 +25,8 @@ const STATUS_META: Record<CreditReportStatusSummary["kind"], StatusMeta> = {
     label: "Not Started",
     tone: "neutral",
     description:
-      "You haven't started your credit report yet. DisputeIQ works best with our supported IDIQ flow.",
-    ctaLabel: "Continue with IDIQ",
+      "You haven't started your credit report yet. DisputeIQ works best with our supported MyScoreIQ flow.",
+    ctaLabel: "Activate MyScoreIQ",
     ctaHref: "/dashboard/get-report",
     pulse: false,
   },
@@ -33,7 +34,7 @@ const STATUS_META: Record<CreditReportStatusSummary["kind"], StatusMeta> = {
     label: "In Progress",
     tone: "indigo",
     description:
-      "We're waiting on your IdentityIQ report. Finish the IDIQ signup, pull your 3-bureau file, then come back here.",
+      "We're waiting on your MyScoreIQ report. Finish the MyScoreIQ signup, pull your 3-bureau file, then come back here.",
     ctaLabel: "I completed my report",
     ctaHref: "/dashboard/reports",
     pulse: true,
@@ -114,8 +115,8 @@ export function CreditReportStatusChip({
   status: CreditReportStatusSummary;
   /**
    * Override the CTA destination when status is `not_started`. Used on the
-   * `/dashboard/get-report` page so the chip's CTA jumps straight to IDIQ
-   * instead of looping back to the same page.
+   * `/dashboard/get-report` page so the chip's CTA jumps straight to
+   * MyScoreIQ instead of looping back to the same page.
    */
   notStartedCtaHref?: string;
   hideCta?: boolean;
