@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { URLS } from "@/lib/urls";
 import { MSIQ, buildMsiqEnrollUrl } from "@/lib/integrations/myscoreiq";
 
 export const metadata = {
@@ -60,8 +59,8 @@ const steps = [
     ],
     cta: {
       label: "Connect your MyScoreIQ report →",
-      href: `${URLS.app}/dashboard/get-report`,
-      external: true,
+      href: "/dashboard/get-report",
+      external: false,
     },
     meta: "Lands directly in the tri-merge action center",
   },
