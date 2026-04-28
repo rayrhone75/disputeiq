@@ -65,6 +65,16 @@ export function ConnectReportPanel({
   const [showFallback, setShowFallback] = useState(false);
   const [retryAttempts, setRetryAttempts] = useState(0);
 
+  // Sub-state for the clipboard auto-import button inside needs_login.
+  // Lives separately from `status` so the user can click it from the
+  // amber needs_login card without losing context.
+  const [clipBusy, setClipBusy] = useState(false);
+  const [clipMsg, setClipMsg] = useState<string | null>(null);
+  const [clipErr, setClipErr] = useState<string | null>(null);
+  // Becomes true once user has clicked "Open JSON Tab" — drives the visual
+  // emphasis on the Auto-Import button (the natural next step).
+  const [jsonTabOpened, setJsonTabOpened] = useState(false);
+
   async function connect() {
     setStatus("loading");
     setErrorMsg(null);
@@ -123,6 +133,100 @@ export function ConnectReportPanel({
       "_blank",
       "noopener,noreferrer",
     );
+    setJsonTabOpened(true);
+    setClipErr(null);
+    setClipMsg(null);
+  }
+
+  // Clipboard auto-import.
+  // User has opened the MyScoreIQ JSON tab in their authenticated browser
+  // session, hit Ctrl+A → Ctrl+C, and returned here. We read the clipboard
+  // text (requires user gesture + permission, both granted by clicking this
+  // button), validate it parses as JSON, and feed it through the existing
+  // import → paste → normalize pipeline. Same backend that the manual paste
+  // form uses; just a smoother front door.
+  async function importFromClipboard() {
+    setClipBusy(true);
+    setClipErr(null);
+    setClipMsg(null);
+    try {
+      if (
+        typeof navigator === "undefined" ||
+        !navigator.clipboard ||
+        typeof navigator.clipboard.readText !== "function"
+      ) {
+        throw new Error(
+          "Your browser doesn't support clipboard access. Use Paste JSON in More options below.",
+        );
+      }
+      let text: string;
+      try {
+        text = await navigator.clipboard.readText();
+      } catch {
+        throw new Error(
+          "Clipboard access was denied. Allow clipboard read in your browser, or use Paste JSON in More options below.",
+        );
+      }
+      const trimmed = text.trim();
+      if (!trimmed) {
+        throw new Error(
+          "Clipboard is empty. Open the JSON tab, press Ctrl+A then Ctrl+C, then click again.",
+        );
+      }
+      if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+        throw new Error(
+          "Clipboard doesn't look like JSON. Make sure you copied the body of the MyScoreIQ JSON page (Ctrl+A → Ctrl+C in that tab).",
+        );
+      }
+      try {
+        JSON.parse(trimmed);
+      } catch {
+        throw new Error(
+          "Clipboard isn't valid JSON. Re-copy the JSON page body and try again.",
+        );
+      }
+
+      // 1. Create a fresh import row (provider=MYSCOREIQ).
+      const create = await fetch("/api/reports/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const cj = await create.json();
+      if (!create.ok) {
+        throw new Error(cj.message ?? cj.error ?? "Could not start import.");
+      }
+      const importId = cj.import.id as string;
+
+      // 2. Capture the pasted body.
+      const paste = await fetch(`/api/reports/import/${importId}/paste`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bodyText: trimmed }),
+      });
+      const pj = await paste.json();
+      if (!paste.ok) {
+        throw new Error(pj.message ?? pj.error ?? "Could not save report.");
+      }
+
+      // 3. Normalize.
+      const norm = await fetch(`/api/reports/import/${importId}/normalize`, {
+        method: "POST",
+      });
+      const nj = await norm.json();
+      if (!norm.ok) {
+        throw new Error(nj.message ?? nj.error ?? "Could not parse report.");
+      }
+
+      setStatus("connected");
+      setResultMsg(
+        `Report connected successfully — ${nj.tradelineCount} tradelines, ${nj.candidatesCreated} dispute candidates detected.`,
+      );
+      router.refresh();
+    } catch (err) {
+      setClipErr((err as Error).message);
+    } finally {
+      setClipBusy(false);
+    }
   }
 
   // ───────────────────────────────────────────────────────────────────
@@ -157,7 +261,7 @@ export function ConnectReportPanel({
 
   // ───────────────────────────────────────────────────────────────────
   // STATE: needs_login (server fetch failed because MyScoreIQ wants a
-  // browser session — guide the user through opening MyScoreIQ + retrying)
+  // browser session — three-step guided flow ending in clipboard auto-import)
   if (status === "needs_login" && needsLoginInfo) {
     return (
       <div className="rounded-3xl border border-amber-300 bg-amber-50 p-6 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10">
@@ -168,67 +272,116 @@ export function ConnectReportPanel({
           </h3>
         </div>
         <p className="mt-2 text-sm text-amber-900/85 dark:text-amber-200/85">
-          We could not access your MyScoreIQ report automatically. Open
-          MyScoreIQ in a new tab, sign in, then come back and click
-          <strong> Retry</strong>. If retry still fails, scroll down to
-          <em> More options</em> below.
+          MyScoreIQ&apos;s report is gated by a browser session our server
+          can&apos;t see. Three quick steps and you&apos;re in:
         </p>
 
-        <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-amber-900/85 dark:text-amber-200/85">
-          <li>
-            <button
-              type="button"
-              onClick={openMyScoreIQ}
-              className="font-semibold underline hover:no-underline"
-            >
-              Open MyScoreIQ ↗
-            </button>{" "}
-            and sign in.
-          </li>
-          <li>
-            Once you see your MyScoreIQ dashboard, return to this tab.
-          </li>
-          <li>
-            Click <strong>Retry</strong> below to import your report.
-          </li>
-        </ol>
-
-        <div className="mt-5 flex flex-wrap gap-2">
+        {/* STEP 1 — sign in to MyScoreIQ */}
+        <div className="mt-5 rounded-2xl border border-amber-200 bg-white/60 p-4 dark:border-amber-500/20 dark:bg-amber-950/20">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+            Step 1
+          </p>
+          <p className="mt-1 text-sm font-semibold text-amber-900 dark:text-amber-100">
+            Sign in to MyScoreIQ
+          </p>
+          <p className="mt-1 text-xs text-amber-900/75 dark:text-amber-200/75">
+            Skip this if you&apos;re already signed in.
+          </p>
           <button
             type="button"
-            onClick={retryConnect}
-            disabled={status !== "needs_login"}
-            className="rounded-2xl bg-fg px-5 py-2.5 text-sm font-semibold text-canvas hover:opacity-90 disabled:opacity-50"
+            onClick={openMyScoreIQ}
+            className="mt-2 rounded-xl border border-amber-400 bg-white px-4 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-50 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/60"
           >
-            Retry
-          </button>
-          <button
-            type="button"
-            onClick={openJsonTab}
-            className="rounded-2xl border border-border-strong bg-surface px-5 py-2.5 text-sm font-semibold text-fg hover:bg-surface-muted"
-            title="Opens the JSON page in your authenticated MyScoreIQ tab"
-          >
-            Open JSON Tab
+            Open MyScoreIQ ↗
           </button>
         </div>
 
-        {retryAttempts >= 1 && (
-          <div className="mt-5 rounded-2xl border border-amber-400/40 bg-amber-100/40 p-4 text-xs leading-6 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
-            Retry didn&apos;t work? MyScoreIQ&apos;s JSON endpoint is gated by
-            your browser session and DisputeIQ&apos;s server can&apos;t see
-            that cookie.{" "}
-            <strong>Open the JSON tab</strong>, copy the body
-            (Ctrl+A → Ctrl+C), then use{" "}
-            <button
-              type="button"
-              onClick={() => setShowFallback(true)}
-              className="font-semibold underline hover:no-underline"
-            >
-              More options →
-            </button>{" "}
-            below to upload or paste it.
-          </div>
-        )}
+        {/* STEP 2 — open JSON tab + copy */}
+        <div className="mt-3 rounded-2xl border border-amber-200 bg-white/60 p-4 dark:border-amber-500/20 dark:bg-amber-950/20">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+            Step 2
+          </p>
+          <p className="mt-1 text-sm font-semibold text-amber-900 dark:text-amber-100">
+            Open the JSON tab and copy the page
+          </p>
+          <p className="mt-1 text-xs leading-5 text-amber-900/75 dark:text-amber-200/75">
+            We&apos;ll open your report JSON in a new tab. Inside that tab:
+            press <kbd className="rounded border border-amber-300 bg-amber-100 px-1 font-mono text-[10px] dark:border-amber-500/30 dark:bg-amber-950/40">Ctrl+A</kbd>{" "}
+            then{" "}
+            <kbd className="rounded border border-amber-300 bg-amber-100 px-1 font-mono text-[10px] dark:border-amber-500/30 dark:bg-amber-950/40">Ctrl+C</kbd>
+            , then come back here. (On Mac use{" "}
+            <kbd className="rounded border border-amber-300 bg-amber-100 px-1 font-mono text-[10px] dark:border-amber-500/30 dark:bg-amber-950/40">⌘A</kbd>
+            {" "}/{" "}
+            <kbd className="rounded border border-amber-300 bg-amber-100 px-1 font-mono text-[10px] dark:border-amber-500/30 dark:bg-amber-950/40">⌘C</kbd>
+            .)
+          </p>
+          <button
+            type="button"
+            onClick={openJsonTab}
+            className="mt-2 rounded-xl border border-amber-400 bg-white px-4 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-50 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/60"
+          >
+            Open JSON Tab ↗
+          </button>
+        </div>
+
+        {/* STEP 3 — clipboard auto-import (the magic) */}
+        <div
+          className={`mt-3 rounded-2xl border p-4 transition ${
+            jsonTabOpened
+              ? "border-amber-500 bg-amber-100/70 dark:border-amber-400/50 dark:bg-amber-500/10"
+              : "border-amber-200 bg-white/60 dark:border-amber-500/20 dark:bg-amber-950/20"
+          }`}
+        >
+          <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+            Step 3
+          </p>
+          <p className="mt-1 text-sm font-semibold text-amber-900 dark:text-amber-100">
+            Auto-Import from Clipboard
+          </p>
+          <p className="mt-1 text-xs text-amber-900/75 dark:text-amber-200/75">
+            We&apos;ll read your copied JSON, normalize the report, and drop
+            you on a connected dashboard. Your browser may ask for clipboard
+            permission the first time.
+          </p>
+          <button
+            type="button"
+            onClick={importFromClipboard}
+            disabled={clipBusy}
+            className="mt-3 rounded-2xl bg-fg px-5 py-2.5 text-sm font-semibold text-canvas shadow-sm hover:opacity-90 disabled:opacity-60"
+          >
+            {clipBusy ? "Importing from clipboard…" : "Auto-Import from Clipboard"}
+          </button>
+          {clipErr && (
+            <p className="mt-3 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-[11px] leading-5 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+              {clipErr}
+            </p>
+          )}
+          {clipMsg && (
+            <p className="mt-3 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-[11px] leading-5 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+              {clipMsg}
+            </p>
+          )}
+        </div>
+
+        {/* Retry server-side fetch — secondary action */}
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-amber-900/70 dark:text-amber-200/70">
+            Or try the server fetch again:
+          </span>
+          <button
+            type="button"
+            onClick={retryConnect}
+            className="rounded-xl border border-amber-400 bg-transparent px-3 py-1.5 font-semibold text-amber-900 hover:bg-amber-100 dark:text-amber-100 dark:hover:bg-amber-500/10"
+          >
+            Retry server fetch
+          </button>
+          {retryAttempts >= 1 && (
+            <span className="text-[11px] text-amber-800/70 dark:text-amber-200/60">
+              ({retryAttempts} attempt{retryAttempts === 1 ? "" : "s"} —
+              clipboard import is faster)
+            </span>
+          )}
+        </div>
 
         <FallbackOptions
           jsonReportUrl={jsonReportUrl}
