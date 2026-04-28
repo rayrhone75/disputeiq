@@ -9,7 +9,6 @@
 //
 // The normalized output conforms to `NormalizedReport` in ../types.ts.
 
-import type { CreditProvider } from "@prisma/client";
 import {
   asArray,
   getPath,
@@ -24,6 +23,7 @@ import { maskAccount, maskPhone, maskSsnLast4, maskZip } from "../redact";
 import {
   bureauFromString,
   type BureauKey,
+  type CreditProvider,
   type CreditProviderAdapter,
   type NormalizedCollection,
   type NormalizedInquiry,
@@ -521,5 +521,5 @@ function buildSummary(input: {
   };
 }
 
-export const identityIqAdapter: CreditProviderAdapter = new IdentityIqAdapter("IDENTITYIQ" as CreditProvider);
-export const myScoreIqAdapter: CreditProviderAdapter = new IdentityIqAdapter("MYSCOREIQ" as CreditProvider);
+export const identityIqAdapter: CreditProviderAdapter = new IdentityIqAdapter("IDENTITYIQ");
+export const myScoreIqAdapter: CreditProviderAdapter = new IdentityIqAdapter("MYSCOREIQ");

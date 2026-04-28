@@ -1,13 +1,19 @@
-// Onboarding state machine. Determines what a user still needs to complete
-// before they can use the dispute workflow.
-import { prisma } from "@/lib/prisma";
+// Onboarding state — thin wrapper that forwards to Convex.
+//
+// The actual derivation lives in `convex/onboarding.ts`. This module is
+// kept so existing call-sites (`getOnboardingState`) continue to compile;
+// it pulls the Clerk token and proxies to the Convex query.
+
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 
 export type OnboardingStep =
-  | "profile"          // no UserProfile yet
-  | "subscription"     // no active UserSubscription
-  | "report_connect"   // no CreditReport
-  | "report_pending"   // report exists but has 0 tradelines
-  | "ready";           // everything complete
+  | "profile"
+  | "subscription"
+  | "report_connect"
+  | "report_pending"
+  | "ready";
 
 export interface OnboardingState {
   step: OnboardingStep;
@@ -18,24 +24,31 @@ export interface OnboardingState {
   tradelineCount: number;
 }
 
-export async function getOnboardingState(userId: string): Promise<OnboardingState> {
-  const [profile, subscription, reportCount, tradelineCount] = await Promise.all([
-    prisma.userProfile.findUnique({ where: { userId } }),
-    prisma.userSubscription.findUnique({ where: { userId } }),
-    prisma.creditReport.count({ where: { userId } }),
-    prisma.tradeline.count({ where: { report: { userId } } }),
-  ]);
-
-  const hasProfile = !!profile;
-  const hasSubscription = !!subscription && subscription.status === "active";
-  const subscriptionStatus = subscription?.status ?? null;
-
-  let step: OnboardingStep;
-  if (!hasProfile) step = "profile";
-  else if (!hasSubscription) step = "subscription";
-  else if (reportCount === 0) step = "report_connect";
-  else if (tradelineCount === 0) step = "report_pending";
-  else step = "ready";
-
-  return { step, hasProfile, hasSubscription, subscriptionStatus, reportCount, tradelineCount };
+export async function getOnboardingState(): Promise<OnboardingState> {
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
+  if (!token) {
+    return {
+      step: "profile",
+      hasProfile: false,
+      hasSubscription: false,
+      subscriptionStatus: null,
+      reportCount: 0,
+      tradelineCount: 0,
+    };
+  }
+  const result = (await fetchQuery(api.onboarding.state, {}, { token })) as
+    | OnboardingState
+    | null;
+  if (!result) {
+    return {
+      step: "profile",
+      hasProfile: false,
+      hasSubscription: false,
+      subscriptionStatus: null,
+      reportCount: 0,
+      tradelineCount: 0,
+    };
+  }
+  return result;
 }

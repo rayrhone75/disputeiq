@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { auth } from "@clerk/nextjs/server";
+import { fetchMutation } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { assertCompliantAction } from "@/lib/compliance";
-import { writeAuditLog } from "@/lib/audit";
 
 const schema = z.object({
-  userId: z.string(),
+  // userId is no longer used — server resolves the caller from the Clerk
+  // token. Kept optional for legacy callers; ignored.
+  userId: z.string().optional(),
   tradelineId: z.string().optional(),
-  letterType: z.enum(["FACTUAL_DISPUTE", "MOV_REQUEST", "DIRECT_FURNISHER", "IDENTITY_THEFT_605B", "CFPB_PACKET"]),
+  letterType: z.enum([
+    "FACTUAL_DISPUTE",
+    "MOV_REQUEST",
+    "DIRECT_FURNISHER",
+    "IDENTITY_THEFT_605B",
+    "CFPB_PACKET",
+  ]),
   aiReasonSummary: z.string().min(1),
   legalBasisSummary: z.string().optional(),
   disclosuresAccepted: z.boolean(),
@@ -16,30 +26,28 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const { userId, getToken } = await auth();
+  if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const body = parsed.data;
   assertCompliantAction(body);
 
-  const dc = await prisma.disputeCase.create({
-    data: {
-      userId: body.userId,
-      tradelineId: body.tradelineId,
+  const disputeCaseId = (await fetchMutation(
+    api.disputes.createForConfirmation,
+    {
+      tradelineId: body.tradelineId
+        ? (body.tradelineId as Id<"tradelines">)
+        : undefined,
       letterType: body.letterType,
       aiReasonSummary: body.aiReasonSummary,
       legalBasisSummary: body.legalBasisSummary,
-      status: "NEEDS_USER_CONFIRMATION",
-      userConfirmedAt: new Date(),
     },
-  });
+    { token },
+  )) as Id<"disputeCases">;
 
-  await writeAuditLog({
-    targetUserId: body.userId,
-    action: "DISPUTE_CREATED",
-    entityType: "DisputeCase",
-    entityId: dc.id,
-    metadataJson: { letterType: body.letterType },
-  });
-
-  return NextResponse.json({ disputeCaseId: dc.id });
+  return NextResponse.json({ disputeCaseId });
 }

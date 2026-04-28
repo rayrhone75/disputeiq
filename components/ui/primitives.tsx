@@ -21,9 +21,9 @@ const btnSize: Record<ButtonSize, string> = {
 };
 
 const btnVariant: Record<ButtonVariant, string> = {
-  primary: "bg-ink-900 text-white hover:bg-ink-800 shadow-card",
-  secondary: "bg-white text-ink-900 ring-1 ring-ink-200 hover:bg-ink-50",
-  ghost: "text-ink-700 hover:bg-ink-100",
+  primary: "bg-fg text-canvas hover:bg-fg/90 shadow-card",
+  secondary: "bg-surface text-fg ring-1 ring-border-strong hover:bg-canvas-app",
+  ghost: "text-fg-muted hover:bg-surface-muted",
   danger: "bg-danger-600 text-white hover:bg-danger-500",
 };
 
@@ -83,15 +83,15 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="flex flex-col gap-6 border-b border-ink-100 pb-8 lg:flex-row lg:items-end lg:justify-between">
+    <header className="flex flex-col gap-6 border-b border-border pb-8 lg:flex-row lg:items-end lg:justify-between">
       <div>
         {eyebrow && (
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-500">{eyebrow}</p>
         )}
-        <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink-900 sm:text-4xl">
+        <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-fg sm:text-4xl">
           {title}
         </h1>
-        {description && <p className="mt-2 max-w-2xl text-sm text-ink-500">{description}</p>}
+        {description && <p className="mt-2 max-w-2xl text-sm text-fg-muted">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>
@@ -117,17 +117,17 @@ export function KpiCard({
       ? "text-success-600 bg-success-500/10"
       : intent === "down"
       ? "text-danger-600 bg-danger-500/10"
-      : "text-ink-500 bg-ink-100";
+      : "text-fg-muted bg-surface-muted";
   return (
     <div className="surface p-6">
-      <p className="text-xs font-medium uppercase tracking-wider text-ink-400">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-fg-subtle">{label}</p>
       <div className="mt-3 flex items-baseline gap-3">
-        <span className="font-display text-3xl font-semibold tracking-tight text-ink-900">{value}</span>
+        <span className="font-display text-3xl font-semibold tracking-tight text-fg">{value}</span>
         {delta && (
           <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", intentCls)}>{delta}</span>
         )}
       </div>
-      {hint && <p className="mt-3 text-xs text-ink-400">{hint}</p>}
+      {hint && <p className="mt-3 text-xs text-fg-subtle">{hint}</p>}
     </div>
   );
 }
@@ -135,7 +135,7 @@ export function KpiCard({
 // ---------- Chip ------------------------------------------------------------
 export type ChipTone = "neutral" | "accent" | "success" | "warning" | "danger";
 const chipTone: Record<ChipTone, string> = {
-  neutral: "bg-ink-100 text-ink-700 ring-ink-200",
+  neutral: "bg-surface-muted text-fg-muted ring-border-strong",
   accent: "bg-accent-50 text-accent-700 ring-accent-100",
   success: "bg-success-500/10 text-success-600 ring-success-500/20",
   warning: "bg-warning-500/10 text-warning-600 ring-warning-500/20",
@@ -167,8 +167,8 @@ export function EmptyState({
   return (
     <div className="surface flex flex-col items-center justify-center gap-3 px-8 py-16 text-center">
       <div className="h-10 w-10 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 opacity-90" />
-      <h3 className="font-display text-lg font-semibold text-ink-900">{title}</h3>
-      {description && <p className="max-w-sm text-sm text-ink-500">{description}</p>}
+      <h3 className="font-display text-lg font-semibold text-fg">{title}</h3>
+      {description && <p className="max-w-sm text-sm text-fg-muted">{description}</p>}
       {action}
     </div>
   );
@@ -177,7 +177,7 @@ export function EmptyState({
 // ---------- Trust banner ----------------------------------------------------
 export function TrustBanner({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-ink-100 bg-white/60 p-4 text-xs text-ink-500 backdrop-blur">
+    <div className="flex items-start gap-3 rounded-2xl border border-border bg-surface/70 p-4 text-xs text-fg-muted backdrop-blur">
       <span className="mt-0.5 inline-block h-2 w-2 rounded-full bg-success-500" />
       <p className="leading-relaxed">{children}</p>
     </div>
@@ -188,7 +188,7 @@ export function TrustBanner({ children }: { children: ReactNode }) {
 export function SectionHeader({ title, action }: { title: string; action?: ReactNode }) {
   return (
     <div className="mb-4 flex items-end justify-between">
-      <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">{title}</h2>
+      <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">{title}</h2>
       {action}
     </div>
   );
@@ -205,12 +205,12 @@ export function DataRow({
   trailing?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-ink-100 py-3 last:border-0">
+    <div className="flex items-center justify-between border-b border-border py-3 last:border-0">
       <div>
-        <p className="text-sm font-medium text-ink-900">{label}</p>
+        <p className="text-sm font-medium text-fg">{label}</p>
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-sm text-ink-500">{value}</span>
+        <span className="text-sm text-fg-muted">{value}</span>
         {trailing}
       </div>
     </div>

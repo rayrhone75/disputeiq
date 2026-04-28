@@ -4,8 +4,7 @@
 // The import runner picks the right adapter based on either an explicit
 // provider hint or by scanning adapters for `.matches(raw)`.
 
-import type { CreditProvider } from "@prisma/client";
-import type { CreditProviderAdapter } from "../types";
+import type { CreditProvider, CreditProviderAdapter } from "../types";
 import { identityIqAdapter, myScoreIqAdapter } from "./identityiq";
 
 const ADAPTERS: Record<CreditProvider, CreditProviderAdapter | null> = {

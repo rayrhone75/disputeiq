@@ -68,12 +68,12 @@ export default function TrustCenter() {
           <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-indigo-600">
             Trust center
           </p>
-          <h1 className="mx-auto mt-5 max-w-3xl font-serif text-[52px] leading-[1.05] tracking-[-0.01em] text-[#0a0f1c] sm:text-[68px]">
+          <h1 className="mx-auto mt-5 max-w-3xl font-serif text-[52px] leading-[1.05] tracking-[-0.01em] text-fg sm:text-[68px]">
             Your file is yours.
             <br />
             <span className="italic">Always.</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-[16px] leading-relaxed text-[#4a4638]">
+          <p className="mx-auto mt-6 max-w-2xl text-[16px] leading-relaxed text-fg-muted">
             DisputeIQ is engineered like a financial institution handles its own operations.
             Here is exactly what we do, what we don't do, and the rights you keep.
           </p>
@@ -92,10 +92,10 @@ export default function TrustCenter() {
             ].map(([v, l]) => (
               <div
                 key={l}
-                className="rounded-2xl border border-[#e8e4d8] bg-white p-7 text-center shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_18px_36px_-24px_rgba(10,15,28,0.12)]"
+                className="rounded-2xl border border-border bg-surface p-7 text-center shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_18px_36px_-24px_rgba(10,15,28,0.12)]"
               >
-                <p className="font-serif text-[34px] text-[#0a0f1c]">{v}</p>
-                <p className="mt-2 text-[10px] uppercase tracking-[0.22em] text-[#8a8472]">{l}</p>
+                <p className="font-serif text-[34px] text-fg">{v}</p>
+                <p className="mt-2 text-[10px] uppercase tracking-[0.22em] text-fg-subtle">{l}</p>
               </div>
             ))}
           </div>
@@ -109,7 +109,7 @@ export default function TrustCenter() {
             <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-indigo-600">
               Security posture
             </p>
-            <h2 className="mt-5 font-serif text-[36px] leading-[1.1] tracking-tight text-[#0a0f1c] sm:text-[44px]">
+            <h2 className="mt-5 font-serif text-[36px] leading-[1.1] tracking-tight text-fg sm:text-[44px]">
               Six commitments. Documented and audited.
             </h2>
           </div>
@@ -117,13 +117,13 @@ export default function TrustCenter() {
             {pillars.map((p) => (
               <div
                 key={p.t}
-                className="group relative overflow-hidden rounded-2xl border border-[#e8e4d8] bg-white p-7 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_18px_36px_-24px_rgba(10,15,28,0.12)] transition hover:-translate-y-0.5 hover:border-indigo-500/40"
+                className="group relative overflow-hidden rounded-2xl border border-border bg-surface p-7 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_18px_36px_-24px_rgba(10,15,28,0.12)] transition hover:-translate-y-0.5 hover:border-indigo-500/40"
               >
                 <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-indigo-600">
                   {p.k}
                 </p>
-                <h3 className="mt-5 font-serif text-[20px] text-[#0a0f1c]">{p.t}</h3>
-                <p className="mt-3 text-[13px] leading-relaxed text-[#4a4638]">{p.d}</p>
+                <h3 className="mt-5 font-serif text-[20px] text-fg">{p.t}</h3>
+                <p className="mt-3 text-[13px] leading-relaxed text-fg-muted">{p.d}</p>
               </div>
             ))}
           </div>
@@ -134,14 +134,14 @@ export default function TrustCenter() {
       <section className="relative">
         <div className="mx-auto max-w-7xl px-6 pb-20">
           <div className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-[24px] border border-[#e8e4d8] bg-white p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_24px_48px_-24px_rgba(10,15,28,0.16)]">
+            <div className="rounded-[24px] border border-border bg-surface p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_24px_48px_-24px_rgba(10,15,28,0.16)]">
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-emerald-700">
                 Your rights
               </p>
-              <h3 className="mt-4 font-serif text-[28px] leading-tight text-[#0a0f1c]">
+              <h3 className="mt-4 font-serif text-[28px] leading-tight text-fg">
                 What you can always do.
               </h3>
-              <ul className="mt-7 space-y-4 text-[14px] leading-relaxed text-[#3d3a2e]">
+              <ul className="mt-7 space-y-4 text-[14px] leading-relaxed text-fg-muted">
                 {rights.map((r) => (
                   <li key={r} className="flex items-start gap-3">
                     <span className="mt-1.5 inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-600" />
@@ -151,7 +151,7 @@ export default function TrustCenter() {
               </ul>
             </div>
 
-            <div className="rounded-[24px] border border-[#e8e4d8] bg-[#0a0f1c] p-10 text-white shadow-[0_24px_48px_-24px_rgba(10,15,28,0.45)]">
+            <div className="rounded-[24px] border border-border bg-surface-strong p-10 text-white shadow-[0_24px_48px_-24px_rgba(10,15,28,0.45)]">
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-rose-300">
                 What we don't do
               </p>
@@ -174,21 +174,21 @@ export default function TrustCenter() {
       {/* Compliance notice */}
       <section className="relative">
         <div className="mx-auto max-w-5xl px-6 pb-28">
-          <div className="rounded-[24px] border border-[#e8e4d8] bg-[#faf9f4] p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03)]">
-            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#8a8472]">
+          <div className="rounded-[24px] border border-border bg-surface-muted p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03)]">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-subtle">
               Compliance notice
             </p>
-            <p className="mt-5 text-[14px] leading-relaxed text-[#3d3a2e]">{COMPLIANCE_NOTICE}</p>
+            <p className="mt-5 text-[14px] leading-relaxed text-fg-muted">{COMPLIANCE_NOTICE}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="/pricing"
-                className="inline-flex items-center gap-2 rounded-xl border border-[#0a0f1c] bg-[#0a0f1c] px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#111827]"
+                className="inline-flex items-center gap-2 rounded-xl border border-fg bg-fg px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-canvas transition hover:bg-fg/90"
               >
                 See pricing →
               </Link>
               <Link
                 href="/how-it-works"
-                className="inline-flex items-center gap-2 rounded-xl border border-[#d9d3c0] bg-white px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#0a0f1c] transition hover:border-[#0a0f1c]"
+                className="inline-flex items-center gap-2 rounded-xl border border-border-strong bg-surface px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-fg transition hover:border-fg"
               >
                 See the method
               </Link>

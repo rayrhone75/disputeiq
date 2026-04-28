@@ -31,7 +31,7 @@ export function FollowUpBadge({
   }
 
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-ink-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-600 ring-1 ring-inset ring-ink-200">
+    <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-fg-muted ring-1 ring-inset ring-border-strong">
       Due in {daysRemaining}d
     </span>
   );

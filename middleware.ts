@@ -1,61 +1,54 @@
+import { clerkMiddleware, createRouteMatcher, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 
-// Combined middleware: subdomain routing + Auth.js route protection.
-// - disputeiq.org / www.disputeiq.org   -> marketing
-// - app.disputeiq.org                   -> dashboard + api
-// - admin.disputeiq.org                 -> rewrites to /admin/*
-// - api.disputeiq.org                   -> rewrites to /api/*
+// Single-domain Clerk auth gates.
+// /dashboard/** and /admin/** require a Clerk session.
+// /admin/** additionally requires role OWNER | ADMIN | SUPPORT.
 //
-// Auth gate: /dashboard/** and /admin/** require a session.
-// /admin/** additionally requires OWNER, ADMIN, or SUPPORT role.
-export default auth((req) => {
-  const host = req.headers.get("host")?.toLowerCase() ?? "";
-  const url = req.nextUrl;
-  const path = url.pathname;
-  const session = req.auth as any;
+// Role lookup precedence:
+//   1. sessionClaims.publicMetadata.role  (fastest — requires Clerk session
+//      token customization to surface publicMetadata as a claim)
+//   2. sessionClaims.metadata.role        (alternate shape some templates use)
+//   3. clerkClient.users.getUser(userId)  (fallback — one Backend API call)
+//
+// The Clerk Backend fallback means admins work without configuring the
+// session token template. Set role per-user in the Clerk dashboard
+// (User → Public metadata → `{"role":"ADMIN"}`) or via the API.
 
-  // --- Subdomain routing -------------------------------------------------
-  if (host.endsWith("disputeiq.org")) {
-    const isMarketing = host === "disputeiq.org" || host === "www.disputeiq.org";
-    const isApp = host === "app.disputeiq.org";
-    const isAdmin = host === "admin.disputeiq.org";
-    const isApi = host === "api.disputeiq.org";
+const isProtected = createRouteMatcher(["/dashboard(.*)", "/admin(.*)"]);
+const isAdminOnly = createRouteMatcher(["/admin(.*)"]);
+const ADMIN_ROLES = new Set(["OWNER", "ADMIN", "SUPPORT"]);
 
-    if (isMarketing && (path.startsWith("/dashboard") || path.startsWith("/admin"))) {
-      url.host = "app.disputeiq.org";
-      return NextResponse.redirect(url, 308);
+export default clerkMiddleware(async (auth, req) => {
+  if (isProtected(req)) {
+    const { userId, sessionClaims } = await auth();
+    if (!userId) {
+      const signin = req.nextUrl.clone();
+      signin.pathname = "/sign-in";
+      signin.searchParams.set("redirect_url", req.nextUrl.pathname);
+      return NextResponse.redirect(signin);
     }
-    if (isApp) {
-      const marketingOnly = ["/pricing", "/trust-center", "/how-it-works"];
-      if (marketingOnly.some((p) => path === p || path.startsWith(p + "/"))) {
-        url.host = "disputeiq.org";
-        return NextResponse.redirect(url, 308);
+    if (isAdminOnly(req)) {
+      const claimRole =
+        (sessionClaims?.publicMetadata as { role?: string } | undefined)?.role ??
+        (sessionClaims?.metadata as { role?: string } | undefined)?.role;
+
+      let role = claimRole;
+      if (!role) {
+        try {
+          const client = await clerkClient();
+          const user = await client.users.getUser(userId);
+          role =
+            (user.publicMetadata as { role?: string } | undefined)?.role ??
+            (user.privateMetadata as { role?: string } | undefined)?.role;
+        } catch {
+          // network/api blip — fall through, treat as unauthorized
+        }
       }
-    }
-    if (isAdmin && !path.startsWith("/admin")) {
-      url.pathname = "/admin" + (path === "/" ? "" : path);
-      return NextResponse.rewrite(url);
-    }
-    if (isApi && !path.startsWith("/api")) {
-      url.pathname = "/api" + (path === "/" ? "" : path);
-      return NextResponse.rewrite(url);
-    }
-  }
 
-  // --- Auth gates --------------------------------------------------------
-  const needsSession = path.startsWith("/dashboard") || path.startsWith("/admin");
-  if (needsSession && !session?.user) {
-    const signin = req.nextUrl.clone();
-    signin.pathname = "/sign-in";
-    signin.searchParams.set("next", path);
-    return NextResponse.redirect(signin);
-  }
-
-  if (path.startsWith("/admin")) {
-    const role = session?.user?.role;
-    if (!role || !["OWNER", "ADMIN", "SUPPORT"].includes(role)) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+      if (!role || !ADMIN_ROLES.has(role)) {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
     }
   }
 
@@ -63,5 +56,10 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/|favicon.ico|robots.txt|sitemap.xml).*)"],
+  matcher: [
+    // Skip Next internals + static files; run on everything else (incl. API).
+    "/((?!_next/|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|.*\\.[\\w]+$).*)",
+    "/",
+    "/(api|trpc)(.*)",
+  ],
 };

@@ -97,10 +97,10 @@ export function FreezePanel({ initial }: { initial: FreezeRow[] }) {
   const hasStarted = rows.length > 0;
 
   return (
-    <section className="rounded-2xl border border-ink-200 bg-white p-6">
+    <section className="rounded-2xl border border-border-strong bg-surface p-6">
       <div>
-        <h3 className="text-lg font-semibold text-ink-900">Advanced protection (optional)</h3>
-        <p className="mt-1 max-w-2xl text-sm text-ink-600">
+        <h3 className="text-lg font-semibold text-fg">Advanced protection (optional)</h3>
+        <p className="mt-1 max-w-2xl text-sm text-fg-muted">
           After disputes are sent, freezing your secondary consumer files prevents easy
           re-verification by furnishers. We guide you through the official freeze steps —
           you may need to complete identity verification directly on each provider's site.
@@ -118,15 +118,16 @@ export function FreezePanel({ initial }: { initial: FreezeRow[] }) {
           return (
             <div
               key={group.key}
-              className="rounded-xl bg-ink-50/60 ring-1 ring-ink-100"
+              className="rounded-xl bg-surface-muted/60 ring-1 ring-border"
             >
               <button
                 type="button"
                 onClick={() => setExpandedGroup(isExpanded ? null : group.key)}
                 className="flex w-full items-center justify-between p-4 text-left"
+                suppressHydrationWarning
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-ink-900">{group.label}</span>
+                  <span className="text-sm font-semibold text-fg">{group.label}</span>
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
                       status === "completed"
@@ -135,20 +136,20 @@ export function FreezePanel({ initial }: { initial: FreezeRow[] }) {
                           ? "bg-rose-100 text-rose-700"
                           : status === "in_progress"
                             ? "bg-amber-100 text-amber-700"
-                            : "bg-ink-100 text-ink-600"
+                            : "bg-surface-muted text-fg-muted"
                     }`}
                   >
                     {status.replace(/_/g, " ")}
                   </span>
                 </div>
-                <span className="text-xs text-ink-400">{isExpanded ? "▲" : "▼"}</span>
+                <span className="text-xs text-fg-subtle">{isExpanded ? "▲" : "▼"}</span>
               </button>
 
               {isExpanded && (
-                <div className="border-t border-ink-100 p-4 space-y-3">
-                  <p className="text-xs text-ink-600">{group.note}</p>
+                <div className="border-t border-border p-4 space-y-3">
+                  <p className="text-xs text-fg-muted">{group.note}</p>
 
-                  <ol className="space-y-2 text-xs text-ink-700">
+                  <ol className="space-y-2 text-xs text-fg-muted">
                     {group.steps.map((step, i) => (
                       <li key={i} className="flex gap-2">
                         <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-semibold text-indigo-700">
@@ -184,7 +185,7 @@ export function FreezePanel({ initial }: { initial: FreezeRow[] }) {
                             <button
                               onClick={() => mark(r.id, "failed")}
                               disabled={busy}
-                              className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 ring-1 ring-rose-200 disabled:opacity-50"
+                              className="rounded-lg bg-surface px-3 py-1.5 text-xs font-semibold text-rose-600 ring-1 ring-rose-200 disabled:opacity-50 dark:text-rose-300 dark:ring-rose-500/30"
                             >
                               I ran into a problem
                             </button>
@@ -206,7 +207,7 @@ export function FreezePanel({ initial }: { initial: FreezeRow[] }) {
       </div>
 
       {!hasStarted && (
-        <div className="mt-5 space-y-3 rounded-xl bg-ink-900 p-4 text-white">
+        <div className="mt-5 space-y-3 rounded-xl bg-surface-strong p-4 text-fg-on-strong">
           <label className="flex items-start gap-2 text-xs">
             <input
               type="checkbox"
@@ -220,7 +221,7 @@ export function FreezePanel({ initial }: { initial: FreezeRow[] }) {
           <button
             onClick={queueAll}
             disabled={busy || !consent}
-            className="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-ink-900 disabled:opacity-50"
+            className="rounded-lg bg-canvas px-4 py-2 text-xs font-semibold text-fg disabled:opacity-50"
           >
             {busy ? "Starting…" : "Start guided freeze process"}
           </button>

@@ -4,14 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 /**
- * Button shown next to "Activate IdentityIQ" for users who already
+ * Button shown next to "Activate MyScoreIQ" for users who already
  * completed activation elsewhere. Records an IDIQ_CLICK audit event
- * (same signal the outbound CTA fires) so the status chip advances to
- * "In Progress", then refreshes the page and scrolls them to the
- * Connect Report panel.
+ * (legacy enum name; same signal the outbound CTA fires) so the status
+ * chip advances to "In Progress", then refreshes the page and scrolls
+ * them to the Connect Report panel.
  */
 export function MarkActivatedButton({
-  label = "I already activated IdentityIQ",
+  label = "I already activated MyScoreIQ",
   className = "",
   scrollTo = "#connect-panel",
 }: {
@@ -50,7 +50,7 @@ export function MarkActivatedButton({
       disabled={busy}
       className={
         className ||
-        "rounded-2xl border border-slate-300 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-50"
+        "rounded-2xl border border-border-strong bg-surface px-4 py-3 text-center text-sm font-semibold text-fg hover:bg-surface-muted disabled:opacity-50"
       }
     >
       {busy ? "Marking…" : label}

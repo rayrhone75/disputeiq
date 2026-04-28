@@ -36,7 +36,7 @@ export function UnmappedFieldsViewer({ groups }: { groups: EntityGroup[] }) {
 
   if (total === 0) {
     return (
-      <p className="text-sm text-ink-500">
+      <p className="text-sm text-fg-muted">
         Nothing unmapped — every field the adapter encountered is in structured storage.
       </p>
     );
@@ -44,7 +44,7 @@ export function UnmappedFieldsViewer({ groups }: { groups: EntityGroup[] }) {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-ink-500">
+      <p className="text-xs text-fg-muted">
         Fields the adapter didn&apos;t map to structured columns. Grouped by entity so you can
         widen the mapper where it matters.
       </p>
@@ -53,29 +53,29 @@ export function UnmappedFieldsViewer({ groups }: { groups: EntityGroup[] }) {
         .map((g) => (
           <details
             key={g.entity}
-            className="rounded-lg border border-ink-100 bg-white/60"
+            className="rounded-lg border border-border bg-surface/70"
             open={open === g.entity}
             onToggle={(e) => {
               if ((e.currentTarget as HTMLDetailsElement).open) setOpen(g.entity);
               else if (open === g.entity) setOpen(null);
             }}
           >
-            <summary className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2 text-xs font-semibold text-ink-700 hover:bg-ink-50">
+            <summary className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2 text-xs font-semibold text-fg-muted hover:bg-surface-muted/60">
               <span>{g.label}</span>
-              <span className="rounded-full bg-ink-100 px-2 py-0.5 text-[10px] font-mono text-ink-500">
+              <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-mono text-fg-muted">
                 {g.items.length} row{g.items.length === 1 ? "" : "s"}
               </span>
             </summary>
-            <div className="space-y-3 border-t border-ink-100 p-3">
+            <div className="space-y-3 border-t border-border p-3">
               {g.items.map((row) => (
-                <div key={row.id} className="rounded-lg bg-ink-50/50 p-2">
-                  <p className="text-xs font-semibold text-ink-700">{row.title}</p>
+                <div key={row.id} className="rounded-lg bg-surface-muted/60 p-2">
+                  <p className="text-xs font-semibold text-fg-muted">{row.title}</p>
                   <table className="mt-2 w-full text-[11px]">
                     <tbody>
                       {Object.entries(row.fields).map(([k, v]) => (
-                        <tr key={k} className="border-t border-ink-100 first:border-0">
-                          <td className="py-1 pr-3 align-top font-mono text-ink-500">{k}</td>
-                          <td className="py-1 font-mono text-ink-800">
+                        <tr key={k} className="border-t border-border first:border-0">
+                          <td className="py-1 pr-3 align-top font-mono text-fg-muted">{k}</td>
+                          <td className="py-1 font-mono text-fg">
                             <pre className="whitespace-pre-wrap break-all">{format(v)}</pre>
                           </td>
                         </tr>

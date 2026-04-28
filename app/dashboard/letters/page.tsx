@@ -18,23 +18,23 @@ export default function LettersPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Surface className="lg:col-span-2 p-0 overflow-hidden">
-          <div className="flex items-center justify-between border-b border-ink-100 bg-ink-50/60 px-6 py-4">
+          <div className="flex items-center justify-between border-b border-border bg-surface-muted/60 px-6 py-4">
             <div className="flex items-center gap-3">
               <span className="h-2 w-2 rounded-full bg-warning-500" />
-              <p className="text-xs font-semibold uppercase tracking-widest text-ink-500">Locked preview</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-fg-muted">Locked preview</p>
             </div>
             <Chip tone="warning">Unpaid draft</Chip>
           </div>
-          <div className="relative h-[640px] bg-white">
+          <div className="relative h-[640px] bg-surface">
             {/* Watermark */}
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <p className="-rotate-[18deg] font-display text-[120px] font-black text-ink-900 opacity-[0.04]">
+              <p className="-rotate-[18deg] font-display text-[120px] font-black text-fg opacity-[0.04]">
                 UNPAID DRAFT
               </p>
             </div>
-            <div className="relative px-12 py-10 text-sm text-ink-700">
-              <p className="font-display text-lg font-semibold text-ink-900">Factual Dispute Letter</p>
-              <p className="mt-1 text-xs text-ink-400">Case ABCD-1234 — Equifax Information Services LLC</p>
+            <div className="relative px-12 py-10 text-sm text-fg-muted">
+              <p className="font-display text-lg font-semibold text-fg">Factual Dispute Letter</p>
+              <p className="mt-1 text-xs text-fg-subtle">Case ABCD-1234 — Equifax Information Services LLC</p>
               <div className="mt-8 space-y-4 leading-relaxed">
                 <p>To Whom It May Concern,</p>
                 <p>
@@ -43,7 +43,7 @@ export default function LettersPage() {
                   agencies. Pursuant to my rights under the Fair Credit Reporting Act, I request that you investigate
                   and correct this information.
                 </p>
-                <p className="text-ink-400">[ Document body continues — protected preview ]</p>
+                <p className="text-fg-subtle">[ Document body continues — protected preview ]</p>
               </div>
             </div>
           </div>
@@ -54,20 +54,20 @@ export default function LettersPage() {
             <SectionHeader title="Summary" />
             <dl className="space-y-3 text-sm">
               <div className="flex items-center justify-between">
-                <dt className="text-ink-500">Type</dt>
-                <dd className="font-medium text-ink-900">Factual dispute</dd>
+                <dt className="text-fg-muted">Type</dt>
+                <dd className="font-medium text-fg">Factual dispute</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-ink-500">Recipient</dt>
-                <dd className="font-medium text-ink-900">Equifax</dd>
+                <dt className="text-fg-muted">Recipient</dt>
+                <dd className="font-medium text-fg">Equifax</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-ink-500">Mailing</dt>
-                <dd className="font-medium text-ink-900">Certified + ERR</dd>
+                <dt className="text-fg-muted">Mailing</dt>
+                <dd className="font-medium text-fg">Certified + ERR</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-ink-500">Total</dt>
-                <dd className="font-display text-lg font-semibold text-ink-900">$12.95</dd>
+                <dt className="text-fg-muted">Total</dt>
+                <dd className="font-display text-lg font-semibold text-fg">$12.95</dd>
               </div>
             </dl>
           </Surface>
@@ -82,7 +82,7 @@ export default function LettersPage() {
                 ["Optional: account statement", false],
               ].map(([label, ok]) => (
                 <li key={label as string} className="flex items-center justify-between">
-                  <span className="text-ink-700">{label}</span>
+                  <span className="text-fg-muted">{label}</span>
                   <Chip tone={ok ? "success" : "neutral"}>{ok ? "Attached" : "Optional"}</Chip>
                 </li>
               ))}

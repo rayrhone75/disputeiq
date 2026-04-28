@@ -1,35 +1,91 @@
-// Server-side auth helpers built on Auth.js v5.
-// Use these from server components, route handlers, and server actions.
-import { auth } from "@/auth";
-import type { UserRole } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+// Server-side auth helpers — backed by Clerk.
+//
+// These return the Clerk identity plus a role derived from Clerk's
+// publicMetadata. Convex owns the durable `users` row; fetch/upsert it via
+// `api.users.*` when needed. The `id` field is the Clerk user id
+// (e.g. "user_2abc…").
+
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { fetchMutation } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+
+export type UserRole = "OWNER" | "ADMIN" | "SUPPORT" | "USER";
 
 export type SessionUser = {
+  /** Clerk user id — the stable subject claim. */
   id: string;
   email: string;
   role: UserRole;
   isGraceUser: boolean;
 };
 
+const VALID_ROLES: UserRole[] = ["OWNER", "ADMIN", "SUPPORT", "USER"];
+
+function roleFromClerk(
+  publicMetadata: Record<string, unknown> | undefined,
+  privateMetadata: Record<string, unknown> | undefined,
+): UserRole {
+  const candidate =
+    (publicMetadata?.role as string | undefined) ??
+    (privateMetadata?.role as string | undefined);
+  if (candidate && VALID_ROLES.includes(candidate as UserRole)) {
+    return candidate as UserRole;
+  }
+  return "USER";
+}
+
 export async function getSessionUser(): Promise<SessionUser | null> {
-  const session = await auth();
-  const u = session?.user as any;
-  if (!u?.id) return null;
-  return { id: u.id, email: u.email, role: u.role, isGraceUser: !!u.isGraceUser };
+  const { userId, getToken } = await auth();
+  if (!userId) return null;
+  const u = await currentUser();
+  if (!u) return null;
+  const email =
+    u.primaryEmailAddress?.emailAddress ??
+    u.emailAddresses?.[0]?.emailAddress ??
+    "";
+  const role = roleFromClerk(
+    u.publicMetadata as Record<string, unknown> | undefined,
+    u.privateMetadata as Record<string, unknown> | undefined,
+  );
+
+  // Auto-mirror the Clerk identity into Convex on every authenticated server
+  // call. The mutation is a true no-op when nothing has changed (we only
+  // patch on email/role drift), so this is cheap. Failures are swallowed —
+  // downstream Convex queries that actually need the row will throw their
+  // own clearer error if Convex is unreachable.
+  if (email) {
+    try {
+      const token = await getToken({ template: "convex" });
+      if (token) {
+        await fetchMutation(
+          api.users.upsertFromClerk,
+          { email, role },
+          { token },
+        );
+      }
+    } catch {
+      // ignore — keep page-render robust against transient Convex blips
+    }
+  }
+
+  return {
+    id: userId,
+    email,
+    role,
+    isGraceUser: Boolean(
+      (u.publicMetadata as { isGraceUser?: boolean } | undefined)?.isGraceUser,
+    ),
+  };
 }
 
 export async function requireUser(): Promise<SessionUser> {
-  const u = await getSessionUser();
-  if (!u) throw new Error("UNAUTHENTICATED");
-  return u;
+  const user = await getSessionUser();
+  if (!user) throw new Error("UNAUTHENTICATED");
+  return user;
 }
 
 export async function requireRole(roles: UserRole[]): Promise<SessionUser> {
-  const u = await requireUser();
-  if (!roles.includes(u.role)) throw new Error("FORBIDDEN");
-  return u;
-}
-
-export async function loadUser(id: string) {
-  return prisma.user.findUniqueOrThrow({ where: { id } });
+  const user = await requireUser();
+  if (!roles.includes(user.role)) throw new Error("FORBIDDEN");
+  return user;
 }

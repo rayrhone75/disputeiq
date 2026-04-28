@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
-import { writeAuditLog } from "@/lib/audit";
+import { auth } from "@clerk/nextjs/server";
+import { fetchMutation } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 
 // Letter Checker — user confirms the outcome after a certified letter has been
 // delivered and they've heard back from the bureau.
@@ -16,32 +17,30 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const user = await requireUser().catch(() => null);
-  if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const { userId, getToken } = await auth();
+  if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
   const { id } = await ctx.params;
   const parsed = schema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: "INVALID_INPUT" }, { status: 400 });
 
-  const dc = await prisma.disputeCase.findUnique({ where: { id } });
-  if (!dc) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
-  if (dc.userId !== user.id) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-
-  const nextStatus =
-    parsed.data.outcome === "removed" ? "CLOSED" : "ESCALATION_READY";
-
-  await prisma.disputeCase.update({
-    where: { id },
-    data: { status: nextStatus },
-  });
-
-  await writeAuditLog({
-    targetUserId: user.id,
-    actorUserId: user.id,
-    action: "DISPUTE_OUTCOME_RECORDED",
-    entityType: "DisputeCase",
-    entityId: id,
-    metadataJson: { outcome: parsed.data.outcome, notes: parsed.data.notes ?? null },
-  });
-
-  return NextResponse.json({ ok: true, status: nextStatus });
+  try {
+    const result = await fetchMutation(
+      api.disputes.recordOutcome,
+      {
+        id: id as Id<"disputeCases">,
+        outcome: parsed.data.outcome,
+        notes: parsed.data.notes,
+      },
+      { token },
+    );
+    return NextResponse.json({ ok: true, status: result.status });
+  } catch (e: any) {
+    const msg = String(e?.message ?? e);
+    if (msg.includes("NOT_FOUND")) {
+      return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+    }
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }

@@ -6,7 +6,7 @@ import { ComplianceStrip } from "@/components/marketing/ComplianceStrip";
 
 export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#f7f5ee] text-[#0a0f1c] antialiased [font-feature-settings:'ss01','cv11']">
+    <div className="min-h-screen bg-[#f7f5ee] text-[#0a0f1c] antialiased [font-feature-settings:'ss01','cv11'] dark:bg-slate-950 dark:text-slate-100">
       <SiteNav />
       {children}
       <ComplianceStrip />

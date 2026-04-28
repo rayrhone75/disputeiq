@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth";
 import { RunNormalizationZ } from "@/lib/credit-import/schemas";
 import { runNormalization, ImportRunnerError } from "@/lib/credit-import/runner";
 import { writeAuditLog } from "@/lib/audit";
+import type { Id } from "@/convex/_generated/dataModel";
 
 type Params = { params: Promise<{ id: string }> };
 
-// Explicit admin action: re-run the normalization pipeline against the stored
-// raw payload. Semantically identical to POST /normalize with replace=true,
-// but surfaced as its own verb so we can audit/log "this was a deliberate
-// admin rerun" distinctly from the initial normalization call.
+// Explicit admin re-run of the normalization pipeline against the stored
+// raw payload. Always replaces previously-normalized rows.
 export async function POST(req: NextRequest, ctx: Params) {
   const user = await requireRole(["OWNER", "ADMIN"]).catch(() => null);
   if (!user) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   const { id } = await ctx.params;
+
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
 
   const body = await req.json().catch(() => ({}));
   const parsed = RunNormalizationZ.safeParse({ ...body, importId: id });
@@ -25,15 +28,13 @@ export async function POST(req: NextRequest, ctx: Params) {
   }
 
   try {
-    const result = await runNormalization({
-      importId: id,
-      replace: parsed.data.replace,
-      actorUserId: user.id,
-    });
+    const result = await runNormalization(
+      { token },
+      { importId: id as Id<"creditReportImports"> },
+    );
     await writeAuditLog({
-      actorUserId: user.id,
       action: "CREDIT_IMPORT_RERUN",
-      entityType: "CreditReportImport",
+      entityType: "creditReportImports",
       entityId: id,
       metadataJson: {
         replace: parsed.data.replace,

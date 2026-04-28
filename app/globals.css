@@ -4,33 +4,110 @@
 
 @import url("https://rsms.me/inter/inter.css");
 
+/* ─── Semantic theme tokens ──────────────────────────────────────────────
+   Every color in the app routes through these variables. Tailwind config
+   exposes them as utilities (bg-canvas, text-fg, border-border, etc.). To
+   change the palette, change the values here — never hardcode hex anywhere
+   in component code. */
+
 :root {
   color-scheme: light;
-  --bg: #f7f9fc;
+
+  /* Surfaces */
+  --canvas: 247 245 238;       /* page background — warm cream marketing / warm white app */
+  --canvas-app: 245 247 250;   /* dashboard/admin app surface */
+  --surface: 255 255 255;      /* cards, panels */
+  --surface-muted: 250 249 244; /* subtle inset surfaces */
+  --surface-strong: 10 15 28;  /* dark hero sections — stays dark in both themes */
+
+  /* Text */
+  --fg: 10 15 28;              /* primary text */
+  --fg-muted: 74 70 56;        /* body / secondary */
+  --fg-subtle: 138 132 114;    /* tertiary / labels */
+  --fg-on-strong: 255 255 255; /* text on dark hero */
+
+  /* Borders */
+  --border: 232 228 216;       /* default border */
+  --border-strong: 217 211 192;
+  --border-subtle: 240 237 226;
+
+  /* Brand */
+  --accent: 99 102 241;        /* indigo-500 */
+  --accent-strong: 79 70 229;  /* indigo-600 */
+  --accent-soft: 238 242 255;  /* indigo-50 */
+  --accent-fg: 67 56 202;      /* indigo-700 */
+
+  /* Status */
+  --success: 16 185 129;
+  --success-fg: 6 95 70;
+  --success-soft: 209 250 229;
+  --warning: 245 158 11;
+  --warning-fg: 146 64 14;
+  --warning-soft: 254 243 199;
+  --danger: 239 68 68;
+  --danger-fg: 153 27 27;
+  --danger-soft: 254 226 226;
 }
 
-html, body {
-  background: var(--bg);
+.dark {
+  color-scheme: dark;
+
+  --canvas: 2 6 23;            /* slate-950 */
+  --canvas-app: 2 6 23;
+  --surface: 15 23 42;         /* slate-900 */
+  --surface-muted: 17 24 39;   /* slate-900 darker */
+  --surface-strong: 2 6 23;
+
+  --fg: 226 232 240;           /* slate-200 */
+  --fg-muted: 148 163 184;     /* slate-400 */
+  --fg-subtle: 100 116 139;    /* slate-500 */
+  --fg-on-strong: 255 255 255;
+
+  --border: 30 41 59;          /* slate-800 */
+  --border-strong: 51 65 85;   /* slate-700 */
+  --border-subtle: 30 41 59;
+
+  --accent: 129 140 248;       /* indigo-400 */
+  --accent-strong: 99 102 241;
+  --accent-soft: 30 27 75;
+  --accent-fg: 199 210 254;
+
+  --success: 52 211 153;
+  --success-fg: 167 243 208;
+  --success-soft: 6 78 59;
+  --warning: 251 191 36;
+  --warning-fg: 253 230 138;
+  --warning-soft: 120 53 15;
+  --danger: 248 113 113;
+  --danger-fg: 254 202 202;
+  --danger-soft: 127 29 29;
+}
+
+html,
+body {
+  background: rgb(var(--canvas));
+  color: rgb(var(--fg));
   font-feature-settings: "cv11", "ss01", "ss03";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 body {
-  font-family: "InterVariable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: "InterVariable", Inter, ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
 }
 
 @layer components {
   .surface {
-    @apply rounded-2xl bg-white shadow-card ring-1 ring-ink-100;
+    @apply rounded-2xl bg-surface text-fg shadow-card ring-1 ring-border;
   }
   .surface-hover {
     @apply transition hover:shadow-cardHover;
   }
   .ink-gradient {
     background:
-      radial-gradient(1200px 600px at 80% -20%, rgba(99,102,241,0.20), transparent 60%),
-      radial-gradient(800px 400px at -10% 10%, rgba(16,185,129,0.10), transparent 60%),
+      radial-gradient(1200px 600px at 80% -20%, rgba(99, 102, 241, 0.2), transparent 60%),
+      radial-gradient(800px 400px at -10% 10%, rgba(16, 185, 129, 0.1), transparent 60%),
       linear-gradient(180deg, #0a1020 0%, #060a18 100%);
   }
   .glass {

@@ -1,3 +1,9 @@
+// LEGACY (replaced by Stripe Subscriptions on 2026-04-27).
+//
+// Stripe is now the live subscription provider — see `lib/stripe-subscriptions.ts`.
+// This file is kept on disk for revive-ability; nothing in the live flow
+// imports it. Safe to delete in a future cleanup pass.
+//
 // Square Subscriptions API integration.
 // Creates recurring subscriptions, manages customers, handles lifecycle events.
 // Requires: SQUARE_ACCESS_TOKEN, SQUARE_LOCATION_ID, SQUARE_PLAN_VARIATION_*

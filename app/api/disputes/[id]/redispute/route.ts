@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery, fetchMutation } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { callClaude } from "@/lib/ai/client";
 import { buildLetterPdf } from "@/lib/letter-pdf";
 import { storage } from "@/lib/storage";
 import { decrypt } from "@/lib/encryption";
-import { writeAuditLog } from "@/lib/audit";
 
 // Auto re-dispute — generates a stronger follow-up letter that references the
 // prior attempt, cites FCRA §611(a)(5)(A), §611(a)(6)(B)(iii), and §611(a)(7),
@@ -13,18 +14,22 @@ import { writeAuditLog } from "@/lib/audit";
 // the same tradeline, with its own secureLetterRef. Still goes through the
 // normal Draft → Confirm → Square checkout → dispatch pipeline.
 export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const user = await requireUser().catch(() => null);
-  if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const { userId, getToken } = await auth();
+  if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
   const { id } = await ctx.params;
 
-  const prior = await prisma.disputeCase.findUnique({
-    where: { id },
-    include: { tradeline: true },
-  });
-  if (!prior) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
-  if (prior.userId !== user.id) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const caseBundle = await fetchQuery(
+    api.disputes.getById,
+    { id: id as Id<"disputeCases"> },
+    { token },
+  );
+  if (!caseBundle) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  const prior = caseBundle.case;
+  const tradeline = caseBundle.tradeline;
 
-  const profile = await prisma.userProfile.findUnique({ where: { userId: user.id } });
+  const profile = await fetchQuery(api.disputes.userProfileForLetter, {}, { token });
   if (!profile) return NextResponse.json({ error: "PROFILE_REQUIRED" }, { status: 400 });
 
   const consumer = {
@@ -35,9 +40,9 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
     zip: decrypt(profile.encryptedZip),
   };
 
-  const grounding = `PRIOR DISPUTE REFERENCE: case ${prior.id}
-ACCOUNT: ${prior.tradeline?.creditorName ?? "—"} — ${prior.tradeline?.accountRefMasked ?? "—"}
-BUREAU: ${prior.tradeline?.bureau ?? "—"}
+  const grounding = `PRIOR DISPUTE REFERENCE: case ${prior._id}
+ACCOUNT: ${tradeline?.creditorName ?? "—"} — ${tradeline?.accountRefMasked ?? "—"}
+BUREAU: ${tradeline?.bureau ?? "—"}
 PRIOR BASIS: ${prior.aiReasonSummary}
 PRIOR LEGAL CITATION: ${prior.legalBasisSummary ?? "FCRA §611"}
 PRIOR OUTCOME: bureau failed to delete or provided an inadequate response.
@@ -67,53 +72,41 @@ Generate a STRONGER follow-up dispute letter body. Requirements:
       `${consumer.city}, ${consumer.state} ${consumer.zip}`,
     ],
     date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
-    recipientBlock: [prior.tradeline?.bureau ?? "Credit Bureau"],
-    subject: `SECOND NOTICE — FCRA §611 follow-up on dispute ${prior.id}`,
+    recipientBlock: [tradeline?.bureau ?? "Credit Bureau"],
+    subject: `SECOND NOTICE — FCRA §611 follow-up on dispute ${prior._id}`,
     body: ai.text.trim(),
     signatureName: consumer.fullName,
   });
 
   const pdfRef = await storage.put(
-    `letters/${user.id}/redispute_${Date.now()}_${prior.id}.pdf`,
+    `letters/${userId}/redispute_${Date.now()}_${prior._id}.pdf`,
     pdf.bytes,
     "application/pdf",
   );
 
-  const newCase = await prisma.disputeCase.create({
-    data: {
-      userId: user.id,
-      tradelineId: prior.tradelineId,
+  const created = await fetchMutation(
+    api.disputes.createEscalation,
+    {
+      priorId: prior._id,
       letterType: "MOV_REQUEST",
-      aiReasonSummary: `Re-dispute of case ${prior.id}: bureau failed to delete or provided inadequate response. MOV requested.`,
+      aiReasonSummary: `Re-dispute of case ${prior._id}: bureau failed to delete or provided inadequate response. MOV requested.`,
       legalBasisSummary: "FCRA §611(a)(6)(B)(iii) + §611(a)(7) + §616/§617",
-      status: "DRAFT",
       secureLetterRef: pdfRef,
+      auditAction: "DISPUTE_REDRAFTED",
+      auditMetadata: {
+        aiLive: ai.live,
+        pages: pdf.pages,
+        pdfRef,
+      },
+      // Close the prior case so it doesn't keep showing as actionable.
+      closePrior: true,
     },
-  });
-
-  // Close the prior case so it doesn't keep showing as actionable
-  await prisma.disputeCase.update({
-    where: { id: prior.id },
-    data: { status: "ESCALATION_READY" },
-  });
-
-  await writeAuditLog({
-    targetUserId: user.id,
-    actorUserId: user.id,
-    action: "DISPUTE_REDRAFTED",
-    entityType: "DisputeCase",
-    entityId: newCase.id,
-    metadataJson: {
-      priorCaseId: prior.id,
-      aiLive: ai.live,
-      pages: pdf.pages,
-      pdfRef,
-    },
-  });
+    { token },
+  );
 
   return NextResponse.json({
-    newDisputeCaseId: newCase.id,
-    priorDisputeCaseId: prior.id,
+    newDisputeCaseId: created.newId,
+    priorDisputeCaseId: prior._id,
     pages: pdf.pages,
     aiLive: ai.live,
     bodyText: ai.text.trim(),

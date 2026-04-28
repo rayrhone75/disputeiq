@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 import { getSessionUser } from "@/lib/auth";
 import { PageHeader, Surface, Chip, SectionHeader } from "@/components/ui/primitives";
 import { STATUS_LABELS, toUserFacingStatus } from "@/lib/letterstream/status";
@@ -20,15 +22,15 @@ export default async function AdminMailJobsPage() {
   const u = await getSessionUser();
   if (!u || !["OWNER", "ADMIN", "SUPPORT"].includes(u.role)) redirect("/");
 
-  const jobs = await prisma.mailJob.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 100,
-    include: {
-      disputeCase: {
-        select: { id: true, letterType: true, user: { select: { email: true } } },
-      },
-    },
-  });
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
+  if (!token) redirect("/");
+
+  const jobs = await fetchQuery(
+    api.mailJobs.listForAdmin,
+    { limit: 100 },
+    { token },
+  );
 
   return (
     <div className="space-y-8">
@@ -58,12 +60,16 @@ export default async function AdminMailJobsPage() {
               {jobs.map((j) => {
                 const ufs = toUserFacingStatus(j.status, { signedAt: j.signedAt });
                 return (
-                  <tr key={j.id} className="border-b border-white/5">
+                  <tr key={j._id} className="border-b border-white/5">
                     <td className="px-4 py-3 font-mono text-[11px] text-white/80">
-                      {j.id.slice(0, 10)}…
+                      {j._id.slice(0, 10)}…
                     </td>
-                    <td className="px-4 py-3 text-white/80">{j.disputeCase.user.email}</td>
-                    <td className="px-4 py-3 text-white/70">{j.disputeCase.letterType}</td>
+                    <td className="px-4 py-3 text-white/80">
+                      {j.disputeCase?.userEmail ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 text-white/70">
+                      {j.disputeCase?.letterType ?? "—"}
+                    </td>
                     <td className="px-4 py-3">
                       <Chip tone={CHIP_TONE[ufs]}>{STATUS_LABELS[ufs]}</Chip>
                     </td>
@@ -75,11 +81,11 @@ export default async function AdminMailJobsPage() {
                       {new Intl.DateTimeFormat("en-US", {
                         dateStyle: "short",
                         timeStyle: "short",
-                      }).format(j.createdAt)}
+                      }).format(new Date(j.createdAt))}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link
-                        href={`/admin/mail-jobs/${j.id}`}
+                        href={`/admin/mail-jobs/${j._id}`}
                         className="text-[11px] font-semibold uppercase tracking-[0.14em] text-indigo-300 hover:text-indigo-200"
                       >
                         Inspect →

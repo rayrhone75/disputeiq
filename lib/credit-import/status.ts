@@ -3,15 +3,16 @@
 // This is a *derivation* over existing sources of truth — it does not
 // introduce a new status column. Inputs:
 //
-//   - latest `CreditReportImport` for the user (import pipeline)
-//   - count of legacy `CreditReport` rows (pre-pipeline imports)
+//   - latest `creditReportImports` for the user (import pipeline)
+//   - count of legacy `creditReports` rows (pre-pipeline imports)
 //   - latest `IDIQ_CLICK` audit entry (the user clicked "Continue with IDIQ"
 //     but hasn't produced a report yet)
 //
 // Output is a stable, strongly-typed summary that the `CreditReportStatusChip`
 // component consumes. Everything here is read-only.
 
-import { prisma } from "@/lib/prisma";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 
 export type CreditReportStatusKind =
   | "not_started"
@@ -29,7 +30,8 @@ export type CreditReportStatusSummary = {
 };
 
 // Pure inputs used by the derivation, extracted so it can be unit-tested
-// without touching Prisma.
+// without touching the database. Dates are Date objects so existing tests
+// keep working — the loader converts millis → Date at the boundary.
 export type CreditReportStatusInputs = {
   latestImport: {
     id: string;
@@ -45,11 +47,11 @@ export type CreditReportStatusInputs = {
 /**
  * Derive the customer-facing status from the import pipeline's own state.
  * Decision order:
- *   1. Latest `CreditReportImport` — if present, its status decides everything.
+ *   1. Latest creditReportImports — if present, its status decides everything.
  *      NORMALIZED → imported, FAILED → failed, PENDING/FETCHED/VALIDATED → in_progress.
  *      ARCHIVED imports are ignored (treated as if they don't exist).
- *   2. Legacy `CreditReport` — any rows mean the user has an imported file.
- *   3. `IDIQ_CLICK` audit — the user has opened IDIQ but not returned yet.
+ *   2. Legacy creditReports — any rows mean the user has an imported file.
+ *   3. IDIQ_CLICK audit — the user has opened IDIQ but not returned yet.
  *   4. Otherwise: not started.
  */
 export function deriveCreditReportStatus(
@@ -81,7 +83,6 @@ export function deriveCreditReportStatus(
         lastUpdatedAt,
       };
     }
-    // PENDING / FETCHED / VALIDATED — import started but not finalized.
     return {
       kind: "in_progress",
       latestImportId: latestImport.id,
@@ -124,27 +125,50 @@ export function deriveCreditReportStatus(
   };
 }
 
+/**
+ * Load the calling user's status. Caller must pass their Clerk Convex token.
+ *
+ * Defensive: guards against malformed/missing tokens (e.g. when the Clerk
+ * "convex" JWT template hasn't been configured yet) by returning the
+ * "not_started" empty state instead of crashing the page.
+ */
 export async function loadCreditReportStatus(
-  userId: string,
+  token: string | null,
 ): Promise<CreditReportStatusSummary> {
-  const [latestImport, legacyReportCount, idiqClick] = await Promise.all([
-    prisma.creditReportImport.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        normalizedAt: true,
-      },
-    }),
-    prisma.creditReport.count({ where: { userId } }),
-    prisma.auditLog.findFirst({
-      where: { targetUserId: userId, action: "IDIQ_CLICK" },
-      orderBy: { createdAt: "desc" },
-      select: { createdAt: true },
-    }),
-  ]);
-  return deriveCreditReportStatus({ latestImport, legacyReportCount, idiqClick });
+  // A real Convex JWT is exactly three base64-url segments separated by dots.
+  // Anything else (Clerk session id, plain user id, garbage) is rejected by
+  // Convex with InvalidAuthHeader. Skip the call entirely in that case.
+  const looksLikeJwt =
+    typeof token === "string" && token.split(".").length === 3 && token.length > 20;
+  const opts = { token: looksLikeJwt ? (token as string) : undefined } as const;
+
+  try {
+    const [latest, legacyReportCount, idiqClick] = await Promise.all([
+      fetchQuery(api.creditImports.latestForCurrentUser, {}, opts),
+      fetchQuery(api.creditReports.countForCurrentUser, {}, opts),
+      fetchQuery(api.creditReports.latestIdiqClickForCurrentUser, {}, opts),
+    ]);
+
+    const latestImport = latest
+      ? {
+          id: latest._id as unknown as string,
+          status: latest.status,
+          createdAt: new Date(latest.createdAt),
+          updatedAt: new Date(latest.updatedAt),
+          normalizedAt: latest.normalizedAt ? new Date(latest.normalizedAt) : null,
+        }
+      : null;
+
+    return deriveCreditReportStatus({
+      latestImport,
+      legacyReportCount: legacyReportCount ?? 0,
+      idiqClick: idiqClick ? { createdAt: new Date(idiqClick.createdAt) } : null,
+    });
+  } catch {
+    return deriveCreditReportStatus({
+      latestImport: null,
+      legacyReportCount: 0,
+      idiqClick: null,
+    });
+  }
 }

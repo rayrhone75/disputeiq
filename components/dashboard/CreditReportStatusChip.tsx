@@ -2,8 +2,9 @@
 //
 // Pure presentation: takes a `CreditReportStatusSummary` (derived elsewhere
 // from the CreditReportImport pipeline, legacy CreditReport rows, and the
-// IDIQ_CLICK audit signal) and renders a premium status pill + next-step
-// CTA. Does not read from the DB; does not introduce a second source of truth.
+// IDIQ_CLICK audit signal — legacy enum name kept for stability) and renders
+// a premium status pill + next-step CTA. Does not read from the DB; does
+// not introduce a second source of truth.
 
 import Link from "next/link";
 import type { CreditReportStatusSummary } from "@/lib/credit-import/status";
@@ -24,8 +25,8 @@ const STATUS_META: Record<CreditReportStatusSummary["kind"], StatusMeta> = {
     label: "Not Started",
     tone: "neutral",
     description:
-      "You haven't started your credit report yet. DisputeIQ works best with our supported IDIQ flow.",
-    ctaLabel: "Continue with IDIQ",
+      "You haven't started your credit report yet. DisputeIQ works best with our supported MyScoreIQ flow.",
+    ctaLabel: "Activate MyScoreIQ",
     ctaHref: "/dashboard/get-report",
     pulse: false,
   },
@@ -33,7 +34,7 @@ const STATUS_META: Record<CreditReportStatusSummary["kind"], StatusMeta> = {
     label: "In Progress",
     tone: "indigo",
     description:
-      "We're waiting on your IdentityIQ report. Finish the IDIQ signup, pull your 3-bureau file, then come back here.",
+      "We're waiting on your MyScoreIQ report. Finish the MyScoreIQ signup, pull your 3-bureau file, then come back here.",
     ctaLabel: "I completed my report",
     ctaHref: "/dashboard/reports",
     pulse: true,
@@ -63,18 +64,18 @@ const TONE_CLASSES: Record<
   { pill: string; dot: string; border: string; bg: string; cta: string; ring: string }
 > = {
   neutral: {
-    pill: "bg-ink-100 text-ink-700",
-    dot: "bg-ink-400",
-    border: "border-ink-200",
-    bg: "bg-white",
-    cta: "bg-ink-900 text-white hover:bg-ink-800",
-    ring: "ring-ink-200",
+    pill: "bg-surface-muted text-fg-muted",
+    dot: "bg-fg-subtle",
+    border: "border-border-strong",
+    bg: "bg-surface",
+    cta: "bg-fg text-canvas hover:bg-fg/90",
+    ring: "ring-border-strong",
   },
   indigo: {
     pill: "bg-indigo-100 text-indigo-700",
     dot: "bg-indigo-500",
     border: "border-indigo-200",
-    bg: "bg-gradient-to-br from-indigo-50 to-white",
+    bg: "bg-gradient-to-br from-indigo-50 to-surface dark:from-indigo-500/10 dark:to-surface",
     cta: "bg-indigo-600 text-white hover:bg-indigo-700",
     ring: "ring-indigo-200",
   },
@@ -82,7 +83,7 @@ const TONE_CLASSES: Record<
     pill: "bg-emerald-100 text-emerald-700",
     dot: "bg-emerald-500",
     border: "border-emerald-200",
-    bg: "bg-gradient-to-br from-emerald-50 to-white",
+    bg: "bg-gradient-to-br from-emerald-50 to-surface dark:from-emerald-500/10 dark:to-surface",
     cta: "bg-emerald-600 text-white hover:bg-emerald-700",
     ring: "ring-emerald-200",
   },
@@ -90,7 +91,7 @@ const TONE_CLASSES: Record<
     pill: "bg-rose-100 text-rose-700",
     dot: "bg-rose-500",
     border: "border-rose-200",
-    bg: "bg-gradient-to-br from-rose-50 to-white",
+    bg: "bg-gradient-to-br from-rose-50 to-surface dark:from-rose-500/10 dark:to-surface",
     cta: "bg-rose-600 text-white hover:bg-rose-700",
     ring: "ring-rose-200",
   },
@@ -114,8 +115,8 @@ export function CreditReportStatusChip({
   status: CreditReportStatusSummary;
   /**
    * Override the CTA destination when status is `not_started`. Used on the
-   * `/dashboard/get-report` page so the chip's CTA jumps straight to IDIQ
-   * instead of looping back to the same page.
+   * `/dashboard/get-report` page so the chip's CTA jumps straight to
+   * MyScoreIQ instead of looping back to the same page.
    */
   notStartedCtaHref?: string;
   hideCta?: boolean;
@@ -167,7 +168,7 @@ export function CreditReportStatusChip({
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-500">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-fg-muted">
             {eyebrow}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -188,10 +189,10 @@ export function CreditReportStatusChip({
               {meta.label}
             </span>
             {lastUpdated && (
-              <span className="text-[11px] text-ink-500">Updated {lastUpdated}</span>
+              <span className="text-[11px] text-fg-muted">Updated {lastUpdated}</span>
             )}
           </div>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-700">
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-fg-muted">
             {meta.description}
           </p>
         </div>

@@ -8,7 +8,20 @@
 // Any field the adapter cannot confidently produce is left undefined and
 // captured under `unmapped` so we never silently drop data.
 
-import type { CreditProvider, CreditReportBureau } from "@prisma/client";
+// Provider + bureau enums are string-literal unions that match the Convex
+// schema (convex/schema.ts) exactly. Keeps adapters provider-agnostic
+// without coupling to the database layer.
+export type CreditProvider =
+  | "IDENTITYIQ"
+  | "MYSCOREIQ"
+  | "MYFREESCORENOW"
+  | "MANUAL";
+
+export type CreditReportBureau =
+  | "EXPERIAN"
+  | "EQUIFAX"
+  | "TRANSUNION"
+  | "UNKNOWN";
 
 export type BureauKey = "EXPERIAN" | "EQUIFAX" | "TRANSUNION" | "UNKNOWN";
 

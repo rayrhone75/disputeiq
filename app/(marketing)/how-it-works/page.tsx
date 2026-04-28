@@ -64,12 +64,12 @@ export default function HowItWorks() {
           <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-indigo-600">
             The method
           </p>
-          <h1 className="mx-auto mt-5 max-w-3xl font-serif text-[52px] leading-[1.05] tracking-[-0.01em] text-[#0a0f1c] sm:text-[68px]">
+          <h1 className="mx-auto mt-5 max-w-3xl font-serif text-[52px] leading-[1.05] tracking-[-0.01em] text-fg sm:text-[68px]">
             Seven chapters.
             <br />
             <span className="italic">The full dispute loop.</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-[16px] leading-relaxed text-[#4a4638]">
+          <p className="mx-auto mt-6 max-w-2xl text-[16px] leading-relaxed text-fg-muted">
             Import, review, build, send, track, parse, escalate. No black box, no hidden actions — you confirm every step that leaves the platform.
           </p>
         </div>
@@ -82,22 +82,22 @@ export default function HowItWorks() {
             {chapters.map((c) => (
               <li
                 key={c.n}
-                className="group relative overflow-hidden rounded-[24px] border border-[#e8e4d8] bg-white p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_24px_48px_-24px_rgba(10,15,28,0.14)] transition hover:-translate-y-0.5 hover:border-indigo-500/40"
+                className="group relative overflow-hidden rounded-[24px] border border-border bg-surface p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_24px_48px_-24px_rgba(10,15,28,0.14)] transition hover:-translate-y-0.5 hover:border-indigo-500/40"
               >
                 <div className="grid gap-8 lg:grid-cols-[auto_1fr_auto] lg:items-start">
                   <div className="flex items-baseline gap-4 lg:flex-col lg:items-start">
                     <span className="font-serif text-[64px] italic leading-none text-indigo-600/80 lg:text-[88px]">
                       {c.n}
                     </span>
-                    <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#8a8472]">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-subtle">
                       Chapter {c.n}
                     </span>
                   </div>
                   <div>
-                    <h2 className="font-serif text-[28px] leading-tight tracking-tight text-[#0a0f1c]">
+                    <h2 className="font-serif text-[28px] leading-tight tracking-tight text-fg">
                       {c.t}
                     </h2>
-                    <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-[#4a4638]">
+                    <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-fg-muted">
                       {c.d}
                     </p>
                   </div>
@@ -105,7 +105,7 @@ export default function HowItWorks() {
                     {c.bullets.map((b) => (
                       <li
                         key={b}
-                        className="flex items-center gap-2 rounded-lg border border-[#e8e4d8] bg-[#faf9f4] px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-[#3d3a2e]"
+                        className="flex items-center gap-2 rounded-lg border border-border bg-surface-muted px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-fg-muted"
                       >
                         <span className="h-1 w-1 rounded-full bg-emerald-600" />
                         {b}
@@ -135,12 +135,12 @@ export default function HowItWorks() {
                 No bureau contact ever happens without your explicit confirmation.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                <a
-                  href={`${URLS.app}/sign-up`}
-                  className="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#0a0f1c] transition hover:scale-[1.015]"
+                <Link
+                  href="/sign-up"
+                  className="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-fg transition hover:scale-[1.015]"
                 >
                   Request access →
-                </a>
+                </Link>
                 <Link
                   href="/pricing"
                   className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-7 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/10"

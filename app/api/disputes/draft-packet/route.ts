@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery, fetchMutation } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { draftPacketLetter } from "@/lib/ai/draft-letter";
 import { buildLetterPdf } from "@/lib/letter-pdf";
 import { storage } from "@/lib/storage";
 import { decrypt } from "@/lib/encryption";
-import { writeAuditLog } from "@/lib/audit";
 
 // Packet draft endpoint.
 // Input: bureau + a list of selected items (tradelineId + finding).
@@ -42,27 +43,26 @@ const BUREAU_ADDR: Record<string, string[]> = {
 };
 
 export async function POST(req: NextRequest) {
-  const user = await requireUser().catch(() => null);
-  if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const { userId, getToken } = await auth();
+  if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const body = parsed.data;
 
-  const tradelines = await prisma.tradeline.findMany({
-    where: { id: { in: body.items.map((i) => i.tradelineId) } },
-    include: { report: true },
-  });
-  if (tradelines.length !== body.items.length) {
+  const tradelineIds = body.items.map((i) => i.tradelineId as Id<"tradelines">);
+  const tradelines = await fetchQuery(
+    api.disputes.tradelinesForUser,
+    { tradelineIds },
+    { token },
+  );
+  if (!tradelines) {
     return NextResponse.json({ error: "TRADELINE_NOT_FOUND" }, { status: 404 });
   }
-  for (const tl of tradelines) {
-    if (tl.report.userId !== user.id) {
-      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-    }
-  }
 
-  const profile = await prisma.userProfile.findUnique({ where: { userId: user.id } });
+  const profile = await fetchQuery(api.disputes.userProfileForLetter, {}, { token });
   if (!profile) return NextResponse.json({ error: "PROFILE_REQUIRED" }, { status: 400 });
 
   const consumer = {
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
   const recipientName = BUREAU_NAMES[body.bureau];
   const recipientBlock = [recipientName, ...BUREAU_ADDR[body.bureau]];
 
-  const tlMap = new Map(tradelines.map((t) => [t.id, t]));
+  const tlMap = new Map(tradelines.map((t) => [t._id as unknown as string, t]));
   const items = body.items.map((it) => {
     const tl = tlMap.get(it.tradelineId)!;
     return {
@@ -111,44 +111,37 @@ export async function POST(req: NextRequest) {
   });
 
   const pdfRef = await storage.put(
-    `letters/${user.id}/packet_${Date.now()}_${body.bureau}.pdf`,
+    `letters/${userId}/packet_${Date.now()}_${body.bureau}.pdf`,
     pdf.bytes,
     "application/pdf",
   );
 
   // One DisputeCase per packet. We attach the FIRST tradeline as the anchor;
   // the full list lives in the audit metadata and is regenerable from the body.
-  const dc = await prisma.disputeCase.create({
-    data: {
-      userId: user.id,
-      tradelineId: tradelines[0].id,
+  const disputeCaseId = (await fetchMutation(
+    api.disputes.createDraft,
+    {
+      tradelineId: tradelines[0]._id,
       letterType: body.letterType,
       aiReasonSummary: `Packet to ${body.bureau} covering ${items.length} item(s).`,
       legalBasisSummary: drafted.legalBasis,
-      status: "DRAFT",
       secureLetterRef: pdfRef,
+      auditAction: "DISPUTE_PACKET_DRAFTED",
+      auditMetadata: {
+        bureau: body.bureau,
+        letterType: body.letterType,
+        itemCount: items.length,
+        tradelineIds: tradelines.map((t) => t._id),
+        pages: pdf.pages,
+        aiLive: drafted.aiLive,
+        pdfRef,
+      },
     },
-  });
-
-  await writeAuditLog({
-    targetUserId: user.id,
-    actorUserId: user.id,
-    action: "DISPUTE_PACKET_DRAFTED",
-    entityType: "DisputeCase",
-    entityId: dc.id,
-    metadataJson: {
-      bureau: body.bureau,
-      letterType: body.letterType,
-      itemCount: items.length,
-      tradelineIds: tradelines.map((t) => t.id),
-      pages: pdf.pages,
-      aiLive: drafted.aiLive,
-      pdfRef,
-    },
-  });
+    { token },
+  )) as Id<"disputeCases">;
 
   return NextResponse.json({
-    disputeCaseId: dc.id,
+    disputeCaseId,
     bureau: body.bureau,
     items: items.length,
     pages: pdf.pages,

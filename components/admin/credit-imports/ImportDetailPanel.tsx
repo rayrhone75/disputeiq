@@ -134,7 +134,7 @@ export function ImportDetailPanel({
         setResult(null);
       }}
       className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
-        tab === key ? "bg-ink-900 text-white" : "bg-ink-100 text-ink-700 hover:bg-ink-200"
+        tab === key ? "bg-fg text-canvas" : "bg-surface-muted text-fg-muted hover:bg-surface-muted/80"
       }`}
     >
       {label}
@@ -151,10 +151,10 @@ export function ImportDetailPanel({
         {tabBtn("inspect", "Inspect raw (redacted)")}
       </div>
 
-      <div className="rounded-2xl border border-ink-100 bg-white/60 p-4">
+      <div className="rounded-2xl border border-border bg-surface/70 p-4">
         {tab === "fetch" && (
           <div className="space-y-3">
-            <p className="text-xs text-ink-500">
+            <p className="text-xs text-fg-muted">
               Paste the session cookie header or bearer token captured from the authenticated
               browser session, then fetch the provider JSON directly.
             </p>
@@ -162,26 +162,26 @@ export function ImportDetailPanel({
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://.../CreditReport.aspx?view=json"
-              className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm"
             />
             <textarea
               value={cookie}
               onChange={(e) => setCookie(e.target.value)}
               placeholder="Cookie header (optional)"
               rows={3}
-              className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 font-mono text-xs"
+              className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 font-mono text-xs"
             />
             <input
               value={bearer}
               onChange={(e) => setBearer(e.target.value)}
               placeholder="Bearer token (optional)"
-              className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 font-mono text-xs"
+              className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 font-mono text-xs"
             />
             <button
               type="button"
               disabled={busy}
               onClick={doFetch}
-              className="rounded-xl bg-ink-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="rounded-xl bg-fg px-4 py-2 text-sm font-semibold text-canvas hover:bg-fg/90 disabled:opacity-50"
             >
               {busy ? "Fetching…" : "Fetch + capture"}
             </button>
@@ -195,13 +195,13 @@ export function ImportDetailPanel({
               onChange={(e) => setBodyText(e.target.value)}
               rows={14}
               placeholder='Paste the full JSON body here'
-              className="w-full rounded-lg border border-ink-200 bg-ink-50/50 px-3 py-2 font-mono text-xs"
+              className="w-full rounded-lg border border-border-strong bg-surface-muted/60 px-3 py-2 font-mono text-xs"
             />
             <button
               type="button"
               disabled={busy || !bodyText.trim()}
               onClick={doPaste}
-              className="rounded-xl bg-ink-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="rounded-xl bg-fg px-4 py-2 text-sm font-semibold text-canvas hover:bg-fg/90 disabled:opacity-50"
             >
               {busy ? "Capturing…" : "Capture pasted JSON"}
             </button>
@@ -210,7 +210,7 @@ export function ImportDetailPanel({
 
         {tab === "upload" && (
           <div className="space-y-3">
-            <p className="text-xs text-ink-500">
+            <p className="text-xs text-fg-muted">
               Upload a single <code className="font-mono">.json</code> file (up to 10 MB). The file
               is validated as JSON, encrypted, and stored alongside this import.
             </p>
@@ -218,10 +218,10 @@ export function ImportDetailPanel({
               type="file"
               accept="application/json,.json"
               onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
-              className="block w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm"
+              className="block w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm"
             />
             {uploadFile && (
-              <p className="text-xs text-ink-500">
+              <p className="text-xs text-fg-muted">
                 Selected: <span className="font-mono">{uploadFile.name}</span> ·{" "}
                 {(uploadFile.size / 1024).toFixed(1)} KB
               </p>
@@ -230,7 +230,7 @@ export function ImportDetailPanel({
               type="button"
               disabled={busy || !uploadFile}
               onClick={doUpload}
-              className="rounded-xl bg-ink-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="rounded-xl bg-fg px-4 py-2 text-sm font-semibold text-canvas hover:bg-fg/90 disabled:opacity-50"
             >
               {busy ? "Uploading…" : "Upload + capture"}
             </button>
@@ -239,7 +239,7 @@ export function ImportDetailPanel({
 
         {tab === "normalize" && (
           <div className="space-y-3">
-            <label className="flex items-center gap-2 text-sm text-ink-700">
+            <label className="flex items-center gap-2 text-sm text-fg-muted">
               <input
                 type="checkbox"
                 checked={replace}
@@ -256,14 +256,14 @@ export function ImportDetailPanel({
               {busy ? "Running…" : "Run normalization"}
             </button>
             {!hasRaw && (
-              <p className="text-xs text-ink-500">Capture raw JSON first (Fetch or Paste).</p>
+              <p className="text-xs text-fg-muted">Capture raw JSON first (Fetch or Paste).</p>
             )}
           </div>
         )}
 
         {tab === "inspect" && (
           <div className="space-y-3">
-            <p className="text-xs text-ink-500">
+            <p className="text-xs text-fg-muted">
               Decrypts the stored raw payload and returns a PII-redacted copy for inspection. SSNs,
               DOBs, account numbers, phones, and emails are masked before leaving the server.
             </p>
@@ -271,7 +271,7 @@ export function ImportDetailPanel({
               type="button"
               disabled={busy || !hasRaw}
               onClick={inspectRaw}
-              className="rounded-xl bg-ink-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="rounded-xl bg-fg px-4 py-2 text-sm font-semibold text-canvas hover:bg-fg/90 disabled:opacity-50"
             >
               {busy ? "Decrypting…" : "Inspect redacted raw"}
             </button>
@@ -286,7 +286,7 @@ export function ImportDetailPanel({
       )}
 
       {result != null && (
-        <pre className="max-h-[420px] overflow-auto rounded-2xl border border-ink-100 bg-ink-900/5 p-3 font-mono text-[11px] text-ink-800">
+        <pre className="max-h-[420px] overflow-auto rounded-2xl border border-border bg-fg/5 p-3 font-mono text-[11px] text-fg">
 {JSON.stringify(result, null, 2)}
         </pre>
       )}

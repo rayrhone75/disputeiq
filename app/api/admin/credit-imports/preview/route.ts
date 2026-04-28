@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { PreviewImportZ } from "@/lib/credit-import/schemas";
 import { previewRaw } from "@/lib/credit-import/runner";
-import type { CreditProvider } from "@prisma/client";
+import type { CreditProvider } from "@/lib/credit-import/types";
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = new Set([
@@ -13,9 +13,21 @@ const ACCEPTED_TYPES = new Set([
   "",
 ]);
 
+async function isAdmin(): Promise<boolean> {
+  const { userId } = await auth();
+  if (!userId) return false;
+  const u = await currentUser();
+  if (!u) return false;
+  const role =
+    ((u.publicMetadata as { role?: string } | undefined)?.role as string | undefined) ??
+    ((u.privateMetadata as { role?: string } | undefined)?.role as string | undefined);
+  return role === "OWNER" || role === "ADMIN";
+}
+
 export async function POST(req: NextRequest) {
-  const user = await requireRole(["OWNER", "ADMIN"]).catch(() => null);
-  if (!user) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  if (!(await isAdmin())) {
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  }
 
   const contentType = req.headers.get("content-type") ?? "";
 

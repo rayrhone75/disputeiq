@@ -1,60 +1,43 @@
-import { prisma } from "@/lib/prisma";
-import { writeAuditLog } from "@/lib/audit";
+// Manual, admin-only retry for a failed mail job.
+//
+// The state-prep work (retry event row, audit log, status flip) lives in
+// `api.mailJobs.prepareRetry`, which authenticates the actor via Clerk
+// identity. The actual re-dispatch (which contacts LetterStream) is then
+// run from this Next.js helper using the dispatcher in `dispatch-letter.ts`.
+//
+// Policy:
+//   - Only mail jobs in FAILED state can be retried (enforced inside the
+//     Convex mutation).
+//   - Every retry writes a RETRY MailJobEvent + AuditLog entry with the
+//     actor.
+//   - The retry triggers a fresh dispatch which creates a new MailJob row
+//     attached to the same dispute case — by design, so each submission
+//     attempt is traceable.
+
+import { fetchMutation } from "convex/nextjs";
+import { auth } from "@clerk/nextjs/server";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { dispatchLetter } from "@/lib/jobs/dispatch-letter";
 
-/**
- * Manual, admin-only retry for a failed mail job.
- *
- * Policy (Phase B, per product direction):
- *   - Only mail jobs in FAILED state can be retried.
- *   - Jobs already SUBMITTED / ACCEPTED / PRINTED / MAILED / DELIVERED are
- *     locked — retrying those would double-mail at real cost.
- *   - Every retry writes a RETRY MailJobEvent + AuditLog entry with the actor.
- *
- * Callers (admin route handlers) must already have authenticated + authorized
- * the actor as ADMIN/OWNER before calling this.
- */
 export async function retryMailJob(params: {
-  mailJobId: string;
-  actorUserId: string;
+  mailJobId: Id<"mailJobs">;
 }) {
-  const { mailJobId, actorUserId } = params;
+  const { mailJobId } = params;
 
-  const mailJob = await prisma.mailJob.findUniqueOrThrow({
-    where: { id: mailJobId },
-    include: { disputeCase: true },
-  });
+  // Forward the caller's Clerk token so the mutation can read the actor's
+  // role (must be OWNER/ADMIN) and identity for the audit log.
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
+  if (!token) throw new Error("UNAUTHENTICATED");
 
-  if (mailJob.status !== "FAILED") {
-    throw new Error(
-      `Mail job ${mailJobId} is in status ${mailJob.status}. Only FAILED jobs can be retried.`,
-    );
-  }
+  const { disputeCaseId } = await fetchMutation(
+    api.mailJobs.prepareRetry,
+    { mailJobId },
+    { token },
+  );
 
-  await prisma.mailJobEvent.create({
-    data: {
-      mailJobId: mailJob.id,
-      kind: "RETRY",
-      rawStatus: "manual_retry",
-      message: `Manual retry initiated by admin ${actorUserId}`,
-    },
-  });
-
-  await writeAuditLog({
-    actorUserId,
-    targetUserId: mailJob.disputeCase.userId,
-    action: "MAIL_JOB_RETRY",
-    entityType: "MailJob",
-    entityId: mailJob.id,
-    metadataJson: { previousAttempts: mailJob.attempts, lastError: mailJob.lastError },
-  }).catch(() => null);
-
-  await prisma.mailJob.update({
-    where: { id: mailJob.id },
-    data: { status: "QUEUED", attempts: { increment: 1 }, lastError: null },
-  });
-
-  // Re-run the dispatcher. It will create a second MailJob row attached to the
-  // same dispute case — by design, so each submission attempt is traceable.
-  return dispatchLetter(mailJob.disputeCaseId);
+  // Re-run the dispatcher. This creates a new MailJob row attached to the
+  // same dispute case for traceability.
+  return dispatchLetter(disputeCaseId);
 }

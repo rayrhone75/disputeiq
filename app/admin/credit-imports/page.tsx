@@ -1,20 +1,28 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { Button, Chip, PageHeader, Surface } from "@/components/ui/primitives";
-import type { CreditImportStatus, CreditProvider, Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-const STATUSES: CreditImportStatus[] = [
+const STATUSES = [
   "PENDING",
   "FETCHED",
   "VALIDATED",
   "NORMALIZED",
   "FAILED",
   "ARCHIVED",
-];
-const PROVIDERS: CreditProvider[] = ["IDENTITYIQ", "MYSCOREIQ", "MYFREESCORENOW", "MANUAL"];
+] as const;
+type Status = (typeof STATUSES)[number];
+
+// Filter dropdown order — MYSCOREIQ first since it's the active provider.
+// IDENTITYIQ stays on the list for filtering legacy rows that still hold the
+// older enum value.
+const PROVIDERS = ["MYSCOREIQ", "IDENTITYIQ", "MYFREESCORENOW", "MANUAL"] as const;
+type Provider = (typeof PROVIDERS)[number];
 
 const STATUS_TONE: Record<string, "neutral" | "accent" | "success" | "warning" | "danger"> = {
   PENDING: "neutral",
@@ -35,43 +43,43 @@ export default async function AdminCreditImportsPage({
     email?: string;
   }>;
 }) {
-  await requireRole(["OWNER", "ADMIN"]);
+  const { userId, getToken } = await auth();
+  if (!userId) redirect("/sign-in");
+  const token = await getToken({ template: "convex" });
   const q = (await searchParams) ?? {};
 
-  const where: Prisma.CreditReportImportWhereInput = {};
-  if (q.status && STATUSES.includes(q.status as CreditImportStatus)) {
-    where.status = q.status as CreditImportStatus;
-  }
-  if (q.provider && PROVIDERS.includes(q.provider as CreditProvider)) {
-    where.provider = q.provider as CreditProvider;
-  }
-  if (q.userId) where.userId = q.userId;
-  if (q.email) where.user = { email: { contains: q.email, mode: "insensitive" } };
-
-  const imports = await prisma.creditReportImport.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: 100,
-    include: {
-      user: { select: { email: true } },
-      _count: {
-        select: {
-          tradelines: true,
-          inquiries: true,
-          collections: true,
-          publicRecords: true,
-          disputeCandidates: true,
-        },
+  let imports: Awaited<ReturnType<typeof fetchQuery<typeof api.creditImports.adminList>>>["imports"] = [];
+  try {
+    const result = await fetchQuery(
+      api.creditImports.adminList,
+      {
+        status:
+          q.status && (STATUSES as readonly string[]).includes(q.status)
+            ? (q.status as Status)
+            : undefined,
+        provider:
+          q.provider && (PROVIDERS as readonly string[]).includes(q.provider)
+            ? (q.provider as Provider)
+            : undefined,
+        userId: q.userId ? (q.userId as Id<"users">) : undefined,
+        emailContains: q.email || undefined,
+        limit: 100,
+        offset: 0,
       },
-    },
-  });
+      { token: token ?? undefined },
+    );
+    imports = result.imports;
+  } catch (err) {
+    if ((err as Error).message === "FORBIDDEN") redirect("/dashboard");
+    throw err;
+  }
 
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="Admin"
         title="Credit report imports"
-        description="IdentityIQ and MyScoreIQ JSON ingestion — create, capture, normalize, inspect."
+        description="MyScoreIQ JSON ingestion (IdentityIQ legacy supported) — create, capture, normalize, inspect."
         actions={
           <Button href="/admin/credit-imports/new" variant="primary">
             New import
@@ -82,11 +90,11 @@ export default async function AdminCreditImportsPage({
       <Surface className="p-4">
         <form method="GET" className="flex flex-wrap items-end gap-3 text-xs">
           <label className="flex flex-col gap-1">
-            <span className="font-semibold text-ink-500">Status</span>
+            <span className="font-semibold text-fg-muted">Status</span>
             <select
               name="status"
               defaultValue={q.status ?? ""}
-              className="rounded-lg border border-ink-200 bg-white px-2 py-1"
+              className="rounded-lg border border-border-strong bg-surface px-2 py-1"
             >
               <option value="">Any</option>
               {STATUSES.map((s) => (
@@ -97,11 +105,11 @@ export default async function AdminCreditImportsPage({
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span className="font-semibold text-ink-500">Provider</span>
+            <span className="font-semibold text-fg-muted">Provider</span>
             <select
               name="provider"
               defaultValue={q.provider ?? ""}
-              className="rounded-lg border border-ink-200 bg-white px-2 py-1"
+              className="rounded-lg border border-border-strong bg-surface px-2 py-1"
             >
               <option value="">Any</option>
               {PROVIDERS.map((p) => (
@@ -112,30 +120,30 @@ export default async function AdminCreditImportsPage({
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span className="font-semibold text-ink-500">Email contains</span>
+            <span className="font-semibold text-fg-muted">Email contains</span>
             <input
               name="email"
               defaultValue={q.email ?? ""}
-              className="rounded-lg border border-ink-200 bg-white px-2 py-1"
+              className="rounded-lg border border-border-strong bg-surface px-2 py-1"
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="font-semibold text-ink-500">User id</span>
+            <span className="font-semibold text-fg-muted">User id</span>
             <input
               name="userId"
               defaultValue={q.userId ?? ""}
-              className="rounded-lg border border-ink-200 bg-white px-2 py-1 font-mono"
+              className="rounded-lg border border-border-strong bg-surface px-2 py-1 font-mono"
             />
           </label>
           <button
             type="submit"
-            className="rounded-lg bg-ink-900 px-3 py-1.5 font-semibold text-white"
+            className="rounded-lg bg-fg px-3 py-1.5 font-semibold text-canvas hover:bg-fg/90"
           >
             Filter
           </button>
           <Link
             href="/admin/credit-imports"
-            className="rounded-lg border border-ink-200 px-3 py-1.5 font-semibold text-ink-700"
+            className="rounded-lg border border-border-strong px-3 py-1.5 font-semibold text-fg-muted"
           >
             Clear
           </Link>
@@ -144,14 +152,14 @@ export default async function AdminCreditImportsPage({
 
       {imports.length === 0 ? (
         <Surface className="p-6">
-          <p className="text-sm text-ink-600">
+          <p className="text-sm text-fg-muted">
             No credit imports match these filters.
           </p>
         </Surface>
       ) : (
         <Surface className="overflow-x-auto p-4">
           <table className="w-full text-xs">
-            <thead className="text-left text-[10px] uppercase tracking-wide text-ink-500">
+            <thead className="text-left text-[10px] uppercase tracking-wide text-fg-muted">
               <tr>
                 <th className="py-2 pr-3">User</th>
                 <th className="py-2 pr-3">Provider</th>
@@ -169,26 +177,33 @@ export default async function AdminCreditImportsPage({
             </thead>
             <tbody>
               {imports.map((imp) => (
-                <tr key={imp.id} className="border-t border-ink-100">
-                  <td className="py-2 pr-3 font-mono">{imp.user.email}</td>
+                <tr key={imp._id} className="border-t border-border">
+                  <td className="py-2 pr-3 font-mono">{imp.user?.email ?? "—"}</td>
                   <td className="py-2 pr-3">{imp.provider}</td>
-                  <td className="py-2 pr-3">{imp.createdAt.toLocaleDateString()}</td>
+                  <td className="py-2 pr-3">
+                    {new Date(imp.createdAt).toLocaleDateString()}
+                  </td>
                   <td className="py-2 pr-3">
                     <Chip tone={STATUS_TONE[imp.status] ?? "neutral"}>{imp.status}</Chip>
                   </td>
                   <td className="py-2 pr-3 font-mono text-[10px]">
                     {imp.bureauCoverage.length ? imp.bureauCoverage.join(",") : "—"}
                   </td>
-                  <td className="py-2 pr-3">{imp._count.tradelines}</td>
-                  <td className="py-2 pr-3">{imp._count.collections}</td>
-                  <td className="py-2 pr-3">{imp._count.publicRecords}</td>
-                  <td className="py-2 pr-3">{imp._count.inquiries}</td>
-                  <td className="py-2 pr-3 font-semibold">{imp._count.disputeCandidates}</td>
+                  <td className="py-2 pr-3">{imp.counts.tradelines}</td>
+                  <td className="py-2 pr-3">{imp.counts.collections}</td>
+                  <td className="py-2 pr-3">{imp.counts.publicRecords}</td>
+                  <td className="py-2 pr-3">{imp.counts.inquiries}</td>
+                  <td className="py-2 pr-3 font-semibold">
+                    {imp.counts.disputeCandidates}
+                  </td>
                   <td className="py-2 pr-3 text-danger-600">
                     {imp.errorCode ? imp.errorCode : ""}
                   </td>
                   <td className="py-2 pr-3">
-                    <Link className="text-accent-600 underline" href={`/admin/credit-imports/${imp.id}`}>
+                    <Link
+                      className="text-accent-600 underline"
+                      href={`/admin/credit-imports/${imp._id}`}
+                    >
                       open
                     </Link>
                   </td>

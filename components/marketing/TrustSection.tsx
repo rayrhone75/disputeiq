@@ -41,10 +41,10 @@ const EXPECT = [
 
 export function TrustSection() {
   return (
-    <section className="border-t border-[#0a0f1c]/10 bg-[#fafaf4] py-20">
+    <section className="border-t border-border bg-surface-muted py-20">
       <div className="mx-auto max-w-6xl px-6">
         <h2 className="text-3xl font-semibold tracking-tight">What real users say</h2>
-        <p className="mt-2 max-w-2xl text-sm text-[#0a0f1c]/65">
+        <p className="mt-2 max-w-2xl text-sm text-fg/65">
           Quotes from DisputeIQ users. We do not advertise specific score increases — credit results vary by case
           and the FTC discourages "before/after score" claims for credit services.
         </p>
@@ -53,12 +53,12 @@ export function TrustSection() {
           {TESTIMONIALS.map((t) => (
             <figure
               key={t.name}
-              className="rounded-2xl border border-[#0a0f1c]/10 bg-white p-6 shadow-sm"
+              className="rounded-2xl border border-border bg-surface p-6 shadow-sm"
             >
-              <blockquote className="text-sm leading-relaxed text-[#0a0f1c]/85">"{t.quote}"</blockquote>
-              <figcaption className="mt-4 text-xs font-semibold text-[#0a0f1c]">
+              <blockquote className="text-sm leading-relaxed text-fg/85">"{t.quote}"</blockquote>
+              <figcaption className="mt-4 text-xs font-semibold text-fg">
                 {t.name}
-                <span className="ml-2 font-normal text-[#0a0f1c]/50">{t.role}</span>
+                <span className="ml-2 font-normal text-fg/50">{t.role}</span>
               </figcaption>
             </figure>
           ))}
@@ -71,7 +71,7 @@ export function TrustSection() {
               {TIMELINE.map((step) => (
                 <li key={step.label} className="flex gap-4">
                   <div className="w-16 shrink-0 text-xs font-semibold text-indigo-600">{step.day}</div>
-                  <div className="text-sm text-[#0a0f1c]/85">{step.label}</div>
+                  <div className="text-sm text-fg/85">{step.label}</div>
                 </li>
               ))}
             </ol>
@@ -80,7 +80,7 @@ export function TrustSection() {
             <h3 className="text-xl font-semibold tracking-tight">What to expect</h3>
             <ul className="mt-5 space-y-3">
               {EXPECT.map((line) => (
-                <li key={line} className="flex gap-3 text-sm text-[#0a0f1c]/85">
+                <li key={line} className="flex gap-3 text-sm text-fg/85">
                   <span className="mt-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
                   {line}
                 </li>

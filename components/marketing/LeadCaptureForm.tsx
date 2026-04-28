@@ -58,13 +58,17 @@ export function LeadCaptureForm({
           : "flex flex-col gap-3"
       }
     >
+      {/* suppressHydrationWarning on form controls swallows extension-injected
+          attributes like Edge's `fdprocessedid` that mangle inputs before
+          React hydrates. Form behavior is unchanged. */}
       <input
         required
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Your name"
-        className="flex-1 rounded-lg border border-[#0a0f1c]/15 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+        className="flex-1 rounded-lg border border-fg/15 bg-surface px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+        suppressHydrationWarning
       />
       <input
         required
@@ -72,19 +76,22 @@ export function LeadCaptureForm({
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="Email address"
-        className="flex-1 rounded-lg border border-[#0a0f1c]/15 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+        className="flex-1 rounded-lg border border-fg/15 bg-surface px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+        suppressHydrationWarning
       />
       <input
         type="tel"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
         placeholder="Phone (optional)"
-        className="flex-1 rounded-lg border border-[#0a0f1c]/15 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+        className="flex-1 rounded-lg border border-fg/15 bg-surface px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+        suppressHydrationWarning
       />
       <button
         type="submit"
         disabled={busy}
         className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+        suppressHydrationWarning
       >
         {busy ? "Sending…" : "Get free preview"}
       </button>

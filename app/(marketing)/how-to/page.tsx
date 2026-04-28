@@ -16,10 +16,10 @@ export default function HowToIndex() {
           <li key={t.slug}>
             <Link
               href={`/how-to/${t.slug}`}
-              className="block rounded-2xl border border-[#0a0f1c]/10 bg-white p-6 hover:border-indigo-400"
+              className="block rounded-2xl border border-border bg-surface p-6 hover:border-indigo-400"
             >
               <h2 className="text-lg font-semibold">{t.title}</h2>
-              <p className="mt-2 text-sm text-[#0a0f1c]/70">{t.hero}</p>
+              <p className="mt-2 text-sm text-fg/70">{t.hero}</p>
             </Link>
           </li>
         ))}

@@ -68,6 +68,7 @@ export default function AIChatWidget() {
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close DisputeIQ AI" : "Ask DisputeIQ AI"}
         className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full border border-white/10 bg-gradient-to-br from-indigo-500 to-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_40px_-10px_rgba(99,102,241,0.6)] backdrop-blur transition hover:scale-[1.02]"
+        suppressHydrationWarning
       >
         <span className="relative flex h-2 w-2">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />

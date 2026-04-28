@@ -1,6 +1,8 @@
-import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { Chip, PageHeader, Surface } from "@/components/ui/primitives";
 import { ImportDetailPanel } from "@/components/admin/credit-imports/ImportDetailPanel";
 import { StatusTimeline, type TimelineEntry } from "@/components/admin/credit-imports/StatusTimeline";
@@ -19,96 +21,101 @@ function centsToDollars(c?: number | null): string {
   return (c / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
 
+function toDateOrNull(ms?: number | null): Date | null {
+  return typeof ms === "number" ? new Date(ms) : null;
+}
+
 export default async function CreditImportDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireRole(["OWNER", "ADMIN"]);
+  const { userId, getToken } = await auth();
+  if (!userId) redirect("/sign-in");
+  const token = await getToken({ template: "convex" });
   const { id } = await params;
 
-  const imp = await prisma.creditReportImport.findUnique({
-    where: { id },
-    include: {
-      user: { select: { id: true, email: true } },
-      raw: {
-        select: {
-          id: true,
-          payloadBytes: true,
-          payloadHash: true,
-          redactionFingerprint: true,
-          capturedAt: true,
-        },
-      },
-      normalized: true,
-      tradelines: { orderBy: { creditorName: "asc" } },
-      inquiries: { orderBy: { inquiryDate: "desc" } },
-      collections: { orderBy: { reportedAt: "desc" } },
-      publicRecords: true,
-      scoreSnapshots: true,
-      personalProfiles: true,
-      disputeCandidates: true,
-    },
-  });
-  if (!imp) return notFound();
+  let payload: Awaited<ReturnType<typeof fetchQuery<typeof api.creditImports.adminGet>>>;
+  let auditRows: Awaited<ReturnType<typeof fetchQuery<typeof api.creditImports.adminListAuditRows>>>;
+  try {
+    [payload, auditRows] = await Promise.all([
+      fetchQuery(
+        api.creditImports.adminGet,
+        { id: id as Id<"creditReportImports"> },
+        { token: token ?? undefined },
+      ),
+      fetchQuery(
+        api.creditImports.adminListAuditRows,
+        { id: id as Id<"creditReportImports"> },
+        { token: token ?? undefined },
+      ),
+    ]);
+  } catch (err) {
+    if ((err as Error).message === "FORBIDDEN") redirect("/dashboard");
+    throw err;
+  }
 
-  // Pull the lifecycle audit trail (actor + event detail).
-  const auditRows = await prisma.auditLog.findMany({
-    where: {
-      entityType: "CreditReportImport",
-      entityId: imp.id,
-      action: {
-        in: [
-          "CREDIT_IMPORT_CREATED",
-          "CREDIT_IMPORT_RAW_CAPTURED",
-          "CREDIT_IMPORT_NORMALIZED",
-          "CREDIT_IMPORT_RERUN",
-          "CREDIT_IMPORT_RAW_INSPECTED",
-          "CREDIT_IMPORT_DELETED",
-        ],
-      },
-    },
-    orderBy: { createdAt: "asc" },
-    include: { actorUser: { select: { email: true } } },
-  });
+  if (!payload) return notFound();
+
+  const imp = payload.import;
+  const tradelines = [...payload.tradelines].sort((a, b) =>
+    a.creditorName.localeCompare(b.creditorName),
+  );
+  const inquiries = [...payload.inquiries].sort(
+    (a, b) => (b.inquiryDate ?? 0) - (a.inquiryDate ?? 0),
+  );
+  const collections = [...payload.collections].sort(
+    (a, b) => (b.reportedAt ?? 0) - (a.reportedAt ?? 0),
+  );
+
+  const lifecycleActions = new Set([
+    "CREDIT_IMPORT_CREATED",
+    "CREDIT_IMPORT_RAW_CAPTURED",
+    "CREDIT_IMPORT_NORMALIZED",
+    "CREDIT_IMPORT_RERUN",
+    "CREDIT_IMPORT_RAW_INSPECTED",
+    "CREDIT_IMPORT_DELETED",
+  ]);
+  const filteredAudit = auditRows.filter((a) => lifecycleActions.has(a.action));
 
   const timeline: TimelineEntry[] = [
     {
       label: "Created",
-      occurredAt: imp.createdAt,
+      occurredAt: new Date(imp.createdAt),
       tone: "neutral",
       actor:
-        auditRows.find((a) => a.action === "CREDIT_IMPORT_CREATED")?.actorUser?.email ?? null,
+        filteredAudit.find((a) => a.action === "CREDIT_IMPORT_CREATED")?.actorUser?.email ?? null,
       detail: `Provider: ${imp.provider}`,
     },
     {
       label: "Raw captured",
-      occurredAt: imp.fetchedAt,
+      occurredAt: toDateOrNull(imp.fetchedAt),
       tone: "accent",
       actor:
-        auditRows.find((a) => a.action === "CREDIT_IMPORT_RAW_CAPTURED")?.actorUser?.email ?? null,
-      detail: imp.raw
-        ? `${imp.raw.payloadBytes.toLocaleString()} bytes · sha256 ${imp.raw.payloadHash.slice(0, 12)}…`
+        filteredAudit.find((a) => a.action === "CREDIT_IMPORT_RAW_CAPTURED")?.actorUser?.email ??
+        null,
+      detail: payload.raw
+        ? `${payload.raw.payloadBytes.toLocaleString()} bytes · sha256 ${payload.raw.payloadHash.slice(0, 12)}…`
         : null,
     },
     {
       label: "Validated",
-      occurredAt: imp.validatedAt,
+      occurredAt: toDateOrNull(imp.validatedAt),
       tone: "accent",
     },
     {
       label: "Normalized",
-      occurredAt: imp.normalizedAt,
+      occurredAt: toDateOrNull(imp.normalizedAt),
       tone: "success",
       actor:
-        auditRows.find((a) => a.action === "CREDIT_IMPORT_NORMALIZED")?.actorUser?.email ?? null,
-      detail: `${imp.tradelines.length} TL · ${imp.collections.length} col · ${imp.disputeCandidates.length} candidates`,
+        filteredAudit.find((a) => a.action === "CREDIT_IMPORT_NORMALIZED")?.actorUser?.email ?? null,
+      detail: `${tradelines.length} TL · ${collections.length} col · ${payload.disputeCandidates.length} candidates`,
     },
-    ...auditRows
+    ...filteredAudit
       .filter((a) => a.action === "CREDIT_IMPORT_RERUN")
       .map((a) => ({
         label: "Re-run",
-        occurredAt: a.createdAt,
+        occurredAt: new Date(a.createdAt),
         tone: "accent" as const,
         actor: a.actorUser?.email ?? null,
         detail:
@@ -116,11 +123,11 @@ export default async function CreditImportDetailPage({
             ? `tradelines: ${(a.metadataJson as Record<string, unknown>).tradelineCount ?? "?"} · candidates: ${(a.metadataJson as Record<string, unknown>).candidatesCreated ?? "?"}`
             : null,
       })),
-    ...auditRows
+    ...filteredAudit
       .filter((a) => a.action === "CREDIT_IMPORT_RAW_INSPECTED")
       .map((a) => ({
         label: "Raw inspected",
-        occurredAt: a.createdAt,
+        occurredAt: new Date(a.createdAt),
         tone: "neutral" as const,
         actor: a.actorUser?.email ?? null,
       })),
@@ -128,7 +135,7 @@ export default async function CreditImportDetailPage({
       ? [
           {
             label: "Failed",
-            occurredAt: imp.updatedAt,
+            occurredAt: new Date(imp.updatedAt),
             tone: "danger" as const,
             detail: `${imp.errorCode}${imp.errorMessage ? ` — ${imp.errorMessage}` : ""}`,
           },
@@ -141,12 +148,12 @@ export default async function CreditImportDetailPage({
       entity: "normalized",
       label: "Normalized report (top-level unmapped)",
       items:
-        imp.normalized?.unmappedFieldsJson && nonEmpty(imp.normalized.unmappedFieldsJson)
+        payload.normalized?.unmappedFieldsJson && nonEmpty(payload.normalized.unmappedFieldsJson)
           ? [
               {
-                id: imp.normalized.id,
+                id: payload.normalized._id as unknown as string,
                 title: "report root",
-                fields: imp.normalized.unmappedFieldsJson as Record<string, unknown>,
+                fields: payload.normalized.unmappedFieldsJson as Record<string, unknown>,
               },
             ]
           : [],
@@ -154,10 +161,10 @@ export default async function CreditImportDetailPage({
     {
       entity: "tradelines",
       label: "Tradelines",
-      items: imp.tradelines
+      items: payload.tradelines
         .filter((t) => nonEmpty(t.unmappedFieldsJson))
         .map((t) => ({
-          id: t.id,
+          id: t._id as unknown as string,
           title: `${t.bureau} · ${t.creditorName} · ${t.accountRefMasked}`,
           fields: (t.unmappedFieldsJson as Record<string, unknown>) ?? {},
         })),
@@ -165,10 +172,10 @@ export default async function CreditImportDetailPage({
     {
       entity: "collections",
       label: "Collections",
-      items: imp.collections
+      items: payload.collections
         .filter((c) => nonEmpty(c.unmappedFieldsJson))
         .map((c) => ({
-          id: c.id,
+          id: c._id as unknown as string,
           title: `${c.bureau} · ${c.collectorName}`,
           fields: (c.unmappedFieldsJson as Record<string, unknown>) ?? {},
         })),
@@ -176,10 +183,10 @@ export default async function CreditImportDetailPage({
     {
       entity: "inquiries",
       label: "Inquiries",
-      items: imp.inquiries
+      items: payload.inquiries
         .filter((q) => nonEmpty(q.unmappedFieldsJson))
         .map((q) => ({
-          id: q.id,
+          id: q._id as unknown as string,
           title: `${q.bureau} · ${q.inquirerName}`,
           fields: (q.unmappedFieldsJson as Record<string, unknown>) ?? {},
         })),
@@ -187,10 +194,10 @@ export default async function CreditImportDetailPage({
     {
       entity: "publicRecords",
       label: "Public records",
-      items: imp.publicRecords
+      items: payload.publicRecords
         .filter((p) => nonEmpty(p.unmappedFieldsJson))
         .map((p) => ({
-          id: p.id,
+          id: p._id as unknown as string,
           title: `${p.bureau} · ${p.recordType}`,
           fields: (p.unmappedFieldsJson as Record<string, unknown>) ?? {},
         })),
@@ -198,10 +205,10 @@ export default async function CreditImportDetailPage({
     {
       entity: "profiles",
       label: "Personal profiles",
-      items: imp.personalProfiles
+      items: payload.personalProfiles
         .filter((p) => nonEmpty(p.unmappedFieldsJson))
         .map((p) => ({
-          id: p.id,
+          id: p._id as unknown as string,
           title: `${p.bureau} · ${p.fullName ?? "unnamed"}`,
           fields: (p.unmappedFieldsJson as Record<string, unknown>) ?? {},
         })),
@@ -212,8 +219,8 @@ export default async function CreditImportDetailPage({
     <div className="space-y-8">
       <PageHeader
         eyebrow={`Import · ${imp.provider}`}
-        title={`Credit import ${imp.id.slice(0, 8)}…`}
-        description={`User: ${imp.user.email} · created ${imp.createdAt.toLocaleString()}`}
+        title={`Credit import ${(imp._id as unknown as string).slice(0, 8)}…`}
+        description={`User: ${payload.user?.email ?? "—"} · created ${new Date(imp.createdAt).toLocaleString()}`}
         actions={
           <Chip
             tone={
@@ -236,53 +243,53 @@ export default async function CreditImportDetailPage({
           <p className="text-xs font-semibold uppercase tracking-wide text-danger-600">
             Error: {imp.errorCode}
           </p>
-          {imp.errorMessage && <p className="mt-1 text-sm text-ink-700">{imp.errorMessage}</p>}
+          {imp.errorMessage && <p className="mt-1 text-sm text-fg-muted">{imp.errorMessage}</p>}
         </Surface>
       )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Surface className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">Raw</p>
-          {imp.raw ? (
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">Raw</p>
+          {payload.raw ? (
             <>
-              <p className="mt-1 text-sm font-semibold text-ink-900">
-                {imp.raw.payloadBytes.toLocaleString()} bytes
+              <p className="mt-1 text-sm font-semibold text-fg">
+                {payload.raw.payloadBytes.toLocaleString()} bytes
               </p>
-              <p className="mt-1 break-all font-mono text-[10px] text-ink-500">
-                sha256: {imp.raw.payloadHash.slice(0, 24)}…
+              <p className="mt-1 break-all font-mono text-[10px] text-fg-muted">
+                sha256: {payload.raw.payloadHash.slice(0, 24)}…
               </p>
-              <p className="mt-1 text-xs text-ink-500">
-                captured {imp.raw.capturedAt.toLocaleString()}
+              <p className="mt-1 text-xs text-fg-muted">
+                captured {new Date(payload.raw.capturedAt).toLocaleString()}
               </p>
             </>
           ) : (
-            <p className="mt-1 text-sm text-ink-500">Not captured yet</p>
+            <p className="mt-1 text-sm text-fg-muted">Not captured yet</p>
           )}
         </Surface>
         <Surface className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
             Bureau coverage
           </p>
-          <p className="mt-1 text-sm font-semibold text-ink-900">
+          <p className="mt-1 text-sm font-semibold text-fg">
             {imp.bureauCoverage.length ? imp.bureauCoverage.join(", ") : "—"}
           </p>
         </Surface>
         <Surface className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">Schema</p>
-          <p className="mt-1 text-sm font-semibold text-ink-900">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">Schema</p>
+          <p className="mt-1 text-sm font-semibold text-fg">
             {imp.schemaVersion} · parser {imp.parserVersion}
           </p>
         </Surface>
       </div>
 
       <ImportDetailPanel
-        importId={imp.id}
-        hasRaw={!!imp.raw}
+        importId={imp._id as unknown as string}
+        hasRaw={!!payload.raw}
         defaultUrl={imp.sourceUrl ?? ""}
       />
 
       <Surface className="p-4">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Lifecycle timeline
         </h2>
         <div className="mt-3">
@@ -291,7 +298,7 @@ export default async function CreditImportDetailPage({
       </Surface>
 
       <Surface className="p-4">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Unmapped fields
         </h2>
         <div className="mt-3">
@@ -300,15 +307,15 @@ export default async function CreditImportDetailPage({
       </Surface>
 
       <Surface className="p-4">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
-          Tradelines ({imp.tradelines.length})
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
+          Tradelines ({tradelines.length})
         </h2>
-        {imp.tradelines.length === 0 ? (
-          <p className="mt-3 text-sm text-ink-500">None yet.</p>
+        {tradelines.length === 0 ? (
+          <p className="mt-3 text-sm text-fg-muted">None yet.</p>
         ) : (
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className="text-left text-[10px] uppercase tracking-wide text-ink-500">
+              <thead className="text-left text-[10px] uppercase tracking-wide text-fg-muted">
                 <tr>
                   <th className="py-2 pr-3">Bureau</th>
                   <th className="py-2 pr-3">Creditor</th>
@@ -320,8 +327,8 @@ export default async function CreditImportDetailPage({
                 </tr>
               </thead>
               <tbody>
-                {imp.tradelines.map((t) => (
-                  <tr key={t.id} className="border-t border-ink-100">
+                {tradelines.map((t) => (
+                  <tr key={t._id as unknown as string} className="border-t border-border">
                     <td className="py-2 pr-3 font-mono">{t.bureau}</td>
                     <td className="py-2 pr-3 font-semibold">{t.creditorName}</td>
                     <td className="py-2 pr-3 font-mono">{t.accountRefMasked}</td>
@@ -343,17 +350,17 @@ export default async function CreditImportDetailPage({
       </Surface>
 
       <Surface className="p-4">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
-          Dispute candidates ({imp.disputeCandidates.length})
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
+          Dispute candidates ({payload.disputeCandidates.length})
         </h2>
-        {imp.disputeCandidates.length === 0 ? (
-          <p className="mt-3 text-sm text-ink-500">None.</p>
+        {payload.disputeCandidates.length === 0 ? (
+          <p className="mt-3 text-sm text-fg-muted">None.</p>
         ) : (
           <ul className="mt-3 space-y-2">
-            {imp.disputeCandidates.map((c) => (
+            {payload.disputeCandidates.map((c) => (
               <li
-                key={c.id}
-                className="flex items-start justify-between gap-3 rounded-lg border border-ink-100 bg-white/60 p-3 text-xs"
+                key={c._id as unknown as string}
+                className="flex items-start justify-between gap-3 rounded-lg border border-border bg-surface/70 p-3 text-xs"
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -372,12 +379,12 @@ export default async function CreditImportDetailPage({
                     <Chip tone="neutral">{c.bureau}</Chip>
                     <Chip tone="neutral">{c.stage}</Chip>
                   </div>
-                  <p className="text-sm text-ink-800">{c.summary}</p>
+                  <p className="text-sm text-fg">{c.summary}</p>
                   {c.legalBasis.length > 0 && (
-                    <p className="text-[10px] text-ink-500">{c.legalBasis.join(" · ")}</p>
+                    <p className="text-[10px] text-fg-muted">{c.legalBasis.join(" · ")}</p>
                   )}
                 </div>
-                <span className="shrink-0 text-[10px] uppercase text-ink-400">{c.confidence}</span>
+                <span className="shrink-0 text-[10px] uppercase text-fg-subtle">{c.confidence}</span>
               </li>
             ))}
           </ul>
@@ -388,7 +395,7 @@ export default async function CreditImportDetailPage({
         <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-rose-600">
           Destructive actions
         </h2>
-        <p className="mt-1 text-xs text-ink-500">
+        <p className="mt-1 text-xs text-fg-muted">
           Deleting this import removes the raw payload, normalized rows, and generated dispute
           candidates. The user account and legacy credit reports are not touched.
         </p>
@@ -396,9 +403,9 @@ export default async function CreditImportDetailPage({
           <DestructiveActionDialog
             title="Delete this credit import"
             description="Remove the raw payload, normalized rows, and dispute candidates associated with this import. The user account stays intact."
-            previewUrl={`/api/admin/credit-imports/${imp.id}/delete`}
-            submitUrl={`/api/admin/credit-imports/${imp.id}/delete`}
-            expectedConfirmation={expectedImportConfirmation(imp.id)}
+            previewUrl={`/api/admin/credit-imports/${imp._id}/delete`}
+            submitUrl={`/api/admin/credit-imports/${imp._id}/delete`}
+            expectedConfirmation={expectedImportConfirmation(imp._id as unknown as string)}
             cta="Delete import"
             variant="destructive"
           />
@@ -406,22 +413,24 @@ export default async function CreditImportDetailPage({
       </Surface>
 
       <Surface className="p-4">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Normalized summary
         </h2>
-        {imp.normalized ? (
-          <pre className="mt-3 max-h-[360px] overflow-auto rounded-lg bg-ink-900/5 p-3 font-mono text-[11px] text-ink-800">
-{JSON.stringify(imp.normalized.summaryJson, null, 2)}
+        {payload.normalized ? (
+          <pre className="mt-3 max-h-[360px] overflow-auto rounded-lg bg-fg/5 p-3 font-mono text-[11px] text-fg">
+{JSON.stringify(payload.normalized.summaryJson, null, 2)}
           </pre>
         ) : (
-          <p className="mt-3 text-sm text-ink-500">Not normalized yet.</p>
+          <p className="mt-3 text-sm text-fg-muted">Not normalized yet.</p>
         )}
-        {imp.normalized?.validationWarnings?.length ? (
+        {payload.normalized?.validationWarnings?.length ? (
           <p className="mt-3 text-xs text-warning-700">
-            Warnings: {imp.normalized.validationWarnings.join(", ")}
+            Warnings: {payload.normalized.validationWarnings.join(", ")}
           </p>
         ) : null}
       </Surface>
+
+      <span className="hidden">{inquiries.length}</span>
     </div>
   );
 }

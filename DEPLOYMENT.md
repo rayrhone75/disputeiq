@@ -2,15 +2,14 @@
 
 Production brand: **DisputeIQ** · production domain: **disputeiq.org**
 
-| Host                    | Purpose                          | Status   |
-| ----------------------- | -------------------------------- | -------- |
-| disputeiq.org           | Marketing site                   | live     |
-| www.disputeiq.org       | Marketing site (redirect)        | live     |
-| app.disputeiq.org       | Application (dashboard + API)    | live     |
-| admin.disputeiq.org     | Reserved (rewrites to /admin/*)  | reserved |
-| api.disputeiq.org       | Reserved (rewrites to /api/*)    | reserved |
+| Host                    | Purpose                                  | Status   |
+| ----------------------- | ---------------------------------------- | -------- |
+| disputeiq.org           | Marketing + dashboard + admin + API      | live     |
+| www.disputeiq.org       | Marketing site (redirect to apex)        | live     |
 
-The Next.js middleware (`middleware.ts`) handles subdomain routing in a single deployment. Split into separate deployments later if/when scale demands it.
+Single-domain topology — everything (`/`, `/dashboard`, `/admin`, `/api/*`) is served from `disputeiq.org`. The `middleware.ts` only handles Clerk auth gates.
+
+Backend stack: **Convex** (database + functions) and **Clerk** (auth). There is no relational database, no ORM migration step, and no NextAuth in this deployment.
 
 ---
 
@@ -19,16 +18,22 @@ The Next.js middleware (`middleware.ts`) handles subdomain routing in a single d
 Set these in Vercel project settings or `.env` on the VPS:
 
 ```
-DATABASE_URL=postgresql://USER:PASS@HOST:5432/disputeiq
-NEXTAUTH_SECRET=<32+ chars>
 ENCRYPTION_KEY=<32+ chars>
 
-APP_BASE_URL=https://app.disputeiq.org
+# Convex — values come from `npx convex deploy` against the prod deployment
+NEXT_PUBLIC_CONVEX_URL=https://<your-prod>.convex.cloud
+CONVEX_DEPLOYMENT=prod:<your-prod>
+
+# Clerk
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=...
+CLERK_SECRET_KEY=...
+
+APP_BASE_URL=https://disputeiq.org
 MARKETING_BASE_URL=https://disputeiq.org
-NEXT_PUBLIC_APP_URL=https://app.disputeiq.org
+NEXT_PUBLIC_APP_URL=https://disputeiq.org
 NEXT_PUBLIC_MARKETING_URL=https://disputeiq.org
-ADMIN_BASE_URL=https://admin.disputeiq.org
-API_BASE_URL=https://api.disputeiq.org
+ADMIN_BASE_URL=https://disputeiq.org/admin
+API_BASE_URL=https://disputeiq.org/api
 
 SQUARE_ACCESS_TOKEN=...
 SQUARE_LOCATION_ID=...
@@ -39,9 +44,14 @@ LETTERSTREAM_API_KEY=...
 LETTERSTREAM_API_SECRET=...
 LETTERSTREAM_API_BASE=https://www.letterstream.com/apis/
 
+# MyScoreIQ — supported credit-report provider for new customers
+MYSCOREIQ_AFFILIATE_URL=https://gcpstage.myscoreiq.com/get-fico-preferred.aspx?offercode=432500C3
+MYSCOREIQ_JSON_REPORT_URL=https://member.myscoreiq.com/CreditReport.aspx?view=json
+
+# MFSN — retired; vars kept only so the legacy callback route 410s cleanly
 MFSN_API_KEY=...
 MFSN_AFFILIATE_LINK=...
-MFSN_CALLBACK_URL=https://app.disputeiq.org/api/mfsn/callback
+MFSN_CALLBACK_URL=https://disputeiq.org/api/mfsn/callback
 
 STORAGE_BUCKET=...
 STORAGE_REGION=...
@@ -53,32 +63,26 @@ STORAGE_SECRET_KEY=...
 
 | Provider     | URL                                                          |
 | ------------ | ------------------------------------------------------------ |
-| Square       | `https://app.disputeiq.org/api/webhooks/square`              |
-| LetterStream | `https://app.disputeiq.org/api/webhooks/letterstream`        |
-| MFSN         | `https://app.disputeiq.org/api/mfsn/callback`                |
-| Auth         | `https://app.disputeiq.org/api/auth/callback/<provider>`     |
+| Square       | `https://disputeiq.org/api/webhooks/square`                  |
+| LetterStream | `https://disputeiq.org/api/webhooks/letterstream`            |
+| MFSN         | `https://disputeiq.org/api/mfsn/callback` (returns 410)      |
 
 ---
 
-## Path A — Vercel + Hostinger DNS (fastest)
+## Path A — Vercel (fastest)
 
 1. Push the repo to GitHub.
 2. In Vercel → Import Project → select repo. Framework: Next.js (auto).
 3. Vercel → Settings → Domains, add:
    - `disputeiq.org`
    - `www.disputeiq.org` (redirect to apex)
-   - `app.disputeiq.org`
-   - (optional, reserved) `admin.disputeiq.org`, `api.disputeiq.org`
-4. Vercel will give you DNS targets. In Hostinger → DNS Zone for `disputeiq.org`:
-   - **A** `@` → `76.76.21.21` (Vercel apex IP — Vercel UI shows the current value, use that)
+4. Vercel will give you DNS targets. In your DNS provider for `disputeiq.org`:
+   - **A** `@` → Vercel apex IP shown in the UI
    - **CNAME** `www` → `cname.vercel-dns.com.`
-   - **CNAME** `app` → `cname.vercel-dns.com.`
-   - **CNAME** `admin` → `cname.vercel-dns.com.` *(when ready)*
-   - **CNAME** `api` → `cname.vercel-dns.com.` *(when ready)*
 5. Set all env vars from the table above in Vercel → Settings → Environment Variables.
-6. Trigger a deploy. Vercel issues SSL automatically.
-7. Register the webhook URLs with Square and LetterStream.
-8. Run `npx prisma migrate deploy` against the production DB once (use a local shell with `DATABASE_URL` pointed at prod, or a Vercel build hook).
+6. Deploy Convex functions to the production deployment once: `npx convex deploy --prod`.
+7. Trigger a Vercel deploy. Vercel issues SSL automatically.
+8. Register the webhook URLs with Square and LetterStream.
 
 ---
 
@@ -86,7 +90,7 @@ STORAGE_SECRET_KEY=...
 
 ### 1. Server prep
 ```bash
-sudo apt update && sudo apt install -y curl git nginx postgresql ufw
+sudo apt update && sudo apt install -y curl git nginx ufw
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
 sudo apt install -y nodejs
 sudo npm install -g pm2
@@ -101,18 +105,23 @@ git clone <your-repo-url> disputeiq
 cd disputeiq
 cp .env.example .env   # then fill in production values
 npm ci
-npx prisma migrate deploy
 npm run build
 ```
 
-### 3. Start with PM2
+### 3. Push Convex schema/functions to the prod deployment
+Run this once after any change to `convex/`:
+```bash
+npx convex deploy --prod
+```
+
+### 4. Start with PM2
 ```bash
 pm2 start deploy/pm2/ecosystem.config.cjs --env production
 pm2 save
 pm2 startup    # follow the printed command
 ```
 
-### 4. Nginx + SSL
+### 5. Nginx + SSL
 ```bash
 sudo cp deploy/nginx/disputeiq.conf /etc/nginx/sites-available/disputeiq.conf
 sudo ln -s /etc/nginx/sites-available/disputeiq.conf /etc/nginx/sites-enabled/
@@ -125,20 +134,20 @@ sudo certbot --nginx \
   -d admin.disputeiq.org -d api.disputeiq.org
 ```
 
-### 5. Hostinger DNS records
-In Hostinger → DNS Zone for `disputeiq.org`, point everything at the VPS IP:
+### 6. DNS records
+Point everything at the VPS IP:
 - **A** `@` → `<VPS_IP>`
 - **A** `www` → `<VPS_IP>`
 - **A** `app` → `<VPS_IP>`
 - **A** `admin` → `<VPS_IP>`
 - **A** `api` → `<VPS_IP>`
 
-### 6. Updates
+### 7. Updates
 ```bash
 cd /var/www/disputeiq
 git pull
 npm ci
-npx prisma migrate deploy
+npx convex deploy --prod   # only when convex/ changed
 npm run build
 pm2 reload disputeiq
 ```
@@ -150,9 +159,8 @@ pm2 reload disputeiq
 ```bash
 cp .env.example .env   # fill in values
 docker compose up -d --build
-docker compose exec app npx prisma migrate deploy
 ```
-Then put the same Nginx config in front of `127.0.0.1:3000`.
+Convex functions still deploy from your workstation with `npx convex deploy --prod`. Then put the same Nginx config in front of `127.0.0.1:3000`.
 
 ---
 

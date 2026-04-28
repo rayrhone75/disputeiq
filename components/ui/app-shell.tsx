@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { UserButton } from "@clerk/nextjs";
 import { cn } from "@/components/ui/primitives";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 // Command-center layout: premium left rail + executive top bar.
 // Used by both /dashboard and /admin via per-segment layouts.
@@ -38,15 +40,19 @@ export function AppShell({
 }) {
   const nav = scope === "admin" ? NAV_ADMIN : NAV_DASHBOARD;
   return (
-    <div className="min-h-screen bg-ink-50">
+    <div className="min-h-screen bg-canvas-app dark:bg-slate-950">
       <div className="mx-auto flex min-h-screen max-w-[1480px]">
         {/* Sidebar */}
-        <aside className="sticky top-0 hidden h-screen w-[260px] flex-col border-r border-ink-100 bg-white/70 px-5 py-7 backdrop-blur lg:flex">
+        <aside className="sticky top-0 hidden h-screen w-[260px] flex-col border-r border-border bg-surface/70 px-5 py-7 backdrop-blur dark:border-white/10 dark:bg-slate-900/60 lg:flex">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-ink-900 to-accent-600" />
             <div>
-              <p className="font-display text-sm font-semibold tracking-tight text-ink-900">DisputeIQ</p>
-              <p className="text-[11px] uppercase tracking-widest text-ink-400">{title}</p>
+              <p className="font-display text-sm font-semibold tracking-tight text-fg dark:text-slate-100">
+                DisputeIQ
+              </p>
+              <p className="text-[11px] uppercase tracking-widest text-fg-subtle dark:text-slate-500">
+                {title}
+              </p>
             </div>
           </div>
 
@@ -56,8 +62,9 @@ export function AppShell({
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "group flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium text-ink-500 transition",
-                  "hover:bg-ink-100 hover:text-ink-900",
+                  "group flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition",
+                  "text-fg-muted hover:bg-surface-muted hover:text-fg",
+                  "dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white",
                 )}
               >
                 <span>{item.label}</span>
@@ -66,32 +73,42 @@ export function AppShell({
             ))}
           </nav>
 
-          <div className="mt-6 rounded-2xl border border-ink-100 bg-gradient-to-br from-white to-ink-50 p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink-400">Status</p>
-            <p className="mt-1 text-sm font-semibold text-ink-900">All systems normal</p>
-            <p className="mt-1 text-xs text-ink-500">Mailing, payments, audit log healthy.</p>
+          <div className="mt-6 rounded-2xl border border-border bg-gradient-to-br from-white to-ink-50 p-4 dark:border-white/10 dark:from-slate-900 dark:to-slate-900/60">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-fg-subtle dark:text-slate-500">
+              Status
+            </p>
+            <p className="mt-1 text-sm font-semibold text-fg dark:text-slate-100">
+              All systems normal
+            </p>
+            <p className="mt-1 text-xs text-fg-muted dark:text-slate-400">
+              Mailing, payments, audit log healthy.
+            </p>
           </div>
         </aside>
 
         {/* Main column */}
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Topbar */}
-          <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-ink-100 bg-white/80 px-6 backdrop-blur">
+          <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-surface/70 px-6 backdrop-blur dark:border-white/10 dark:bg-slate-950/80">
             <div className="flex items-center gap-3">
               <div className="h-7 w-7 rounded-md bg-gradient-to-br from-ink-900 to-accent-600 lg:hidden" />
-              <p className="font-display text-sm font-semibold tracking-tight text-ink-900">{title}</p>
+              <p className="font-display text-sm font-semibold tracking-tight text-fg dark:text-slate-100">
+                {title}
+              </p>
               <span className="hidden rounded-full bg-success-500/10 px-2 py-0.5 text-[11px] font-semibold text-success-600 ring-1 ring-inset ring-success-500/20 sm:inline">
                 Live
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <button className="rounded-xl px-3 py-2 text-sm font-medium text-ink-500 hover:bg-ink-100">Help</button>
-              <Link
-                href="/sign-in"
-                className="rounded-xl bg-ink-900 px-3 py-2 text-sm font-medium text-white hover:bg-ink-800"
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <button
+                type="button"
+                className="rounded-xl px-3 py-2 text-sm font-medium text-fg-muted hover:bg-surface-muted dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
               >
-                Account
-              </Link>
+                Help
+              </button>
+              {/* Clerk avatar + dropdown for "Manage account" / "Sign out". */}
+              <UserButton />
             </div>
           </header>
 

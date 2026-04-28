@@ -1,3 +1,10 @@
+// LEGACY (replaced by Stripe on 2026-04-27).
+//
+// Stripe is now the live payment provider — see `lib/stripe.ts`,
+// `lib/stripe-checkout.ts`, and `app/api/webhooks/stripe/route.ts`. This
+// file is kept on disk for revive-ability; nothing in the live flow imports
+// it. Safe to delete in a future cleanup pass.
+//
 // Square adapter. Calls the live Checkout API when credentials are present;
 // falls back to a mock checkout URL otherwise so local dev keeps working.
 import crypto from "node:crypto";

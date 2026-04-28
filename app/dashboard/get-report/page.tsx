@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
 import { requireUser } from "@/lib/auth";
 import { IdiqContinueButton } from "@/components/dashboard/IdiqContinueButton";
 import { MarkActivatedButton } from "@/components/dashboard/MarkActivatedButton";
 import { CreditReportStatusChip } from "@/components/dashboard/CreditReportStatusChip";
 import { ConnectReportPanel } from "@/components/dashboard/ConnectReportPanel";
-import { buildIdiqEnrollUrl, IDIQ, loadIdiqConfig } from "@/lib/integrations/identityiq";
+import { buildMsiqEnrollUrl, MSIQ, loadMsiqConfig } from "@/lib/integrations/myscoreiq";
 import { loadCreditReportStatus } from "@/lib/credit-import/status";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Get your credit report — DisputeIQ",
   description:
-    "Guided IdentityIQ setup for DisputeIQ — activate your monitoring, connect your 3-bureau report, and start your dispute workflow.",
+    "Guided MyScoreIQ setup for DisputeIQ — activate your monitoring, connect your 3-bureau report, and start your dispute workflow.",
 };
 
 const HELPFUL_DOCS = [
@@ -29,15 +30,15 @@ const HELPFUL_DOCS = [
 ];
 
 const WHAT_HAPPENS_NEXT = [
-  { title: "Activate IdentityIQ", detail: "Complete your monitoring setup first." },
-  { title: "Connect your credit report", detail: "Use auto-connect or fallback upload." },
-  { title: "Upload your documents", detail: "Add proof and supporting paperwork." },
+  { title: "Activate MyScoreIQ", detail: "Complete your monitoring setup first." },
+  { title: "Connect Credit Report", detail: "Auto import JSON or upload manually." },
+  { title: "Upload Documents", detail: "Add proof and supporting paperwork." },
   {
-    title: "Review negative items and opportunities",
+    title: "Review Report",
     detail: "DisputeIQ summarizes what needs attention.",
   },
   {
-    title: "Start your dispute workflow",
+    title: "Agree and start disputes",
     detail: "Choose what to challenge and begin tracking.",
   },
 ];
@@ -69,11 +70,16 @@ export default async function GetReportPage({
   searchParams?: Promise<{ welcome?: string }>;
 }) {
   const user = await requireUser();
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
   const params = (await searchParams) ?? {};
   const welcoming = params.welcome === "1";
 
-  const [config, status] = await Promise.all([loadIdiqConfig(), loadCreditReportStatus(user.id)]);
-  const idiqUrl = buildIdiqEnrollUrl({
+  const [config, status] = await Promise.all([
+    loadMsiqConfig(token),
+    loadCreditReportStatus(token),
+  ]);
+  const msiqUrl = buildMsiqEnrollUrl({
     baseUrl: config.affiliateUrl,
     userId: user.id,
     campaign: "dashboard_get_report",
@@ -90,20 +96,20 @@ export default async function GetReportPage({
   }> = [
     {
       n: "01",
-      title: "Activate IdentityIQ",
+      title: "Activate MyScoreIQ",
       body:
-        "Use your IdentityIQ link to activate monitoring and report access. When finished, return here to continue.",
-      cta: "Activate IdentityIQ",
-      secondary: "I already activated IdentityIQ",
+        "Use your MyScoreIQ link to activate monitoring and report access. When finished, return here to continue.",
+      cta: "Activate MyScoreIQ",
+      secondary: "I already activated MyScoreIQ",
       status: stepStatus(status.kind, 0),
     },
     {
       n: "02",
       title: "Connect Credit Report",
       body:
-        "Click connect to attempt automatic import. If auto-connect isn't available, upload JSON or paste report data manually.",
+        "Click connect to attempt automatic JSON import. If auto-connect isn't available, upload JSON or paste report data manually.",
       cta: "Connect Credit Report",
-      secondary: "Upload / Paste JSON",
+      secondary: "Upload JSON Manually / Paste Report JSON",
       status: stepStatus(status.kind, 1),
     },
     {
@@ -120,7 +126,7 @@ export default async function GetReportPage({
       title: "Review Report",
       body:
         "Once your report is connected, review tradelines, inquiries, collections, public records, and dispute opportunities.",
-      cta: "Review Report Summary",
+      cta: "Review Report",
       secondary: "Go to dashboard",
       status: stepStatus(status.kind, 3),
     },
@@ -128,7 +134,7 @@ export default async function GetReportPage({
 
   const step1Status: string =
     status.kind === "not_started"
-      ? "Waiting for IdentityIQ activation"
+      ? "Waiting for MyScoreIQ activation"
       : status.kind === "in_progress"
         ? "Awaiting report import"
         : status.kind === "failed"
@@ -136,7 +142,7 @@ export default async function GetReportPage({
           : "Report imported";
 
   return (
-    <div className="min-h-screen bg-neutral-50 text-slate-900">
+    <div className="min-h-screen bg-canvas-app text-fg">
       <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
         {welcoming && (
           <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -145,30 +151,30 @@ export default async function GetReportPage({
           </div>
         )}
 
-        {/* Top migration banner */}
-        <div className="mb-6 rounded-3xl border border-violet-200 bg-white p-6 shadow-sm">
+        {/* Top provider banner */}
+        <div className="mb-6 rounded-3xl border border-violet-200 bg-surface p-6 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="mb-2 inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-violet-700">
-                ScrewedUpCredit migration
+                Supported provider
               </div>
               <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                Connect your credit report the right way
+                Connect your MyScoreIQ report
               </h1>
-              <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
-                DisputeIQ now uses{" "}
-                <span className="font-semibold text-slate-900">IdentityIQ</span> for report access
-                and monitoring. If you previously used ScrewedUpCredit with MyFreeScoreIQ, switch
-                to IdentityIQ, then return here to connect your report and continue onboarding.
+              <p className="mt-3 max-w-3xl text-base leading-7 text-fg-muted">
+                DisputeIQ uses{" "}
+                <span className="font-semibold text-fg">MyScoreIQ</span> for report access
+                and monitoring. Activate MyScoreIQ, then return here to connect your report
+                and continue onboarding.
               </p>
             </div>
             <div className="grid w-full max-w-sm grid-cols-2 gap-3">
-              <IdiqContinueButton href={idiqUrl} label="Activate IdentityIQ" />
+              <IdiqContinueButton href={msiqUrl} label="Activate MyScoreIQ" />
               <Link
                 href="#connect"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border-strong bg-surface px-4 py-3 text-sm font-semibold text-fg transition hover:bg-surface-muted"
               >
-                Connect Report
+                Connect Credit Report
               </Link>
             </div>
           </div>
@@ -203,14 +209,14 @@ export default async function GetReportPage({
             <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
               <CreditReportStatusChip
                 status={status}
-                notStartedCtaHref={idiqUrl}
+                notStartedCtaHref={msiqUrl}
                 eyebrow="Credit Report Status"
                 className="!bg-transparent !border-0 !p-0 !shadow-none"
               />
             </div>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="rounded-3xl border border-border-strong bg-surface p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">What happens next</h3>
               <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
@@ -222,14 +228,14 @@ export default async function GetReportPage({
                 <div key={item.title} className="flex gap-3">
                   <div
                     className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
-                      idx === 0 ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-700"
+                      idx === 0 ? "bg-violet-600 text-white" : "bg-surface-muted text-fg-muted"
                     }`}
                   >
                     {idx + 1}
                   </div>
                   <div>
-                    <div className="font-medium text-slate-900">{item.title}</div>
-                    <div className="text-sm leading-6 text-slate-500">{item.detail}</div>
+                    <div className="font-medium text-fg">{item.title}</div>
+                    <div className="text-sm leading-6 text-fg-muted">{item.detail}</div>
                   </div>
                 </div>
               ))}
@@ -241,16 +247,16 @@ export default async function GetReportPage({
         <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
           <div
             id="connect"
-            className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+            className="rounded-3xl border border-border-strong bg-surface p-6 shadow-sm"
           >
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Onboarding flow</p>
+                <p className="text-sm uppercase tracking-[0.2em] text-fg-muted">Onboarding flow</p>
                 <h2 className="mt-1 text-2xl font-semibold tracking-tight">How setup works</h2>
               </div>
               <Link
                 href="/dashboard"
-                className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                className="rounded-2xl border border-border-strong px-4 py-2 text-sm font-semibold text-fg hover:bg-surface-muted"
               >
                 View full checklist
               </Link>
@@ -262,18 +268,18 @@ export default async function GetReportPage({
                   step.status === "current"
                     ? "border-violet-300 bg-violet-50"
                     : step.status === "upcoming"
-                      ? "border-slate-200 bg-white"
+                      ? "border-border-strong bg-surface"
                       : step.status === "complete"
                         ? "border-emerald-200 bg-emerald-50"
-                        : "border-slate-200 bg-slate-50";
+                        : "border-border-strong bg-surface-muted";
                 const badgeStyle =
                   step.status === "current"
                     ? "bg-violet-600 text-white"
                     : step.status === "complete"
                       ? "bg-emerald-500 text-white"
                       : step.status === "upcoming"
-                        ? "bg-slate-100 text-slate-700"
-                        : "bg-slate-200 text-slate-500";
+                        ? "bg-surface-muted text-fg-muted"
+                        : "bg-surface-muted text-fg-subtle";
                 return (
                   <div key={step.n} className={`rounded-[28px] border p-5 ${statusStyle}`}>
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -284,19 +290,19 @@ export default async function GetReportPage({
                           {step.status === "complete" ? "✓" : step.n}
                         </div>
                         <div>
-                          <h3 className="text-lg font-semibold text-slate-900">{step.title}</h3>
-                          <p className="mt-1 max-w-2xl text-sm leading-7 text-slate-600">
+                          <h3 className="text-lg font-semibold text-fg">{step.title}</h3>
+                          <p className="mt-1 max-w-2xl text-sm leading-7 text-fg-muted">
                             {step.body}
                           </p>
                         </div>
                       </div>
                       <div className="flex flex-col gap-2 lg:w-64">
                         {/* Primary CTA — wired per step */}
-                        {i === 0 && <IdiqContinueButton href={idiqUrl} label={step.cta} />}
+                        {i === 0 && <IdiqContinueButton href={msiqUrl} label={step.cta} />}
                         {i === 1 && (
                           <Link
                             href="#connect-panel"
-                            className="rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-semibold text-white hover:opacity-90"
+                            className="rounded-2xl bg-fg px-4 py-3 text-center text-sm font-semibold text-canvas hover:opacity-90"
                           >
                             {step.cta}
                           </Link>
@@ -306,8 +312,8 @@ export default async function GetReportPage({
                             href="/dashboard/proof-vault"
                             className={`rounded-2xl px-4 py-3 text-center text-sm font-semibold ${
                               step.status === "locked"
-                                ? "cursor-not-allowed bg-slate-200 text-slate-500 pointer-events-none"
-                                : "bg-slate-950 text-white hover:opacity-90"
+                                ? "cursor-not-allowed bg-surface-muted text-fg-subtle pointer-events-none"
+                                : "bg-fg text-canvas hover:opacity-90"
                             }`}
                           >
                             {step.cta}
@@ -318,8 +324,8 @@ export default async function GetReportPage({
                             href="/dashboard/reports"
                             className={`rounded-2xl px-4 py-3 text-center text-sm font-semibold ${
                               step.status === "locked"
-                                ? "cursor-not-allowed bg-slate-200 text-slate-500 pointer-events-none"
-                                : "bg-slate-950 text-white hover:opacity-90"
+                                ? "cursor-not-allowed bg-surface-muted text-fg-subtle pointer-events-none"
+                                : "bg-fg text-canvas hover:opacity-90"
                             }`}
                           >
                             {step.cta}
@@ -329,22 +335,22 @@ export default async function GetReportPage({
                         {/* Secondary — wired per step */}
                         {i === 0 && (
                           <MarkActivatedButton
-                            label="I already activated IdentityIQ"
+                            label="I already activated MyScoreIQ"
                             scrollTo="#connect-panel"
                           />
                         )}
                         {i === 1 && (
                           <Link
                             href="#connect-panel"
-                            className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                            className="rounded-2xl border border-border-strong bg-surface px-4 py-3 text-center text-sm font-semibold text-fg hover:bg-surface-muted"
                           >
-                            Upload / Paste JSON
+                            Upload JSON Manually
                           </Link>
                         )}
                         {i === 2 && (
                           <Link
                             href="#helpful-docs"
-                            className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                            className="rounded-2xl border border-border-strong bg-surface px-4 py-3 text-center text-sm font-semibold text-fg hover:bg-surface-muted"
                           >
                             See recommended documents
                           </Link>
@@ -352,7 +358,7 @@ export default async function GetReportPage({
                         {i === 3 && (
                           <Link
                             href="/dashboard"
-                            className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                            className="rounded-2xl border border-border-strong bg-surface px-4 py-3 text-center text-sm font-semibold text-fg hover:bg-surface-muted"
                           >
                             Go to dashboard
                           </Link>
@@ -368,6 +374,7 @@ export default async function GetReportPage({
           <div className="space-y-6">
             <div id="connect-panel" className="scroll-mt-24">
               <ConnectReportPanel
+                jsonReportUrl={config.jsonReportUrl}
                 retryImportId={
                   status.kind === "failed" ? status.latestImportId : null
                 }
@@ -376,10 +383,10 @@ export default async function GetReportPage({
 
             <div
               id="helpful-docs"
-              className="scroll-mt-24 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+              className="scroll-mt-24 rounded-3xl border border-border-strong bg-surface p-6 shadow-sm"
             >
               <h3 className="text-lg font-semibold">Helpful documents to upload</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
+              <p className="mt-2 text-sm leading-6 text-fg-muted">
                 Upload what you already have now. You don&apos;t need every item to start, but
                 more documentation gives you a stronger file.
               </p>
@@ -387,7 +394,7 @@ export default async function GetReportPage({
                 {HELPFUL_DOCS.map((doc) => (
                   <div
                     key={doc}
-                    className="flex items-start gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                    className="flex items-start gap-3 rounded-2xl bg-surface-muted px-4 py-3 text-sm text-fg-muted"
                   >
                     <div className="mt-1 h-2.5 w-2.5 rounded-full bg-violet-500" />
                     <span>{doc}</span>
@@ -396,32 +403,18 @@ export default async function GetReportPage({
               </div>
               <Link
                 href="/dashboard/proof-vault"
-                className="mt-5 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                className="mt-5 block w-full rounded-2xl border border-border-strong bg-surface px-4 py-3 text-center text-sm font-semibold text-fg hover:bg-surface-muted"
               >
                 Upload Documents
               </Link>
             </div>
 
-            <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-              <div className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-amber-700">
-                Former ScrewedUpCredit users
-              </div>
-              <h3 className="text-lg font-semibold text-slate-900">
-                You need to switch to IdentityIQ
-              </h3>
-              <p className="mt-2 text-sm leading-7 text-slate-700">
-                If you previously used MyFreeScoreIQ with ScrewedUpCredit, complete your
-                IdentityIQ setup first. After that, return here to connect your report and
-                continue with the updated DisputeIQ system.
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+            <div className="rounded-3xl border border-border-strong bg-surface p-6 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-fg-muted">
                 Supported provider
               </p>
-              <p className="mt-2 text-sm text-slate-700">{IDIQ.supportedNote}</p>
-              <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+              <p className="mt-2 text-sm text-fg-muted">{MSIQ.supportedNote}</p>
+              <p className="mt-3 text-[11px] leading-relaxed text-fg-subtle">
                 {config.disclaimer}
               </p>
             </div>

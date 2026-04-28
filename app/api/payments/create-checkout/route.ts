@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { auth } from "@clerk/nextjs/server";
+import { fetchMutation, fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { assertCompliantAction } from "@/lib/compliance";
 import { getUserPacketUsage } from "@/lib/billing/usage";
-import { createSquareCheckout } from "@/lib/square";
+import { createStripeCheckoutSession } from "@/lib/stripe-checkout";
 import { writeAuditLog } from "@/lib/audit";
-import { requireUser } from "@/lib/auth";
 import { CHECKOUT_CONSENT_ITEMS, TERMS_VERSION } from "@/lib/legal";
 
 const schema = z.object({
@@ -14,8 +16,7 @@ const schema = z.object({
   disclosuresAccepted: z.boolean(),
   affiliateDisclosureAccepted: z.boolean(),
   userConfirmed: z.boolean(),
-  // Pre-payment consent flags — every one must be true, otherwise we refuse to
-  // create a Square checkout. This is the chargeback-defense layer.
+  // Pre-payment consent flags — every one must be true.
   checkoutConsents: z
     .object({
       no_guarantee: z.boolean(),
@@ -27,25 +28,19 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const sessionUser = await requireUser().catch(() => null);
-  if (!sessionUser) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const { userId, getToken } = await auth();
+  if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
   const parsed = schema.safeParse(await req.json());
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
   const body = parsed.data;
   assertCompliantAction(body);
 
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: sessionUser.id } });
-  const disputeCase = await prisma.disputeCase.findUniqueOrThrow({ where: { id: body.disputeCaseId } });
-  if (disputeCase.userId !== user.id) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-  }
-
   // Enforce checkout consent (all 4 flags required when provided).
-  // Kept optional for backwards-compatibility with existing callers that
-  // still use the old disclosures-only shape, but if `checkoutConsents` is
-  // present every field must be true.
   if (body.checkoutConsents) {
     const allTrue = CHECKOUT_CONSENT_ITEMS.every(
       (it) => body.checkoutConsents?.[it.key] === true,
@@ -55,73 +50,91 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Verify the dispute case is owned by the caller.
+  const dcRow = await fetchQuery(
+    api.payments.disputeCaseForCheckout,
+    { id: body.disputeCaseId as Id<"disputeCases"> },
+    { token },
+  );
+  if (!dcRow) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+
   // Plan-aware pricing: included packets are free, overage costs $19.95.
-  const usage = await getUserPacketUsage(user.id);
+  const usage = await getUserPacketUsage();
+  const overview = await fetchQuery(api.onboarding.dashboardOverview, {}, { token });
+  const isGrace = overview?.user.isGraceUser ?? false;
+
   let totalCents: number;
-  if (user.isGraceUser) {
+  if (isGrace) {
     totalCents = 0;
   } else if (usage.plan && usage.remaining > 0) {
-    totalCents = 0; // included in plan
+    totalCents = 0;
   } else {
-    totalCents = usage.overagePriceCents; // $19.95 overage
+    totalCents = usage.overagePriceCents;
   }
-  const pricing = { total: totalCents };
 
-  const payment = await prisma.paymentIntent.create({
-    data: {
-      userId: user.id,
-      disputeCaseId: disputeCase.id,
-      provider: "SQUARE",
-      amountCents: pricing.total,
-      description: `Letter action for dispute case ${disputeCase.id}`,
+  const description = `Letter action for dispute case ${body.disputeCaseId}`;
+  const paymentIntentId = (await fetchMutation(
+    api.payments.createForDispute,
+    {
+      disputeCaseId: body.disputeCaseId as Id<"disputeCases">,
+      provider: "STRIPE",
+      amountCents: totalCents,
+      description,
     },
-  });
+    { token },
+  )) as Id<"paymentIntents">;
 
-  // Persist a ConsentReceipt before issuing the Square checkout. This is the
-  // legally-defensible record that the user saw and accepted every consent
-  // item at the exact version of the terms. IP + user-agent captured for the
-  // chargeback trail.
+  // Persist a ConsentReceipt before issuing the Square checkout.
   if (body.checkoutConsents) {
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-    const ua = req.headers.get("user-agent") ?? null;
-    await prisma.consentReceipt.create({
-      data: {
-        userId: user.id,
-        consentType: "DISPUTE_CHECKOUT",
-        version: TERMS_VERSION,
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? undefined;
+    const ua = req.headers.get("user-agent") ?? undefined;
+    await fetchMutation(
+      api.payments.recordCheckoutConsent,
+      {
+        disputeCaseId: body.disputeCaseId as Id<"disputeCases">,
+        paymentIntentId,
+        termsVersion: TERMS_VERSION,
+        consents: body.checkoutConsents,
+        amountCents: totalCents,
         ipAddress: ip,
         userAgent: ua,
       },
-    });
-    await writeAuditLog({
-      targetUserId: user.id,
-      actorUserId: user.id,
-      action: "CHECKOUT_CONSENT_ACCEPTED",
-      entityType: "DisputeCase",
-      entityId: disputeCase.id,
-      metadataJson: {
-        termsVersion: TERMS_VERSION,
-        consents: body.checkoutConsents,
-        packetDisputeCaseId: disputeCase.id,
-        amountCents: pricing.total,
-        ip,
-      },
-    }).catch(() => null);
+      { token },
+    ).catch(() => null);
   }
 
-  const checkout = await createSquareCheckout({
-    amountCents: pricing.total,
-    referenceId: payment.id,
-    description: payment.description,
-  });
+  // Look up the user's existing Stripe customer (set when they subscribed)
+  // so the checkout session is attached to the same customer record. New
+  // signups without a subscription will have customerId undefined; Stripe
+  // creates an anonymous customer in that case.
+  const sub = await fetchQuery(api.subscriptions.getForUser, {}, { token });
+  const stripeCustomerId = sub?.stripeCustomerId ?? undefined;
+
+  let checkout: { checkoutUrl: string; sessionId: string };
+  try {
+    checkout = await createStripeCheckoutSession({
+      amountCents: totalCents,
+      referenceId: paymentIntentId as unknown as string,
+      description,
+      customerId: stripeCustomerId,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { error: "STRIPE_CHECKOUT_FAILED", message: (err as Error).message },
+      { status: 502 },
+    );
+  }
 
   await writeAuditLog({
-    targetUserId: user.id,
     action: "CHECKOUT_CREATED",
     entityType: "PaymentIntent",
-    entityId: payment.id,
-    metadataJson: { amountCents: pricing.total, provider: "SQUARE" },
-  });
+    entityId: paymentIntentId as unknown as string,
+    metadataJson: { amountCents: totalCents, provider: "STRIPE" },
+  }).catch(() => null);
 
-  return NextResponse.json({ paymentId: payment.id, totalCents: pricing.total, checkoutUrl: checkout.checkoutUrl });
+  return NextResponse.json({
+    paymentId: paymentIntentId,
+    totalCents,
+    checkoutUrl: checkout.checkoutUrl,
+  });
 }

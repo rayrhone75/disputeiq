@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { auth } from "@clerk/nextjs/server";
+import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { requireRole } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { writeAuditLog } from "@/lib/audit";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 
-const CategoryZ = z.enum(["general", "billing", "report", "escalation"]).default("general");
+const CategoryZ = z
+  .enum(["general", "billing", "report", "escalation"])
+  .default("general");
 
 const CreateZ = z.object({
   userId: z.string().min(1),
@@ -16,14 +20,20 @@ const CreateZ = z.object({
 export async function GET(req: NextRequest) {
   const user = await requireRole(["OWNER", "ADMIN", "SUPPORT"]).catch(() => null);
   if (!user) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+
   const url = new URL(req.url);
   const userId = url.searchParams.get("userId");
   if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 });
-  const notes = await prisma.supportNote.findMany({
-    where: { userId },
-    orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
-    include: { author: { select: { email: true } } },
-  });
+
+  const notes = await fetchQuery(
+    api.support.listNotes,
+    { userId: userId as Id<"users"> },
+    { token },
+  );
   return NextResponse.json({ notes });
 }
 
@@ -39,30 +49,28 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  const target = await prisma.user.findUnique({
-    where: { id: parsed.data.userId },
-    select: { id: true },
-  });
-  if (!target) return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
 
-  const note = await prisma.supportNote.create({
-    data: {
-      userId: parsed.data.userId,
-      authorUserId: user.id,
-      body: parsed.data.body,
-      category: parsed.data.category ?? "general",
-      pinned: !!parsed.data.pinned,
-      isInternal: true,
-    },
-    include: { author: { select: { email: true } } },
-  });
-  await writeAuditLog({
-    actorUserId: user.id,
-    targetUserId: parsed.data.userId,
-    action: "SUPPORT_NOTE_CREATED",
-    entityType: "SupportNote",
-    entityId: note.id,
-    metadataJson: { category: note.category, pinned: note.pinned, length: note.body.length },
-  });
-  return NextResponse.json({ note });
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
+  if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+
+  try {
+    const note = await fetchMutation(
+      api.support.createNote,
+      {
+        userId: parsed.data.userId as Id<"users">,
+        body: parsed.data.body,
+        category: parsed.data.category,
+        pinned: parsed.data.pinned,
+      },
+      { token },
+    );
+    return NextResponse.json({ note });
+  } catch (err) {
+    const msg = (err as Error).message;
+    if (msg.includes("USER_NOT_FOUND")) {
+      return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
+    }
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }

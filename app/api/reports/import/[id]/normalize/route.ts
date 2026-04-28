@@ -1,27 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { auth } from "@clerk/nextjs/server";
 import { runNormalization, ImportRunnerError } from "@/lib/credit-import/runner";
+import type { Id } from "@/convex/_generated/dataModel";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(_req: NextRequest, ctx: Params) {
-  const user = await requireUser().catch(() => null);
-  if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const { userId, getToken } = await auth();
+  if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const token = await getToken({ template: "convex" });
   const { id } = await ctx.params;
 
-  const imp = await prisma.creditReportImport.findFirst({
-    where: { id, userId: user.id },
-    select: { id: true },
-  });
-  if (!imp) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
-
   try {
-    const result = await runNormalization({
-      importId: id,
-      replace: true,
-      actorUserId: user.id,
-    });
+    const result = await runNormalization(
+      { token },
+      { importId: id as Id<"creditReportImports"> },
+    );
     return NextResponse.json({
       bureausDetected: result.report.bureausDetected,
       tradelineCount: result.report.tradelines.length,

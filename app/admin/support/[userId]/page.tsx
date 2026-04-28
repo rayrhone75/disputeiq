@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
 import { requireRole } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { Chip, PageHeader, Surface } from "@/components/ui/primitives";
 import { DestructiveActionDialog } from "@/components/admin/DestructiveActionDialog";
 import {
@@ -20,46 +23,37 @@ export default async function SupportCustomerConsole({
   const actor = await requireRole(["OWNER", "ADMIN", "SUPPORT"]);
   const { userId } = await params;
 
-  const u = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      profile: true,
-      subscription: true,
-      creditImports: {
-        orderBy: { createdAt: "desc" },
-        take: 20,
-        include: {
-          _count: {
-            select: {
-              tradelines: true,
-              collections: true,
-              disputeCandidates: true,
-            },
-          },
-        },
-      },
-      disputes: {
-        orderBy: { userConfirmedAt: "desc" },
-        take: 20,
-      },
-      payments: { orderBy: { createdAt: "desc" }, take: 10 },
-      consentReceipts: { orderBy: { acceptedAt: "desc" }, take: 5 },
-    },
-  });
-  if (!u) return notFound();
+  const { getToken } = await auth();
+  const token = await getToken({ template: "convex" });
+  if (!token) return notFound();
 
-  const recentAudit = await prisma.auditLog.findMany({
-    where: { OR: [{ targetUserId: userId }, { actorUserId: userId }] },
-    orderBy: { createdAt: "desc" },
-    take: 30,
-    include: { actorUser: { select: { email: true } } },
-  });
+  const console = await fetchQuery(
+    api.admin.customerConsole,
+    { userId: userId as Id<"users"> },
+    { token },
+  );
+  if (!console) return notFound();
 
-  const notes = await prisma.supportNote.findMany({
-    where: { userId },
-    orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
-    include: { author: { select: { email: true } } },
-  });
+  const [recentAudit, notes] = await Promise.all([
+    fetchQuery(
+      api.auditLogs.forUser,
+      { userId: userId as Id<"users">, limit: 30 },
+      { token },
+    ),
+    fetchQuery(
+      api.support.listNotes,
+      { userId: userId as Id<"users"> },
+      { token },
+    ),
+  ]);
+
+  const u = console.user;
+  const profile = console.profile;
+  const subscription = console.subscription;
+  const creditImports = console.creditImports;
+  const disputes = console.disputes;
+  const payments = console.payments;
+  const consentReceipts = console.consentReceipts;
 
   const errorRows = recentAudit.filter((r) =>
     /FAILED|ERROR|CONFIRMATION_MISMATCH|DELETED|HARD_PURGED/.test(r.action),
@@ -68,59 +62,71 @@ export default async function SupportCustomerConsole({
   const isArchived = !!u.archivedAt;
   const canHardPurge = actor.role === "OWNER";
 
+  // Suppress unused-var warnings — these are surfaced for future panels.
+  void profile;
+  void consentReceipts;
+
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="Support console"
         title={u.email}
-        description={`Customer id ${u.id.slice(0, 10)}… · joined ${u.createdAt.toLocaleDateString()}`}
+        description={`Customer id ${(u._id as unknown as string).slice(0, 10)}… · joined ${new Date(u.createdAt).toLocaleDateString()}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Chip tone={isArchived ? "neutral" : "success"}>
               {isArchived ? "archived" : u.role}
             </Chip>
-            {u.subscription && <Chip tone="accent">{u.subscription.planCode}</Chip>}
+            {subscription && <Chip tone="accent">{subscription.planCode}</Chip>}
           </div>
         }
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <Surface className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
             Imports
           </p>
-          <p className="mt-1 text-2xl font-semibold text-ink-900">{u.creditImports.length}</p>
+          <p className="mt-1 text-2xl font-semibold text-fg">
+            {creditImports.length}
+          </p>
         </Surface>
         <Surface className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
             Disputes
           </p>
-          <p className="mt-1 text-2xl font-semibold text-ink-900">{u.disputes.length}</p>
+          <p className="mt-1 text-2xl font-semibold text-fg">
+            {disputes.length}
+          </p>
         </Surface>
         <Surface className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
             Payments
           </p>
-          <p className="mt-1 text-2xl font-semibold text-ink-900">{u.payments.length}</p>
+          <p className="mt-1 text-2xl font-semibold text-fg">
+            {payments.length}
+          </p>
         </Surface>
         <Surface className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
             Notes
           </p>
-          <p className="mt-1 text-2xl font-semibold text-ink-900">{notes.length}</p>
+          <p className="mt-1 text-2xl font-semibold text-fg">
+            {notes.length}
+          </p>
         </Surface>
       </div>
 
       <Surface className="p-5">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Import history
         </h2>
-        {u.creditImports.length === 0 ? (
-          <p className="mt-3 text-sm text-ink-500">No credit imports yet.</p>
+        {creditImports.length === 0 ? (
+          <p className="mt-3 text-sm text-fg-muted">No credit imports yet.</p>
         ) : (
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className="text-left text-[10px] uppercase tracking-wide text-ink-500">
+              <thead className="text-left text-[10px] uppercase tracking-wide text-fg-muted">
                 <tr>
                   <th className="py-2 pr-3">Created</th>
                   <th className="py-2 pr-3">Provider</th>
@@ -133,10 +139,10 @@ export default async function SupportCustomerConsole({
                 </tr>
               </thead>
               <tbody>
-                {u.creditImports.map((imp) => (
-                  <tr key={imp.id} className="border-t border-ink-100">
+                {creditImports.map((imp) => (
+                  <tr key={imp._id as unknown as string} className="border-t border-border">
                     <td className="py-2 pr-3 font-mono">
-                      {imp.createdAt.toLocaleDateString()}
+                      {new Date(imp.createdAt).toLocaleDateString()}
                     </td>
                     <td className="py-2 pr-3">{imp.provider}</td>
                     <td className="py-2 pr-3">
@@ -157,10 +163,12 @@ export default async function SupportCustomerConsole({
                     </td>
                     <td className="py-2 pr-3">{imp._count.tradelines}</td>
                     <td className="py-2 pr-3">{imp._count.collections}</td>
-                    <td className="py-2 pr-3 font-semibold">{imp._count.disputeCandidates}</td>
+                    <td className="py-2 pr-3 font-semibold">
+                      {imp._count.disputeCandidates}
+                    </td>
                     <td className="py-2 pr-3">
                       <Link
-                        href={`/admin/credit-imports/${imp.id}`}
+                        href={`/admin/credit-imports/${imp._id}`}
                         className="text-accent-600 underline"
                       >
                         open
@@ -175,27 +183,29 @@ export default async function SupportCustomerConsole({
       </Surface>
 
       <Surface className="p-5">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Error timeline
         </h2>
         {errorRows.length === 0 ? (
-          <p className="mt-3 text-sm text-ink-500">No error events in recent history.</p>
+          <p className="mt-3 text-sm text-fg-muted">
+            No error events in recent history.
+          </p>
         ) : (
           <ul className="mt-3 space-y-2 text-xs">
             {errorRows.map((r) => (
               <li
-                key={r.id}
+                key={r._id as unknown as string}
                 className="flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50/50 p-2"
               >
                 <div>
                   <p className="font-mono font-semibold text-rose-700">{r.action}</p>
-                  <p className="text-[11px] text-ink-600">
+                  <p className="text-[11px] text-fg-muted">
                     {r.entityType} / {r.entityId.slice(0, 10)}… ·{" "}
-                    {r.actorUser?.email ?? "system"}
+                    {r.actorEmail ?? "system"}
                   </p>
                 </div>
-                <span className="text-[10px] text-ink-400">
-                  {r.createdAt.toLocaleString()}
+                <span className="text-[10px] text-fg-subtle">
+                  {new Date(r.createdAt).toLocaleString()}
                 </span>
               </li>
             ))}
@@ -204,18 +214,18 @@ export default async function SupportCustomerConsole({
       </Surface>
 
       <Surface className="p-5">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Audit trail (recent 30)
         </h2>
         <ul className="mt-3 space-y-1 text-xs">
           {recentAudit.map((r) => (
             <li
-              key={r.id}
-              className="flex items-center justify-between gap-3 border-b border-ink-100 py-1 last:border-0"
+              key={r._id as unknown as string}
+              className="flex items-center justify-between gap-3 border-b border-border py-1 last:border-0"
             >
-              <span className="font-mono text-ink-800">{r.action}</span>
-              <span className="text-[10px] text-ink-500">
-                {r.actorUser?.email ?? "system"} · {r.createdAt.toLocaleString()}
+              <span className="font-mono text-fg">{r.action}</span>
+              <span className="text-[10px] text-fg-muted">
+                {r.actorEmail ?? "system"} · {new Date(r.createdAt).toLocaleString()}
               </span>
             </li>
           ))}
@@ -223,11 +233,22 @@ export default async function SupportCustomerConsole({
       </Surface>
 
       <Surface className="p-5">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-500">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
           Support notes (internal)
         </h2>
         <div className="mt-3">
-          <SupportNoteList userId={userId} initialNotes={notes} />
+          <SupportNoteList
+            userId={userId}
+            initialNotes={notes.map((n) => ({
+              id: n._id as unknown as string,
+              body: n.body,
+              category: n.category,
+              pinned: n.pinned,
+              isInternal: n.isInternal,
+              createdAt: new Date(n.createdAt).toISOString(),
+              author: n.author,
+            }))}
+          />
         </div>
       </Surface>
 
@@ -235,7 +256,7 @@ export default async function SupportCustomerConsole({
         <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-rose-600">
           Action rail — destructive
         </h2>
-        <p className="mt-1 text-xs text-ink-500">
+        <p className="mt-1 text-xs text-fg-muted">
           Visually separated and typed-confirmation-gated. Archive first; hard purge only when
           required and only by OWNER.
         </p>

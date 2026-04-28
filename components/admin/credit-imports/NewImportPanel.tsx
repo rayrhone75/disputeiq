@@ -10,7 +10,7 @@ type Provider = "IDENTITYIQ" | "MYSCOREIQ" | "MANUAL";
 export function NewImportPanel({ users }: { users: UserOpt[] }) {
   const router = useRouter();
   const [userId, setUserId] = useState(users[0]?.id ?? "");
-  const [provider, setProvider] = useState<Provider>("IDENTITYIQ");
+  const [provider, setProvider] = useState<Provider>("MYSCOREIQ");
   const [sourceUrl, setSourceUrl] = useState("");
   const [providerRef, setProviderRef] = useState("");
   const [bodyText, setBodyText] = useState("");
@@ -74,11 +74,11 @@ export function NewImportPanel({ users }: { users: UserOpt[] }) {
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <label className="space-y-1 text-sm">
-          <span className="font-semibold text-ink-700">Target user</span>
+          <span className="font-semibold text-fg-muted">Target user</span>
           <select
             value={userId}
             onChange={(e) => setUserId(e.target.value)}
-            className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm"
           >
             {users.map((u) => (
               <option key={u.id} value={u.id}>
@@ -88,41 +88,40 @@ export function NewImportPanel({ users }: { users: UserOpt[] }) {
           </select>
         </label>
         <label className="space-y-1 text-sm">
-          <span className="font-semibold text-ink-700">Provider</span>
+          <span className="font-semibold text-fg-muted">Provider</span>
           <select
             value={provider}
             onChange={(e) => setProvider(e.target.value as Provider)}
-            className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm"
           >
-            <option value="IDENTITYIQ">IdentityIQ</option>
             <option value="MYSCOREIQ">MyScoreIQ</option>
             <option value="MANUAL">Manual / other (auto-detect)</option>
           </select>
         </label>
         <label className="space-y-1 text-sm md:col-span-2">
-          <span className="font-semibold text-ink-700">
+          <span className="font-semibold text-fg-muted">
             Provider URL (optional — used later by the Fetch tab)
           </span>
           <input
             value={sourceUrl}
             onChange={(e) => setSourceUrl(e.target.value)}
             placeholder="https://.../CreditReport.aspx?view=json"
-            className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm"
           />
         </label>
         <label className="space-y-1 text-sm md:col-span-2">
-          <span className="font-semibold text-ink-700">Provider reference (optional)</span>
+          <span className="font-semibold text-fg-muted">Provider reference (optional)</span>
           <input
             value={providerRef}
             onChange={(e) => setProviderRef(e.target.value)}
             placeholder="External customer or session id"
-            className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm"
           />
         </label>
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold text-ink-700">
+        <p className="text-sm font-semibold text-fg-muted">
           Paste raw JSON (optional — can also be done on the detail page)
         </p>
         <textarea
@@ -130,20 +129,20 @@ export function NewImportPanel({ users }: { users: UserOpt[] }) {
           onChange={(e) => setBodyText(e.target.value)}
           rows={12}
           placeholder='{"borrower": {"fullName": "..."}, "tradelines": [...]}'
-          className="w-full rounded-lg border border-ink-200 bg-ink-50/50 px-3 py-2 font-mono text-xs"
+          className="w-full rounded-lg border border-border-strong bg-surface-muted/60 px-3 py-2 font-mono text-xs"
         />
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold text-ink-700">Or upload a .json file (max 10 MB)</p>
+        <p className="text-sm font-semibold text-fg-muted">Or upload a .json file (max 10 MB)</p>
         <input
           type="file"
           accept="application/json,.json"
           onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
-          className="block w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm"
+          className="block w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm"
         />
         {uploadFile && (
-          <p className="text-xs text-ink-500">
+          <p className="text-xs text-fg-muted">
             Selected: <span className="font-mono">{uploadFile.name}</span> ·{" "}
             {(uploadFile.size / 1024).toFixed(1)} KB
           </p>
@@ -161,7 +160,7 @@ export function NewImportPanel({ users }: { users: UserOpt[] }) {
           type="button"
           disabled={busy}
           onClick={() => submit({})}
-          className="rounded-xl bg-ink-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          className="rounded-xl bg-fg px-4 py-2 text-sm font-semibold text-canvas hover:bg-fg/90 disabled:opacity-50"
         >
           {busy ? "Creating…" : "Create import"}
         </button>

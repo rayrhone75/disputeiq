@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
+import { fetchMutation } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 import { parseReportText } from "@/lib/report-parser";
-import { writeAuditLog } from "@/lib/audit";
 
 // Paste-text report import. User copies their MyFreeScoreIQ report text and
 // pastes it here. We run the same parser pipeline as the PDF upload but skip
@@ -14,8 +14,9 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const user = await requireUser().catch(() => null);
-  if (!user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const { userId, getToken } = await auth();
+  if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  const token = await getToken({ template: "convex" });
 
   const parsed = schema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -25,51 +26,40 @@ export async function POST(req: NextRequest) {
 
   const result = parseReportText(text);
 
-  const report = await prisma.creditReport.create({
-    data: {
-      userId: user.id,
+  const created = await fetchMutation(
+    api.creditReports.createReport,
+    {
       source: "MANUAL_UPLOAD",
-      pulledAt: new Date(),
       snapshotHash: hash,
-      rawSecureRef: null,
-    },
-  });
-
-  if (result.tradelines.length > 0) {
-    await prisma.tradeline.createMany({
-      data: result.tradelines.map((t) => ({
-        reportId: report.id,
+      tradelines: result.tradelines.map((t) => ({
         bureau: t.bureau,
         creditorName: t.creditorName,
         accountRefMasked: t.accountRefMasked,
         balanceCents: t.balanceCents,
         pastDueCents: t.pastDueCents,
         statusLabel: t.statusLabel,
-        openedAt: t.openedAt,
-        lastReportedAt: t.lastReportedAt,
-        lastActivityAt: t.lastActivityAt,
+        openedAtMs: t.openedAt instanceof Date ? t.openedAt.getTime() : undefined,
+        lastReportedAtMs:
+          t.lastReportedAt instanceof Date ? t.lastReportedAt.getTime() : undefined,
+        lastActivityAtMs:
+          t.lastActivityAt instanceof Date ? t.lastActivityAt.getTime() : undefined,
         isCollection: t.isCollection ?? false,
         isMedical: t.isMedical ?? false,
       })),
-    });
-  }
-
-  await writeAuditLog({
-    targetUserId: user.id,
-    action: "REPORT_PASTED",
-    entityType: "CreditReport",
-    entityId: report.id,
-    metadataJson: {
-      hash,
-      textLength: text.length,
-      parsedCount: result.tradelines.length,
-      reviewFlags: result.reviewFlags,
-      bureauGuess: result.bureauGuess,
+      auditAction: "REPORT_PASTED",
+      auditMetadataJson: {
+        hash,
+        textLength: text.length,
+        parsedCount: result.tradelines.length,
+        reviewFlags: result.reviewFlags,
+        bureauGuess: result.bureauGuess,
+      },
     },
-  });
+    { token: token ?? undefined },
+  );
 
   return NextResponse.json({
-    reportId: report.id,
+    reportId: created.id,
     parsedCount: result.tradelines.length,
     reviewFlags: result.reviewFlags,
     bureauGuess: result.bureauGuess,

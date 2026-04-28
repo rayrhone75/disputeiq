@@ -4,6 +4,8 @@ import type { Viewport } from "next";
 
 import { BRAND, URLS } from "@/lib/urls";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
+import { ConvexClerkProvider } from "@/components/providers/ConvexClerkProvider";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 export const metadata = {
   metadataBase: new URL(URLS.marketing),
@@ -31,11 +33,22 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  // suppressHydrationWarning on <html>/<body> swallows extension-injected
+  // attributes (e.g. Smart Converter, Grammarly, ColorZilla) that diff the
+  // first render. Scoped to these two tags only — children still get full
+  // hydration validation.
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-white text-slate-900">
-        {children}
-        <PwaInstallPrompt />
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className="min-h-screen bg-white text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100"
+        suppressHydrationWarning
+      >
+        <ThemeProvider>
+          <ConvexClerkProvider>
+            {children}
+            <PwaInstallPrompt />
+          </ConvexClerkProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

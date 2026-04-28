@@ -2,31 +2,32 @@ import Link from "next/link";
 import { COMPLIANCE_NOTICE } from "@/lib/compliance";
 import { URLS } from "@/lib/urls";
 import { Section } from "@/components/marketing/Section";
-import { IDIQ, buildIdiqEnrollUrl } from "@/lib/integrations/identityiq";
+import { MSIQ, buildMsiqEnrollUrl } from "@/lib/integrations/myscoreiq";
 import { TrustSection } from "@/components/marketing/TrustSection";
 import { LeadCaptureForm } from "@/components/marketing/LeadCaptureForm";
 
 /* ----------------------------------------------------------------------------
  * DisputeIQ — premium marketing homepage.
  * Positioning: identify · challenge · track · escalate.
- * Primary funnel entry: IdentityIQ (IDIQ) 3-bureau report intake.
+ * Primary funnel entry: MyScoreIQ 3-bureau report intake.
  *
- * The marketing homepage uses env-backed IDIQ defaults (not the DB-managed
- * setting) so it can stay purely static / cached. The authenticated
- * dashboard get-report flow loads the live admin setting instead.
+ * The marketing homepage uses env-backed MyScoreIQ defaults (not the
+ * DB-managed setting) so it can stay purely static / cached. The
+ * authenticated dashboard get-report flow loads the live admin setting
+ * instead.
  * -------------------------------------------------------------------------- */
 
-const IDIQ_BASE =
-  process.env.IDIQ_AFFILIATE_URL ??
-  process.env.NEXT_PUBLIC_IDIQ_AFFILIATE_URL ??
-  "https://www.identityiq.com/securepreferred.aspx?offercode=431298HW";
-const idiqHome = buildIdiqEnrollUrl({
-  baseUrl: IDIQ_BASE,
+const MSIQ_BASE =
+  process.env.MYSCOREIQ_AFFILIATE_URL ??
+  process.env.NEXT_PUBLIC_MYSCOREIQ_AFFILIATE_URL ??
+  "https://gcpstage.myscoreiq.com/get-fico-preferred.aspx?offercode=432500C3";
+const msiqHome = buildMsiqEnrollUrl({
+  baseUrl: MSIQ_BASE,
   campaign: "home_hero",
   source: "disputeiq",
 });
-const idiqStart = buildIdiqEnrollUrl({
-  baseUrl: IDIQ_BASE,
+const msiqStart = buildMsiqEnrollUrl({
+  baseUrl: MSIQ_BASE,
   campaign: "home_start_step",
   source: "disputeiq",
 });
@@ -45,10 +46,10 @@ export default function HomePage() {
       <Coexistence />
       <Testimonials />
       <TrustSection />
-      <section className="border-t border-[#0a0f1c]/10 bg-white py-16">
+      <section className="border-t border-border bg-surface py-16">
         <div className="mx-auto max-w-2xl px-6 text-center">
           <h2 className="text-2xl font-semibold tracking-tight">Get a free credit analysis preview</h2>
-          <p className="mt-2 text-sm text-[#0a0f1c]/65">
+          <p className="mt-2 text-sm text-fg/65">
             We'll email you the next steps for your situation. No spam — ever.
           </p>
           <div className="mt-6">
@@ -83,7 +84,7 @@ function Hero() {
 
       <div className="mx-auto grid max-w-7xl gap-16 px-6 pb-24 pt-24 lg:grid-cols-[1.05fr_1fr] lg:items-center lg:pt-32">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#d9d3c0] bg-white/80 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4a4638] backdrop-blur">
+          <span className="inline-flex items-center gap-2 rounded-full border border-border-strong bg-surface/80 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-fg-muted backdrop-blur">
             <span className="relative flex h-1.5 w-1.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/60" />
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-600" />
@@ -91,7 +92,7 @@ function Hero() {
             A Screwed Up Credit company
           </span>
 
-          <h1 className="mt-7 font-serif text-[56px] font-medium leading-[1.02] tracking-[-0.02em] text-[#0a0f1c] sm:text-[74px]">
+          <h1 className="mt-7 font-serif text-[56px] font-medium leading-[1.02] tracking-[-0.02em] text-fg sm:text-[74px]">
             Identify. Challenge.
             <br />
             <span className="italic">
@@ -102,7 +103,7 @@ function Hero() {
             </span>
           </h1>
 
-          <p className="mt-7 max-w-xl text-[17px] leading-[1.65] text-[#3d3a2e]">
+          <p className="mt-7 max-w-xl text-[17px] leading-[1.65] text-fg-muted">
             DisputeIQ is the executive-grade credit action platform. Turn a real 3-bureau report
             into a disciplined workflow of disputes, certified mailings, fraud blocks, and CFPB
             escalations — with audit-grade trust in every step.
@@ -111,20 +112,20 @@ function Hero() {
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Link
               href="/get-started"
-              className="group inline-flex items-center gap-2 rounded-xl bg-[#0a0f1c] px-7 py-3.5 text-[13px] font-semibold uppercase tracking-[0.12em] text-white shadow-[0_14px_40px_-14px_rgba(10,15,28,0.6)] transition hover:scale-[1.015] hover:bg-[#111827]"
+              className="group inline-flex items-center gap-2 rounded-xl bg-fg px-7 py-3.5 text-[13px] font-semibold uppercase tracking-[0.12em] text-canvas shadow-[0_14px_40px_-14px_rgba(10,15,28,0.6)] transition hover:scale-[1.015] hover:bg-fg/90"
             >
               Start your file
               <span className="transition group-hover:translate-x-0.5">→</span>
             </Link>
             <Link
               href="/how-it-works"
-              className="inline-flex items-center gap-2 rounded-xl border border-[#d9d3c0] bg-white/70 px-7 py-3.5 text-[13px] font-semibold uppercase tracking-[0.12em] text-[#0a0f1c] transition hover:border-[#0a0f1c] hover:bg-white"
+              className="inline-flex items-center gap-2 rounded-xl border border-border-strong bg-surface/70 px-7 py-3.5 text-[13px] font-semibold uppercase tracking-[0.12em] text-fg transition hover:border-fg hover:bg-surface"
             >
               See the method
             </Link>
           </div>
 
-          <dl className="mt-14 grid max-w-xl grid-cols-4 gap-5 border-t border-[#d9d3c0] pt-8">
+          <dl className="mt-14 grid max-w-xl grid-cols-4 gap-5 border-t border-border-strong pt-8">
             {[
               ["Identify", "Cross-bureau diffs"],
               ["Challenge", "Factual disputes"],
@@ -132,13 +133,13 @@ function Hero() {
               ["Escalate", "605B · CFPB"],
             ].map(([v, l]) => (
               <div key={v as string}>
-                <dt className="font-serif text-[20px] text-[#0a0f1c]">{v}</dt>
-                <dd className="mt-1 text-[10px] uppercase tracking-[0.16em] text-[#8a8472]">{l}</dd>
+                <dt className="font-serif text-[20px] text-fg">{v}</dt>
+                <dd className="mt-1 text-[10px] uppercase tracking-[0.16em] text-fg-subtle">{l}</dd>
               </div>
             ))}
           </dl>
 
-          <p className="mt-10 max-w-xl text-[11px] leading-relaxed text-[#8a8472]">
+          <p className="mt-10 max-w-xl text-[11px] leading-relaxed text-fg-subtle">
             {COMPLIANCE_NOTICE}
           </p>
         </div>
@@ -157,12 +158,12 @@ function DashboardMock() {
     <div className="relative">
       <div className="absolute -inset-10 -z-10 rounded-[40px] bg-gradient-to-br from-indigo-200/70 via-violet-200/50 to-transparent blur-3xl" />
 
-      <div className="absolute -right-3 -top-3 z-10 hidden rotate-3 rounded-2xl border border-[#e8e4d8] bg-white/95 px-4 py-3 text-[11px] shadow-[0_20px_50px_-20px_rgba(10,15,28,0.3)] backdrop-blur sm:block">
+      <div className="absolute -right-3 -top-3 z-10 hidden rotate-3 rounded-2xl border border-border bg-surface/95 px-4 py-3 text-[11px] shadow-[0_20px_50px_-20px_rgba(10,15,28,0.3)] backdrop-blur sm:block">
         <div className="flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          <span className="uppercase tracking-[0.18em] text-[#6b6556]">Live</span>
+          <span className="uppercase tracking-[0.18em] text-fg-subtle">Live</span>
         </div>
-        <p className="mt-1 font-serif text-sm text-[#0a0f1c]">Audit log synced</p>
+        <p className="mt-1 font-serif text-sm text-fg">Audit log synced</p>
       </div>
 
       <div className="relative rounded-[22px] border border-white/10 bg-gradient-to-br from-[#0e1424] to-[#0a0f1c] p-5 shadow-[0_50px_120px_-30px_rgba(10,15,28,0.45)]">
@@ -219,7 +220,7 @@ function DashboardMock() {
           <p className="text-[10px] uppercase tracking-[0.18em] text-white/40">Activity timeline</p>
           <ol className="mt-3 space-y-2.5">
             {[
-              ["Report pulled via IdentityIQ", "now", "bg-indigo-400"],
+              ["Report pulled via MyScoreIQ", "now", "bg-indigo-400"],
               ["Cross-bureau audit complete", "1m", "bg-violet-400"],
               ["Letter mailed via USPS certified", "1h", "bg-emerald-400"],
             ].map(([t, ts, dot]) => (
@@ -259,12 +260,12 @@ function PressStrip() {
     "No data sales",
   ];
   return (
-    <section className="relative border-y border-[#e8e4d8] bg-white/60">
+    <section className="relative border-y border-border bg-surface/60">
       <div className="mx-auto max-w-7xl px-6 py-9">
-        <p className="text-center text-[10px] uppercase tracking-[0.3em] text-[#8a8472]">
+        <p className="text-center text-[10px] uppercase tracking-[0.3em] text-fg-subtle">
           Built to the standard of
         </p>
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-[11px] uppercase tracking-[0.22em] text-[#4a4638]">
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-[11px] uppercase tracking-[0.22em] text-fg-muted">
           {items.map((i) => (
             <span key={i} className="flex items-center gap-2">
               <span className="h-1 w-1 rounded-full bg-emerald-600" />
@@ -278,7 +279,7 @@ function PressStrip() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Start Here — IdentityIQ funnel entry                                       */
+/*  Start Here — MyScoreIQ funnel entry                                        */
 /* -------------------------------------------------------------------------- */
 function StartHere() {
   return (
@@ -288,13 +289,13 @@ function StartHere() {
           <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-indigo-600">
             Start here
           </p>
-          <h2 className="mt-5 font-serif text-[36px] leading-[1.08] tracking-tight text-[#0a0f1c] sm:text-[48px]">
+          <h2 className="mt-5 font-serif text-[36px] leading-[1.08] tracking-tight text-fg sm:text-[48px]">
             Start with your real 3-bureau credit file.
           </h2>
-          <p className="mt-5 max-w-2xl text-[16px] leading-relaxed text-[#4a4638]">
+          <p className="mt-5 max-w-2xl text-[16px] leading-relaxed text-fg-muted">
             You can't challenge what you can't see. Every DisputeIQ workflow begins with a live
             3-bureau report pulled through our supported provider,{" "}
-            <span className="font-semibold text-[#0a0f1c]">IdentityIQ</span>.
+            <span className="font-semibold text-fg">MyScoreIQ</span>.
           </p>
         </div>
 
@@ -314,7 +315,7 @@ function StartHere() {
                 <span className="italic text-white/85">in under two minutes.</span>
               </h3>
               <p className="mt-5 max-w-xl text-[14px] leading-relaxed text-white/70">
-                IdentityIQ delivers live Experian, Equifax, and TransUnion data so DisputeIQ
+                MyScoreIQ delivers live Experian, Equifax, and TransUnion data so DisputeIQ
                 can run its cross-bureau analysis the moment your file lands.
               </p>
 
@@ -334,12 +335,12 @@ function StartHere() {
 
               <div className="mt-9 flex flex-wrap items-center gap-3">
                 <a
-                  href={idiqHome}
+                  href={msiqHome}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#0a0f1c] shadow-[0_18px_60px_-16px_rgba(255,255,255,0.55)] transition hover:scale-[1.015]"
+                  className="group inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-fg shadow-[0_18px_60px_-16px_rgba(255,255,255,0.55)] transition hover:scale-[1.015]"
                 >
-                  Continue with {IDIQ.productName} →
+                  Start with {MSIQ.productName} →
                 </a>
                 <Link
                   href="/get-started"
@@ -350,18 +351,18 @@ function StartHere() {
               </div>
 
               <p className="mt-7 text-[11px] leading-relaxed text-white/45">
-                IdentityIQ is the supported report provider for DisputeIQ. DisputeIQ is a
+                MyScoreIQ is the supported report provider for DisputeIQ. DisputeIQ is a
                 workflow tool — we do not sell credit monitoring.
               </p>
             </div>
           </div>
 
           {/* Steps card */}
-          <div className="rounded-[24px] border border-[#e8e4d8] bg-white p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_24px_48px_-24px_rgba(10,15,28,0.16)]">
-            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#8a8472]">
+          <div className="rounded-[24px] border border-border bg-surface p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_24px_48px_-24px_rgba(10,15,28,0.16)]">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-subtle">
               The three-step intake
             </p>
-            <h3 className="mt-4 font-serif text-[26px] leading-tight text-[#0a0f1c]">
+            <h3 className="mt-4 font-serif text-[26px] leading-tight text-fg">
               From report to action in three steps.
             </h3>
             <ol className="mt-7 space-y-6">
@@ -369,7 +370,7 @@ function StartHere() {
                 {
                   n: "01",
                   t: "Get your report",
-                  d: "Continue with IdentityIQ and pull your live 3-bureau file.",
+                  d: "Activate MyScoreIQ and pull your live 3-bureau file.",
                 },
                 {
                   n: "02",
@@ -378,29 +379,29 @@ function StartHere() {
                 },
                 {
                   n: "03",
-                  t: "Upload & analyze",
-                  d: "Upload your report. AI cross-bureau analysis surfaces actionable findings.",
+                  t: "Connect & analyze",
+                  d: "Connect your MyScoreIQ report. AI cross-bureau analysis surfaces actionable findings.",
                 },
               ].map((s) => (
                 <li key={s.n} className="flex items-start gap-4">
-                  <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#e8e4d8] bg-[#faf9f4] font-mono text-[11px] font-semibold text-indigo-700">
+                  <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-muted font-mono text-[11px] font-semibold text-indigo-700">
                     {s.n}
                   </span>
                   <div>
-                    <p className="font-serif text-[17px] text-[#0a0f1c]">{s.t}</p>
-                    <p className="mt-1 text-[13px] leading-relaxed text-[#4a4638]">{s.d}</p>
+                    <p className="font-serif text-[17px] text-fg">{s.t}</p>
+                    <p className="mt-1 text-[13px] leading-relaxed text-fg-muted">{s.d}</p>
                   </div>
                 </li>
               ))}
             </ol>
-            <div className="mt-8 border-t border-[#e8e4d8] pt-6">
+            <div className="mt-8 border-t border-border pt-6">
               <a
-                href={idiqStart}
+                href={msiqStart}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#0a0f1c] bg-[#0a0f1c] px-5 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#111827]"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-fg bg-fg px-5 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-canvas transition hover:bg-fg/90"
               >
-                Continue with IdentityIQ →
+                Start with MyScoreIQ →
               </a>
             </div>
           </div>
@@ -446,11 +447,11 @@ function Positioning() {
         {cards.map((c) => (
           <div
             key={c.t}
-            className="group relative overflow-hidden rounded-2xl border border-[#e8e4d8] bg-white p-7 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_20px_40px_-24px_rgba(10,15,28,0.12)] transition hover:-translate-y-0.5 hover:border-indigo-500/50 hover:shadow-[0_1px_0_0_rgba(10,15,28,0.04),0_28px_50px_-22px_rgba(79,70,229,0.28)]"
+            className="group relative overflow-hidden rounded-2xl border border-border bg-surface p-7 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_20px_40px_-24px_rgba(10,15,28,0.12)] transition hover:-translate-y-0.5 hover:border-indigo-500/50 hover:shadow-[0_1px_0_0_rgba(10,15,28,0.04),0_28px_50px_-22px_rgba(79,70,229,0.28)]"
           >
             <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-indigo-600">{c.k}</p>
-            <h3 className="mt-5 font-serif text-[22px] text-[#0a0f1c]">{c.t}</h3>
-            <p className="mt-3 text-[13px] leading-relaxed text-[#4a4638]">{c.d}</p>
+            <h3 className="mt-5 font-serif text-[22px] text-fg">{c.t}</h3>
+            <p className="mt-3 text-[13px] leading-relaxed text-fg-muted">{c.d}</p>
             <div className="absolute inset-x-6 -bottom-px h-px bg-gradient-to-r from-transparent via-indigo-500/60 to-transparent opacity-0 transition group-hover:opacity-100" />
           </div>
         ))}
@@ -554,14 +555,14 @@ function Storyline() {
         {steps.map((s, i) => (
           <div
             key={s.n}
-            className="relative overflow-hidden rounded-2xl border border-[#e8e4d8] bg-white p-6 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_20px_40px_-24px_rgba(10,15,28,0.12)] transition hover:-translate-y-0.5 hover:border-indigo-500/40"
+            className="relative overflow-hidden rounded-2xl border border-border bg-surface p-6 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_20px_40px_-24px_rgba(10,15,28,0.12)] transition hover:-translate-y-0.5 hover:border-indigo-500/40"
           >
             <div className="flex items-center justify-between">
               <span className="font-serif text-[22px] italic text-indigo-600">{s.n}</span>
-              {i < 4 && <span className="text-[#cbc4ad]">→</span>}
+              {i < 4 && <span className="text-fg-subtle">→</span>}
             </div>
-            <h3 className="mt-5 font-serif text-[18px] text-[#0a0f1c]">{s.t}</h3>
-            <p className="mt-2 text-[12px] leading-relaxed text-[#4a4638]">{s.d}</p>
+            <h3 className="mt-5 font-serif text-[18px] text-fg">{s.t}</h3>
+            <p className="mt-2 text-[12px] leading-relaxed text-fg-muted">{s.d}</p>
           </div>
         ))}
       </div>
@@ -585,7 +586,7 @@ function AISuite() {
           <div className="relative rounded-[22px] border border-white/10 bg-gradient-to-br from-[#0e1424] to-[#0a0f1c] p-6 text-white shadow-[0_50px_120px_-30px_rgba(10,15,28,0.45)]">
             <div className="flex items-center gap-3 border-b border-white/10 pb-4">
               <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-gradient-to-br from-indigo-400 via-violet-500 to-fuchsia-500 shadow-[0_0_28px_-4px_rgba(139,92,246,0.6)]">
-                <div className="absolute inset-[2px] rounded-[7px] bg-[#0a0f1c]" />
+                <div className="absolute inset-[2px] rounded-[7px] bg-surface-strong" />
                 <div className="absolute inset-0 flex items-center justify-center font-serif text-sm italic text-white/95">
                   D
                 </div>
@@ -624,10 +625,10 @@ function AISuite() {
             ["Identifies missing documents", "Knows what evidence each escalation type requires before you send."],
             ["Summarizes tracking events", "Plain-English status updates on certified mail, bureau responses, and deadlines."],
           ].map(([t, d]) => (
-            <li key={t} className="group flex items-start gap-4 border-l-2 border-[#e0dccf] pl-5 transition hover:border-indigo-600">
+            <li key={t} className="group flex items-start gap-4 border-l-2 border-border-strong pl-5 transition hover:border-indigo-600">
               <div>
-                <p className="font-serif text-[18px] text-[#0a0f1c]">{t}</p>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-[#4a4638]">{d}</p>
+                <p className="font-serif text-[18px] text-fg">{t}</p>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-fg-muted">{d}</p>
               </div>
             </li>
           ))}
@@ -642,16 +643,16 @@ function AISuite() {
 /* -------------------------------------------------------------------------- */
 function ProductFrames() {
   return (
-    <section className="relative bg-white">
+    <section className="relative bg-surface">
       <div className="mx-auto max-w-7xl px-6 py-24">
         <div className="mb-14 max-w-3xl">
           <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-indigo-600">
             Inside the product
           </p>
-          <h2 className="mt-5 font-serif text-[36px] leading-[1.08] tracking-tight text-[#0a0f1c] sm:text-[48px]">
+          <h2 className="mt-5 font-serif text-[36px] leading-[1.08] tracking-tight text-fg sm:text-[48px]">
             Five views. One operational record.
           </h2>
-          <p className="mt-5 max-w-2xl text-[16px] leading-relaxed text-[#4a4638]">
+          <p className="mt-5 max-w-2xl text-[16px] leading-relaxed text-fg-muted">
             Every dispute is tracked across five connected surfaces — from the parsed tri-merge to
             the escalation panel. This is what you actually see.
           </p>
@@ -682,20 +683,20 @@ function FrameShell({
 }) {
   return (
     <article
-      className={`relative overflow-hidden rounded-2xl border border-[#e8e4d8] bg-[#faf9f4] p-5 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_24px_48px_-28px_rgba(10,15,28,0.14)] ${
+      className={`relative overflow-hidden rounded-2xl border border-border bg-surface-muted p-5 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_24px_48px_-28px_rgba(10,15,28,0.14)] ${
         wide ? "lg:col-span-2" : ""
       }`}
     >
       <div className="mb-4 flex items-center justify-between">
-        <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#8a8472]">
+        <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-fg-subtle">
           {eyebrow}
         </p>
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
       </div>
-      <h3 className="mb-3 font-serif text-[18px] leading-tight tracking-tight text-[#0a0f1c]">
+      <h3 className="mb-3 font-serif text-[18px] leading-tight tracking-tight text-fg">
         {title}
       </h3>
-      <div className="rounded-xl border border-[#e0dccf] bg-white p-4 text-[11px] text-[#2a2620]">
+      <div className="rounded-xl border border-border-strong bg-surface p-4 text-[11px] text-fg">
         {children}
       </div>
     </article>
@@ -705,7 +706,7 @@ function FrameShell({
 function FrameTriMerge() {
   const row = (creditor: string, eq: string, ex: string, tu: string, flag?: boolean) => (
     <tr className={flag ? "bg-rose-50/70" : ""}>
-      <td className="py-1.5 pr-2 font-semibold text-[#0a0f1c]">{creditor}</td>
+      <td className="py-1.5 pr-2 font-semibold text-fg">{creditor}</td>
       <td className="px-2 text-center tabular-nums">{eq}</td>
       <td className="px-2 text-center tabular-nums">{ex}</td>
       <td className="px-2 text-center tabular-nums">{tu}</td>
@@ -715,21 +716,21 @@ function FrameTriMerge() {
     <FrameShell eyebrow="I. Import" title="Tri-merge parse">
       <table className="w-full text-[11px]">
         <thead>
-          <tr className="border-b border-[#e0dccf] text-[9px] uppercase tracking-[0.14em] text-[#8a8472]">
+          <tr className="border-b border-border-strong text-[9px] uppercase tracking-[0.14em] text-fg-subtle">
             <th className="py-1 pr-2 text-left">Creditor</th>
             <th className="px-2">EQ</th>
             <th className="px-2">EX</th>
             <th className="px-2">TU</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[#f1ede2]">
+        <tbody className="divide-y divide-border-subtle">
           {row("Capital One", "$1,284", "$1,402", "$1,284", true)}
           {row("Discover", "$0", "$0", "$0")}
           {row("Midland Funding", "$412", "$412", "—")}
           {row("JPMC Auto", "Closed", "Closed", "Open", true)}
         </tbody>
       </table>
-      <p className="mt-3 border-t border-[#f1ede2] pt-2 text-[10px] text-[#6b6556]">
+      <p className="mt-3 border-t border-border-subtle pt-2 text-[10px] text-fg-subtle">
         2 cross-bureau inconsistencies flagged · column parser confidence: high
       </p>
     </FrameShell>
@@ -748,11 +749,11 @@ function FrameProofVault() {
         {items.map((i) => (
           <li
             key={i.c}
-            className="flex items-center justify-between rounded-lg border border-[#f1ede2] p-2.5"
+            className="flex items-center justify-between rounded-lg border border-border-subtle p-2.5"
           >
             <div>
-              <p className="font-semibold text-[#0a0f1c]">{i.c}</p>
-              <p className="text-[10px] text-[#6b6556]">{i.b} response · PDF filed</p>
+              <p className="font-semibold text-fg">{i.c}</p>
+              <p className="text-[10px] text-fg-subtle">{i.b} response · PDF filed</p>
             </div>
             <span
               className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${i.tone}`}
@@ -762,7 +763,7 @@ function FrameProofVault() {
           </li>
         ))}
       </ul>
-      <p className="mt-3 text-[10px] text-[#6b6556]">
+      <p className="mt-3 text-[10px] text-fg-subtle">
         Every response parsed · linked to its dispute · one click to escalate
       </p>
     </FrameShell>
@@ -777,16 +778,16 @@ function FrameVerdictCard() {
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-amber-700">
             Verdict
           </p>
-          <span className="rounded-full bg-white/80 px-2 py-0.5 text-[9px] font-semibold uppercase text-[#0a0f1c] ring-1 ring-[#e0dccf]">
+          <span className="rounded-full bg-surface/80 px-2 py-0.5 text-[9px] font-semibold uppercase text-fg ring-1 ring-border-strong">
             Next: re-dispute (MOV)
           </span>
         </div>
-        <p className="mt-1 font-semibold text-[#0a0f1c]">Stall tactic</p>
-        <p className="mt-1.5 text-[11px] leading-relaxed text-[#3d3a2e]">
+        <p className="mt-1 font-semibold text-fg">Stall tactic</p>
+        <p className="mt-1.5 text-[11px] leading-relaxed text-fg-muted">
           Bureau requested additional ID documentation beyond what §1681i requires. This is a
           recognized stall pattern.
         </p>
-        <p className="mt-2 border-l-2 border-amber-300 pl-2 text-[10px] italic text-[#6b6556]">
+        <p className="mt-2 border-l-2 border-amber-300 pl-2 text-[10px] italic text-fg-subtle">
           AI reasoning: Response cites 'frivolous' but provides no substantive basis.
         </p>
       </div>
@@ -811,11 +812,11 @@ function FrameTrackingTimeline() {
               <span className={`h-1.5 w-1.5 rounded-full ${e.tone}`} />
               {e.t}
             </span>
-            <span className="font-mono text-[10px] text-[#8a8472]">{e.ts}</span>
+            <span className="font-mono text-[10px] text-fg-subtle">{e.ts}</span>
           </li>
         ))}
       </ol>
-      <p className="mt-3 border-t border-[#f1ede2] pt-2 text-[10px] text-[#6b6556]">
+      <p className="mt-3 border-t border-border-subtle pt-2 text-[10px] text-fg-subtle">
         USPS 9214-8901-2347-3318 · auto follow-up on Apr 30
       </p>
     </FrameShell>
@@ -840,7 +841,7 @@ function FrameEscalationStages() {
                 ? "border-indigo-300 bg-indigo-50/60 ring-1 ring-indigo-200"
                 : s.done
                   ? "border-emerald-200 bg-emerald-50/60"
-                  : "border-[#f1ede2] bg-[#faf9f4]"
+                  : "border-border-subtle bg-surface-muted"
             }`}
           >
             <div className="flex items-center justify-between">
@@ -850,7 +851,7 @@ function FrameEscalationStages() {
                     ? "bg-emerald-600 text-white"
                     : s.active
                       ? "bg-indigo-600 text-white"
-                      : "bg-[#e8e4d8] text-[#6b6556]"
+                      : "bg-border text-fg-subtle"
                 }`}
               >
                 {s.done ? "✓" : s.n}
@@ -861,8 +862,8 @@ function FrameEscalationStages() {
                 </span>
               )}
             </div>
-            <p className="mt-2 font-semibold text-[#0a0f1c]">{s.t}</p>
-            <p className="text-[10px] text-[#6b6556]">{s.sub}</p>
+            <p className="mt-2 font-semibold text-fg">{s.t}</p>
+            <p className="text-[10px] text-fg-subtle">{s.sub}</p>
           </div>
         ))}
       </div>
@@ -877,23 +878,23 @@ function Coexistence() {
   return (
     <section className="relative">
       <div className="mx-auto max-w-7xl px-6 py-16">
-        <div className="rounded-[24px] border border-[#e8e4d8] bg-[#faf9f4] p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03)] lg:p-14">
+        <div className="rounded-[24px] border border-border bg-surface-muted p-10 shadow-[0_1px_0_0_rgba(10,15,28,0.03)] lg:p-14">
           <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-center">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-indigo-600">
                 About our ecosystem
               </p>
-              <h2 className="mt-5 font-serif text-[32px] leading-[1.1] tracking-tight text-[#0a0f1c] sm:text-[40px]">
+              <h2 className="mt-5 font-serif text-[32px] leading-[1.1] tracking-tight text-fg sm:text-[40px]">
                 DisputeIQ is a{" "}
                 <span className="italic">Screwed Up Credit</span> company.
               </h2>
-              <p className="mt-5 max-w-xl text-[14px] leading-relaxed text-[#4a4638]">
+              <p className="mt-5 max-w-xl text-[14px] leading-relaxed text-fg-muted">
                 Screwed Up Credit is the parent ecosystem for our credit operations tooling.
-                DisputeIQ is the executive-grade action platform. IdentityIQ is the
+                DisputeIQ is the executive-grade action platform. MyScoreIQ is the
                 supported provider we use for live 3-bureau report intake.
               </p>
-              <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-[#4a4638]">
-                When you continue through IdentityIQ from our homepage, you&apos;re starting
+              <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-fg-muted">
+                When you start through MyScoreIQ from our homepage, you&apos;re starting
                 the Screwed Up Credit customer journey that ends in your DisputeIQ command
                 center.
               </p>
@@ -906,7 +907,7 @@ function Coexistence() {
                   d: "Identify, challenge, track, escalate — your primary workspace.",
                 },
                 {
-                  h: "IdentityIQ",
+                  h: "MyScoreIQ",
                   s: "Supported report provider",
                   d: "Live 3-bureau report pulls used across the Screwed Up Credit journey.",
                 },
@@ -918,15 +919,15 @@ function Coexistence() {
               ].map((b) => (
                 <div
                   key={b.h}
-                  className="rounded-2xl border border-[#e8e4d8] bg-white p-5 shadow-[0_1px_0_0_rgba(10,15,28,0.03)]"
+                  className="rounded-2xl border border-border bg-surface p-5 shadow-[0_1px_0_0_rgba(10,15,28,0.03)]"
                 >
                   <div className="flex items-baseline justify-between gap-3">
-                    <p className="font-serif text-[17px] text-[#0a0f1c]">{b.h}</p>
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#8a8472]">
+                    <p className="font-serif text-[17px] text-fg">{b.h}</p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-fg-subtle">
                       {b.s}
                     </p>
                   </div>
-                  <p className="mt-2 text-[13px] leading-relaxed text-[#4a4638]">{b.d}</p>
+                  <p className="mt-2 text-[13px] leading-relaxed text-fg-muted">{b.d}</p>
                 </div>
               ))}
             </div>
@@ -968,15 +969,15 @@ function Testimonials() {
         {quotes.map((q) => (
           <figure
             key={q.a}
-            className="relative flex h-full flex-col rounded-2xl border border-[#e8e4d8] bg-white p-8 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_20px_40px_-24px_rgba(10,15,28,0.12)] transition hover:border-indigo-500/40"
+            className="relative flex h-full flex-col rounded-2xl border border-border bg-surface p-8 shadow-[0_1px_0_0_rgba(10,15,28,0.03),0_20px_40px_-24px_rgba(10,15,28,0.12)] transition hover:border-indigo-500/40"
           >
             <div className="font-serif text-5xl leading-none text-indigo-600/30">&ldquo;</div>
-            <blockquote className="mt-3 flex-1 font-serif text-[18px] leading-[1.5] text-[#0a0f1c]">
+            <blockquote className="mt-3 flex-1 font-serif text-[18px] leading-[1.5] text-fg">
               {q.q}
             </blockquote>
-            <figcaption className="mt-6 border-t border-[#e8e4d8] pt-5">
-              <p className="text-[13px] font-semibold text-[#0a0f1c]">{q.a}</p>
-              <p className="mt-0.5 text-[11px] uppercase tracking-[0.18em] text-[#8a8472]">{q.r}</p>
+            <figcaption className="mt-6 border-t border-border pt-5">
+              <p className="text-[13px] font-semibold text-fg">{q.a}</p>
+              <p className="mt-0.5 text-[11px] uppercase tracking-[0.18em] text-fg-subtle">{q.r}</p>
             </figcaption>
           </figure>
         ))}
@@ -1003,21 +1004,21 @@ function PricingTeaser() {
         ].map((p) => (
           <div
             key={p.name}
-            className={`rounded-2xl border p-6 ${p.featured ? "border-indigo-300 bg-indigo-50/60 ring-2 ring-indigo-200" : "border-[#e8e4d8] bg-white"}`}
+            className={`rounded-2xl border p-6 ${p.featured ? "border-indigo-300 bg-indigo-50/60 ring-2 ring-indigo-200" : "border-border bg-surface"}`}
           >
-            <p className="text-2xl font-bold text-[#0a0f1c]">{p.price}</p>
-            <p className="mt-1 text-base font-semibold text-[#0a0f1c]">{p.name}</p>
-            <p className="mt-2 text-sm text-[#4a4638]">{p.packets} · AI drafting · certified mail</p>
+            <p className="text-2xl font-bold text-fg">{p.price}</p>
+            <p className="mt-1 text-base font-semibold text-fg">{p.name}</p>
+            <p className="mt-2 text-sm text-fg-muted">{p.packets} · AI drafting · certified mail</p>
           </div>
         ))}
       </div>
       <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-        <p className="text-xs text-[#4a4638]">
-          Extra packets $19.95 each · IdentityIQ billed separately · Not charged per item
+        <p className="text-xs text-fg-muted">
+          Extra packets $19.95 each · MyScoreIQ billed separately · Not charged per item
         </p>
         <Link
           href="/pricing"
-          className="inline-flex items-center gap-2 rounded-xl bg-[#0a0f1c] px-7 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-white shadow-[0_14px_40px_-14px_rgba(10,15,28,0.6)] transition hover:scale-[1.015] hover:bg-[#111827]"
+          className="inline-flex items-center gap-2 rounded-xl bg-fg px-7 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-canvas shadow-[0_14px_40px_-14px_rgba(10,15,28,0.6)] transition hover:scale-[1.015] hover:bg-fg/90"
         >
           See plans and packet limits →
         </Link>
@@ -1057,16 +1058,16 @@ function FinalCTA() {
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/get-started"
-              className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#0a0f1c] shadow-[0_18px_60px_-14px_rgba(255,255,255,0.55)] transition hover:scale-[1.015]"
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-[12px] font-semibold uppercase tracking-[0.14em] text-fg shadow-[0_18px_60px_-14px_rgba(255,255,255,0.55)] transition hover:scale-[1.015]"
             >
               Start your file →
             </Link>
-            <a
-              href={`${URLS.app}/sign-in`}
+            <Link
+              href="/sign-in"
               className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-8 py-4 text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/10"
             >
               Sign in
-            </a>
+            </Link>
           </div>
         </div>
       </div>

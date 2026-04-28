@@ -20,8 +20,8 @@ export function Section({
     <section
       className={
         isDark
-          ? "relative overflow-hidden bg-[#0a0f1c] text-white"
-          : "relative bg-transparent text-[#0a0f1c]"
+          ? "relative overflow-hidden bg-surface-strong text-white"
+          : "relative bg-transparent text-fg"
       }
     >
       {isDark && (
@@ -43,7 +43,7 @@ export function Section({
           )}
           <h2
             className={`mt-5 font-serif text-[36px] leading-[1.08] tracking-tight sm:text-[48px] ${
-              isDark ? "text-white" : "text-[#0a0f1c]"
+              isDark ? "text-white" : "text-fg"
             }`}
           >
             {title}
@@ -52,7 +52,7 @@ export function Section({
             <p
               className={`mt-5 max-w-2xl text-[16px] leading-relaxed ${
                 align === "center" ? "mx-auto" : ""
-              } ${isDark ? "text-white/65" : "text-[#4a4638]"}`}
+              } ${isDark ? "text-white/65" : "text-fg-muted"}`}
             >
               {subtitle}
             </p>

@@ -19,7 +19,7 @@ describe("CreditReportStatusChip CTA table", () => {
   });
 
   it("uses the contracted CTA copy + href per state", () => {
-    expect(STATUS_META.not_started.ctaLabel).toBe("Continue with IDIQ");
+    expect(STATUS_META.not_started.ctaLabel).toBe("Activate MyScoreIQ");
     expect(STATUS_META.not_started.ctaHref).toBe("/dashboard/get-report");
 
     expect(STATUS_META.in_progress.ctaLabel).toBe("I completed my report");
