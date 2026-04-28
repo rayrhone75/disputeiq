@@ -20,7 +20,7 @@ import { LeadCaptureForm } from "@/components/marketing/LeadCaptureForm";
 const MSIQ_BASE =
   process.env.MYSCOREIQ_AFFILIATE_URL ??
   process.env.NEXT_PUBLIC_MYSCOREIQ_AFFILIATE_URL ??
-  "https://gcpstage.myscoreiq.com/get-fico-preferred.aspx?offercode=432500C3";
+  "https://member.myscoreiq.com/get-fico-preferred.aspx?offercode=43214399";
 const msiqHome = buildMsiqEnrollUrl({
   baseUrl: MSIQ_BASE,
   campaign: "home_hero",

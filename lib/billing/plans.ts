@@ -18,7 +18,7 @@ export const CREDIT_MONITORING = {
   enrollUrl:
     process.env.MYSCOREIQ_AFFILIATE_URL ??
     process.env.NEXT_PUBLIC_MYSCOREIQ_AFFILIATE_URL ??
-    "https://gcpstage.myscoreiq.com/get-fico-preferred.aspx?offercode=432500C3",
+    "https://member.myscoreiq.com/get-fico-preferred.aspx?offercode=43214399",
   disclosure:
     "MyScoreIQ membership is the supported report source for DisputeIQ and is billed separately by MyScoreIQ. This charge is not included in your DisputeIQ subscription.",
 } as const;

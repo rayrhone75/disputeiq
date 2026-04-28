@@ -59,7 +59,7 @@ export type MsiqConfig = {
 };
 
 const DEFAULT_AFFILIATE_URL =
-  "https://gcpstage.myscoreiq.com/get-fico-preferred.aspx?offercode=432500C3";
+  "https://member.myscoreiq.com/get-fico-preferred.aspx?offercode=43214399";
 const DEFAULT_JSON_REPORT_URL =
   "https://member.myscoreiq.com/CreditReport.aspx?view=json";
 

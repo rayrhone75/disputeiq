@@ -61,7 +61,7 @@ export function IdiqSettingsForm({ initial }: { initial: MsiqConfig }) {
           className={inputCls}
           value={affiliateUrl}
           onChange={(e) => setAffiliateUrl(e.target.value)}
-          placeholder="https://gcpstage.myscoreiq.com/get-fico-preferred.aspx?offercode=..."
+          placeholder="https://member.myscoreiq.com/get-fico-preferred.aspx?offercode=..."
         />
       </label>
       <label className={labelCls}>

@@ -110,7 +110,7 @@ export function ConnectReportPanel({
     if (typeof window === "undefined") return;
     window.open(
       needsLoginInfo?.affiliateUrl ??
-        "https://gcpstage.myscoreiq.com/get-fico-preferred.aspx?offercode=432500C3",
+        "https://member.myscoreiq.com/get-fico-preferred.aspx?offercode=43214399",
       "_blank",
       "noopener,noreferrer",
     );

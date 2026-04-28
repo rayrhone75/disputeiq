@@ -45,7 +45,7 @@ LETTERSTREAM_API_SECRET=...
 LETTERSTREAM_API_BASE=https://www.letterstream.com/apis/
 
 # MyScoreIQ — supported credit-report provider for new customers
-MYSCOREIQ_AFFILIATE_URL=https://gcpstage.myscoreiq.com/get-fico-preferred.aspx?offercode=432500C3
+MYSCOREIQ_AFFILIATE_URL=https://member.myscoreiq.com/get-fico-preferred.aspx?offercode=43214399
 MYSCOREIQ_JSON_REPORT_URL=https://member.myscoreiq.com/CreditReport.aspx?view=json
 
 # MFSN — retired; vars kept only so the legacy callback route 410s cleanly

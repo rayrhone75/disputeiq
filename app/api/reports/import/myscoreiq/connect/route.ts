@@ -76,7 +76,7 @@ export async function POST(_req: NextRequest): Promise<NextResponse<ConnectRespo
   const jsonUrl = process.env.MYSCOREIQ_JSON_REPORT_URL ?? DEFAULT_JSON_URL;
   const affiliateUrl =
     process.env.MYSCOREIQ_AFFILIATE_URL ??
-    "https://gcpstage.myscoreiq.com/get-fico-preferred.aspx?offercode=432500C3";
+    "https://member.myscoreiq.com/get-fico-preferred.aspx?offercode=43214399";
 
   // 1. Create the import row up front so we have something to attach
   //    success/failure to in the dashboard, even before the fetch attempt.
