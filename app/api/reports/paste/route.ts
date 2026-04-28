@@ -5,12 +5,35 @@ import { auth } from "@clerk/nextjs/server";
 import { fetchMutation } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { parseReportText } from "@/lib/report-parser";
+import {
+  createImport,
+  captureRaw,
+  runNormalization,
+  ImportRunnerError,
+} from "@/lib/credit-import/runner";
 
-// Paste-text report import. User copies their MyFreeScoreIQ report text and
-// pastes it here. We run the same parser pipeline as the PDF upload but skip
-// the pdf-parse step since we already have raw text.
+// Paste-text report import.
+//
+// Two input shapes are accepted:
+//
+//   1. **JSON** (modern path) — body starts with `{` or `[`. Most likely a
+//      MyScoreIQ / IdentityIQ JSON report copied from the customer's
+//      authenticated tab. Routes through the credit-import runner
+//      pipeline (createImport → captureRaw → runNormalization) so it
+//      lands in `creditReportImports` and produces dispute candidates.
+//      Same code path the new ConnectReportPanel clipboard auto-import
+//      uses, so the customer gets identical behavior whether they paste
+//      here or click Connect on /dashboard/get-report.
+//
+//   2. **Plain text** (legacy path) — anything else. Runs the heuristic
+//      tri-merge text parser (lib/report-parser.ts) used for
+//      PDF-extracted text. Lands in legacy `creditReports`.
+//
+// We pick by sniffing the trimmed body's first character. JSON detection
+// fails closed: if `JSON.parse` throws, we fall back to the text parser.
+
 const schema = z.object({
-  text: z.string().min(100, "Report text must be at least 100 characters.").max(500000),
+  text: z.string().min(100, "Report text must be at least 100 characters.").max(2_000_000),
 });
 
 export async function POST(req: NextRequest) {
@@ -22,8 +45,78 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const text = parsed.data.text;
-  const hash = crypto.createHash("sha256").update(text).digest("hex");
+  const trimmed = text.trim();
+  const looksJson = trimmed.startsWith("{") || trimmed.startsWith("[");
 
+  // ── Modern JSON path ────────────────────────────────────────────────
+  if (looksJson) {
+    try {
+      JSON.parse(trimmed);
+    } catch {
+      // Falls through to text path below — the body sniff was a false
+      // positive (e.g. weird MyScoreIQ block that starts with `{` but
+      // isn't JSON). Don't fail; let the heuristic parser try.
+      return await pasteAsLegacyText(token, text);
+    }
+    try {
+      const created = await createImport(
+        { token },
+        { provider: "MYSCOREIQ", sourceUrl: undefined },
+      );
+      const importId = created!._id;
+      await captureRaw(
+        { token },
+        { importId, bodyText: trimmed, onlyIfOwnedByMe: true },
+      );
+      const result = await runNormalization({ token }, { importId });
+      return NextResponse.json({
+        reportId: importId,
+        parsedCount: result.report.tradelines.length,
+        reviewFlags: result.report.validationWarnings,
+        bureauGuess: result.report.bureausDetected[0] ?? null,
+        parseStatus:
+          result.report.tradelines.length > 0 ? "parsed" : "needs_manual_review",
+        // Hint to the client: use this redirect for JSON-imports so the
+        // user lands on the Connect page that shows their connected
+        // status. The legacy text path keeps redirecting to the old
+        // /dashboard/reports/[id] detail.
+        redirectTo: "/dashboard/get-report?imported=1",
+      });
+    } catch (err) {
+      if (err instanceof ImportRunnerError) {
+        return NextResponse.json(
+          {
+            reportId: null,
+            parsedCount: 0,
+            reviewFlags: [`JSON_${err.code}`],
+            bureauGuess: null,
+            parseStatus: "needs_manual_review",
+            error: err.code,
+            message: err.message,
+          },
+          { status: 400 },
+        );
+      }
+      return NextResponse.json(
+        {
+          reportId: null,
+          parsedCount: 0,
+          reviewFlags: ["JSON_PIPELINE_ERROR"],
+          bureauGuess: null,
+          parseStatus: "needs_manual_review",
+          message: (err as Error).message,
+        },
+        { status: 500 },
+      );
+    }
+  }
+
+  // ── Legacy plain-text path ──────────────────────────────────────────
+  return await pasteAsLegacyText(token, text);
+}
+
+async function pasteAsLegacyText(token: string | null, text: string) {
+  const hash = crypto.createHash("sha256").update(text).digest("hex");
   const result = parseReportText(text);
 
   const created = await fetchMutation(
