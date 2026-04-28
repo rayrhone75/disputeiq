@@ -163,6 +163,7 @@ export default async function AdminCreditImportsPage({
               <tr>
                 <th className="py-2 pr-3">User</th>
                 <th className="py-2 pr-3">Provider</th>
+                <th className="py-2 pr-3">Method</th>
                 <th className="py-2 pr-3">Created</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Bureaus</th>
@@ -180,11 +181,18 @@ export default async function AdminCreditImportsPage({
                 <tr key={imp._id} className="border-t border-border">
                   <td className="py-2 pr-3 font-mono">{imp.user?.email ?? "—"}</td>
                   <td className="py-2 pr-3">{imp.provider}</td>
+                  <td className="py-2 pr-3 text-[10px] uppercase tracking-wide text-fg-muted">
+                    {imp.importMethod ?? "—"}
+                  </td>
                   <td className="py-2 pr-3">
                     {new Date(imp.createdAt).toLocaleDateString()}
                   </td>
                   <td className="py-2 pr-3">
-                    <Chip tone={STATUS_TONE[imp.status] ?? "neutral"}>{imp.status}</Chip>
+                    <Chip tone={STATUS_TONE[imp.status] ?? "neutral"}>
+                      {imp.errorCode === "REQUIRES_USER_ACTION"
+                        ? "REQUIRES_USER_ACTION"
+                        : imp.status}
+                    </Chip>
                   </td>
                   <td className="py-2 pr-3 font-mono text-[10px]">
                     {imp.bureauCoverage.length ? imp.bureauCoverage.join(",") : "—"}

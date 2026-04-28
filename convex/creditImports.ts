@@ -376,6 +376,7 @@ export const createImport = mutation({
     provider: creditProvider,
     providerRef: v.optional(v.string()),
     sourceUrl: v.optional(v.string()),
+    importMethod: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
@@ -397,6 +398,7 @@ export const createImport = mutation({
       provider: args.provider,
       providerRef: args.providerRef,
       sourceUrl: args.sourceUrl,
+      importMethod: args.importMethod,
       status: "PENDING",
       schemaVersion: "v1",
       parserVersion: "v1",
@@ -413,10 +415,39 @@ export const createImport = mutation({
       metadataJson: {
         provider: args.provider,
         sourceUrl: args.sourceUrl ?? null,
+        importMethod: args.importMethod ?? null,
       },
       createdAt: now,
     });
     return await ctx.db.get(importId);
+  },
+});
+
+/**
+ * Patch the importMethod on an existing import. Used when the import
+ * progresses through fallback methods (auto-json → browser-assisted → upload).
+ */
+export const setImportMethod = mutation({
+  args: {
+    importId: v.id("creditReportImports"),
+    importMethod: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const me = await requireUser(ctx);
+    const imp = await ctx.db.get(args.importId);
+    if (!imp) throw new Error("NOT_FOUND");
+    if (
+      imp.userId !== me._id &&
+      me.role !== "OWNER" &&
+      me.role !== "ADMIN"
+    ) {
+      throw new Error("FORBIDDEN");
+    }
+    await ctx.db.patch(args.importId, {
+      importMethod: args.importMethod,
+      updatedAt: Date.now(),
+    });
+    return await ctx.db.get(args.importId);
   },
 });
 

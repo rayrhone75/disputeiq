@@ -62,6 +62,7 @@ export async function createImport(
     provider: CreditProvider;
     providerRef?: string;
     sourceUrl?: string;
+    importMethod?: string;
   },
 ) {
   return await fetchMutation(
@@ -71,6 +72,7 @@ export async function createImport(
       provider: input.provider,
       providerRef: input.providerRef,
       sourceUrl: input.sourceUrl,
+      importMethod: input.importMethod,
     },
     { token: ctx.token ?? undefined },
   );

@@ -351,6 +351,13 @@ export default defineSchema({
     providerRef: v.optional(v.string()),
     sourceUrl: v.optional(v.string()),
     status: creditImportStatus,
+    // How the payload arrived. Common values:
+    //   "auto-json"          — server-side fetch of provider JSON URL
+    //   "browser-assisted"   — user copied JSON from authenticated tab
+    //   "upload-json"        — user uploaded a .json file
+    //   "paste-json"         — user pasted raw JSON
+    //   "retry"              — re-normalization of an existing payload
+    importMethod: v.optional(v.string()),
     fetchedAt: v.optional(v.number()),
     validatedAt: v.optional(v.number()),
     normalizedAt: v.optional(v.number()),
