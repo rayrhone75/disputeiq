@@ -80,6 +80,13 @@ export async function POST(_req: NextRequest): Promise<NextResponse<ConnectRespo
 
   // 1. Create the import row up front so we have something to attach
   //    success/failure to in the dashboard, even before the fetch attempt.
+  //
+  //    Note: we record the import method in the audit log (not in the
+  //    createImport mutation args) so this route stays compatible with
+  //    older Convex deployments that don't yet have the importMethod
+  //    validator. The schema field (creditReportImports.importMethod) is
+  //    in place for future per-row tracking; once Convex prod ships with
+  //    the updated mutation we can pass it through directly.
   let importId: Id<"creditReportImports">;
   try {
     const created = await createImport(
@@ -87,7 +94,6 @@ export async function POST(_req: NextRequest): Promise<NextResponse<ConnectRespo
       {
         provider: "MYSCOREIQ",
         sourceUrl: jsonUrl,
-        importMethod: "auto-json",
       },
     );
     importId = created!._id;
@@ -108,7 +114,7 @@ export async function POST(_req: NextRequest): Promise<NextResponse<ConnectRespo
     action: "MSIQ_CONNECT_ATTEMPT",
     entityType: "CreditReportImport",
     entityId: importId as unknown as string,
-    metadataJson: { jsonUrl },
+    metadataJson: { jsonUrl, importMethod: "auto-json" },
   }).catch(() => null);
 
   // 2. Attempt the server-side fetch. Without a Cookie header MyScoreIQ
