@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { fetchQuery } from "convex/nextjs";
 import { requireRole } from "@/lib/auth";
@@ -24,6 +25,25 @@ export default async function AdminHome() {
         title="Command center"
         description="Real-time platform metrics from the database."
       />
+
+      <nav className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {[
+          { href: "/admin/customers", label: "Customers", desc: "Customer 360" },
+          { href: "/admin/credit-imports", label: "Imports", desc: "Reports" },
+          { href: "/admin/mail-jobs", label: "Mail jobs", desc: "Certified mail" },
+          { href: "/admin/audit-logs", label: "Audit log", desc: "Every event" },
+          { href: "/admin/settings", label: "Settings", desc: "Platform config" },
+        ].map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className="group rounded-2xl border border-border bg-surface p-4 transition hover:-translate-y-0.5 hover:border-fg/20 hover:shadow-[0_18px_48px_-22px_rgba(15,23,42,0.35)]"
+          >
+            <div className="text-sm font-semibold text-fg">{l.label}</div>
+            <div className="mt-0.5 text-[11px] text-fg-muted">{l.desc}</div>
+          </Link>
+        ))}
+      </nav>
 
       <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
