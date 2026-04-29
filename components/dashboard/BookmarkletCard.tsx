@@ -1,41 +1,27 @@
-// One-click MyScoreIQ import via browser bookmarklet.
-//
-// The card renders three components:
-//   1. A draggable anchor whose href is the user's personalized
-//      `javascript:` bookmarklet. Browsers let users drag this directly
-//      to their bookmarks bar, which is the install path.
-//   2. A button that opens the MyScoreIQ JSON report URL in a new tab.
-//   3. Helpful copy buttons (clipboard fallback, "I imported my report"
-//      refresh).
-//
-// The token is signed server-side (HMAC over INTERNAL_SERVICE_SECRET)
-// during render and baked into the bookmarklet code. Token TTL is 30
-// days; users get a fresh token every time the page renders.
+"use client";
 
-import { signBookmarkletToken } from "@/lib/auth/bookmarklet-token";
-import { BookmarkletInstallControls } from "./BookmarkletInstallControls";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+// One-click MyScoreIQ import via browser bookmarklet (client-only).
+//
+// The bookmarklet token used to be HMAC-signed during server render and
+// baked into the anchor href server-side. That coupled the dashboard
+// render to INTERNAL_SERVICE_SECRET availability and any quirk in the
+// signing path produced a generic Vercel "server component error" with
+// no useful stack. The card is now a pure client component that fetches
+// `{ token }` from /api/bookmarklet/token on mount; if the API fails
+// the card surfaces the error inline instead of crashing the whole page.
 
 const DEFAULT_JSON_URL =
   "https://member.myscoreiq.com/CreditReport.aspx?view=json";
 
-function buildBookmarkletCode(opts: {
-  relayUrl: string;
-}): string {
-  // Bookmarklet pattern: open the DisputeIQ relay tab, then postMessage the
-  // JSON to it once the relay signals "ready". The relay is a Clerk-authed
-  // page on disputeiq.org, so the actual import POST happens same-origin
-  // with full Clerk session — no CORS, no service-secret coupling.
-  //
-  // Why this dance instead of a direct fetch:
-  //   - member.myscoreiq.com has no Clerk session cookies, so a direct POST
-  //     to disputeiq.org cannot authenticate against Convex.
-  //   - The relay page on disputeiq.org has the user's Clerk session, can
-  //     mint a Convex JWT, and runs the existing import pipeline that
-  //     already works against the deployed Convex schema.
-  //
-  // The bookmarklet retries postMessage every 750ms for 30s so a sign-in
-  // redirect mid-flow doesn't lose the JSON (the relay re-sends "ready"
-  // after sign-in remount).
+type State =
+  | { kind: "loading" }
+  | { kind: "ready"; token: string }
+  | { kind: "error"; message: string };
+
+function buildBookmarkletCode(opts: { relayUrl: string }): string {
   const code =
     "(function(){try{" +
     "var b=document.body.innerText.trim();" +
@@ -58,36 +44,86 @@ function buildBookmarkletCode(opts: {
   return "javascript:" + encodeURI(code);
 }
 
-export function BookmarkletCard({ clerkUserId }: { clerkUserId: string }) {
-  const appBaseUrl =
-    process.env.APP_BASE_URL ??
-    process.env.NEXT_PUBLIC_APP_URL ??
-    "https://disputeiq.org";
-  const jsonUrl = process.env.MYSCOREIQ_JSON_REPORT_URL ?? DEFAULT_JSON_URL;
+function appBaseUrl(): string {
+  if (typeof window !== "undefined") return window.location.origin;
+  return process.env.NEXT_PUBLIC_APP_URL ?? "https://disputeiq.org";
+}
 
-  let bookmarkletHref = "";
-  let signError: string | null = null;
-  try {
-    const token = signBookmarkletToken(clerkUserId);
-    const relayUrl = `${appBaseUrl}/import/relay?t=${encodeURIComponent(token)}`;
-    bookmarkletHref = buildBookmarkletCode({ relayUrl });
-  } catch (err) {
-    signError = (err as Error).message;
+export function BookmarkletCard() {
+  const router = useRouter();
+  const [state, setState] = useState<State>({ kind: "loading" });
+  const [copied, setCopied] = useState(false);
+  const [copyErr, setCopyErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/bookmarklet/token", {
+          method: "GET",
+          cache: "no-store",
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          token?: string;
+          message?: string;
+          code?: string;
+        };
+        if (cancelled) return;
+        if (!res.ok || !data.ok || !data.token) {
+          setState({
+            kind: "error",
+            message:
+              data.message ?? `Could not generate bookmarklet (${data.code ?? res.status}).`,
+          });
+          return;
+        }
+        setState({ kind: "ready", token: data.token });
+      } catch (err) {
+        if (cancelled) return;
+        setState({ kind: "error", message: (err as Error).message });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const jsonUrl = DEFAULT_JSON_URL;
+  const bookmarkletHref =
+    state.kind === "ready"
+      ? buildBookmarkletCode({
+          relayUrl: `${appBaseUrl()}/import/relay?t=${encodeURIComponent(state.token)}`,
+        })
+      : "javascript:void(0)";
+
+  async function copy() {
+    if (state.kind !== "ready") return;
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error("Clipboard API not available in this browser.");
+      }
+      await navigator.clipboard.writeText(bookmarkletHref);
+      setCopied(true);
+      setCopyErr(null);
+      setTimeout(() => setCopied(false), 3000);
+    } catch (err) {
+      setCopyErr((err as Error).message);
+    }
   }
 
-  if (signError) {
+  if (state.kind === "error") {
     return (
       <div className="rounded-3xl border border-rose-300 bg-rose-50 p-6 shadow-sm dark:border-rose-500/30 dark:bg-rose-500/10">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-700 dark:text-rose-300">
           One-click browser import
         </p>
         <p className="mt-2 text-sm text-rose-900 dark:text-rose-200">
-          The bookmarklet feature requires the server-side service secret
-          to be configured. Reach out to support — this is a setup issue,
-          not your account.
+          We couldn&apos;t generate your bookmarklet right now. You can still
+          import via the manual paste/upload panel above.
         </p>
         <p className="mt-2 text-[11px] text-rose-700 dark:text-rose-300">
-          {signError}
+          {state.message}
         </p>
       </div>
     );
@@ -129,15 +165,17 @@ export function BookmarkletCard({ clerkUserId }: { clerkUserId: string }) {
               href={bookmarkletHref}
               draggable
               onClick={(e) => {
-                // Prevent accidental navigation to the bookmarklet on
-                // click — they should drag, not click. Right-click → Add
-                // to bookmarks also works.
                 e.preventDefault();
               }}
-              className="inline-flex select-none items-center gap-2 rounded-xl bg-fg px-5 py-2.5 text-sm font-semibold text-canvas shadow-sm hover:opacity-90"
+              className={`inline-flex select-none items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold shadow-sm ${
+                state.kind === "ready"
+                  ? "bg-fg text-canvas hover:opacity-90"
+                  : "cursor-progress bg-surface-muted text-fg-subtle"
+              }`}
               title="Drag this to your bookmarks bar"
             >
               📑 DisputeIQ Import
+              {state.kind === "loading" ? " (loading…)" : ""}
             </a>
           </div>
         </li>
@@ -179,7 +217,29 @@ export function BookmarkletCard({ clerkUserId }: { clerkUserId: string }) {
         </li>
       </ol>
 
-      <BookmarkletInstallControls bookmarkletHref={bookmarkletHref} />
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={copy}
+          disabled={state.kind !== "ready"}
+          className="rounded-xl border border-border-strong bg-surface px-4 py-2 text-xs font-semibold text-fg hover:bg-surface-muted disabled:opacity-50"
+          title="Copy the bookmarklet code if you can't drag it"
+        >
+          {copied ? "Copied ✓" : "Copy Bookmarklet"}
+        </button>
+        <button
+          type="button"
+          onClick={() => router.refresh()}
+          className="rounded-xl border border-border-strong bg-surface px-4 py-2 text-xs font-semibold text-fg hover:bg-surface-muted"
+        >
+          I imported my report
+        </button>
+        {copyErr && (
+          <span className="text-[11px] text-rose-600 dark:text-rose-400">
+            {copyErr}
+          </span>
+        )}
+      </div>
 
       <p className="mt-5 border-t border-violet-200/60 pt-4 text-[11px] leading-relaxed text-fg-subtle dark:border-violet-500/20">
         Privacy: the bookmarklet never sees your MyScoreIQ password. It
