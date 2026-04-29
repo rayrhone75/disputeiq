@@ -6,7 +6,12 @@ import { MarkActivatedButton } from "@/components/dashboard/MarkActivatedButton"
 import { CreditReportStatusChip } from "@/components/dashboard/CreditReportStatusChip";
 import { ConnectReportPanel } from "@/components/dashboard/ConnectReportPanel";
 import { BookmarkletCard } from "@/components/dashboard/BookmarkletCard";
-import { ExtensionPairingCard } from "@/components/dashboard/ExtensionPairingCard";
+// ExtensionPairingCard temporarily disabled — the cloud Convex
+// deployment Vercel reads from doesn't yet have the new
+// `extensionPairings` schema + functions, so useQuery during SSR
+// throws and triggers a 500. Re-enable after running
+// `npx convex login` and `npx convex deploy --prod`.
+// import { ExtensionPairingCard } from "@/components/dashboard/ExtensionPairingCard";
 import { buildMsiqEnrollUrl, MSIQ, loadMsiqConfig } from "@/lib/integrations/myscoreiq";
 import { loadCreditReportStatus } from "@/lib/credit-import/status";
 
@@ -383,7 +388,7 @@ export default async function GetReportPage({
               />
             </div>
 
-            <ExtensionPairingCard />
+            {/* <ExtensionPairingCard /> -- see import comment */}
 
             <BookmarkletCard clerkUserId={user.id} />
 
