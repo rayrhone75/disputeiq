@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchQuery } from "convex/nextjs";
-import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
+import { z } from "zod";
+import { auth } from "@clerk/nextjs/server";
 import {
   verifyBookmarkletToken,
   type VerifyErrorCode,
@@ -14,252 +13,158 @@ import {
 } from "@/lib/credit-import/runner";
 import { writeAuditLog } from "@/lib/audit";
 
-// MyScoreIQ bookmarklet import endpoint.
+// MyScoreIQ bookmarklet import endpoint — same-origin Clerk-authed.
 //
-// The customer's bookmarklet runs on https://member.myscoreiq.com (the
-// JSON report page they opened in their authenticated tab) and POSTs the
-// raw JSON body here. Authentication is via a signed token in `?t=`,
-// NOT cookies — this is a cross-origin POST and Clerk session cookies do
-// not travel.
+// The bookmarklet on member.myscoreiq.com cannot reach this endpoint
+// directly (no Clerk session cookie travels cross-origin). Instead, the
+// bookmarklet opens /import/relay in a new tab on disputeiq.org, hands the
+// raw JSON over via postMessage, and the relay's client component POSTs
+// {token, json} here as a same-origin Clerk-authed request.
 //
-// Why this works (where /api/reports/import/myscoreiq/connect could not):
-//   - The bookmarklet executes inside the user's MyScoreIQ tab, where
-//     their Imperva-issued cookies + session are already valid.
-//   - We never need to bypass Imperva from a server. The user fetches
-//     the JSON in their own browser; we just receive what they got.
+// Auth model:
+//   - Clerk session (cookie-derived) authenticates the active user.
+//   - HMAC bookmarklet token binds the bookmarklet identity to the Clerk
+//     userId. We reject if `token.uid !== clerk.userId` so a shared
+//     bookmarklet cannot pollute a different account.
 //
-// CORS:
-//   - Bookmarklet uses Content-Type: text/plain so the request is a
-//     "simple request" — no preflight needed.
-//   - We still set Access-Control-Allow-Origin so the bookmarklet can
-//     read our JSON response (success/failure overlay).
-//   - We restrict ACAO to https://member.myscoreiq.com (the only origin
-//     that should ever see our response).
-//
-// Rate limit:
-//   - 30 successful or attempted imports per user per 24h, counted from
-//     the audit log. Sufficient defense alongside HMAC + 30-day TTL.
+// Pipeline: identical to /api/reports/paste's JSON branch — uses only
+// pre-existing Convex mutations with the user's Clerk JWT.
 
-const ALLOWED_ORIGIN = "https://member.myscoreiq.com";
-const MAX_BODY_BYTES = 25 * 1024 * 1024; // 25 MB
-const RATE_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000;
-const RATE_LIMIT_MAX = 30;
-
-function corsHeaders(): Record<string, string> {
-  return {
-    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Max-Age": "600",
-    Vary: "Origin",
-  };
-}
-
-function jsonResponse(body: unknown, status: number): NextResponse {
-  return NextResponse.json(body, { status, headers: corsHeaders() });
-}
-
-export async function OPTIONS(_req: NextRequest) {
-  // Preflight handler — defensive even though text/plain skips preflight.
-  return new NextResponse(null, { status: 204, headers: corsHeaders() });
-}
+const Body = z.object({
+  token: z.string().min(8).max(4096),
+  json: z.string().min(2).max(25 * 1024 * 1024),
+});
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const url = new URL(req.url);
-  const token = url.searchParams.get("t");
+  // 1. Clerk session — must be present.
+  const { userId, getToken } = await auth();
+  if (!userId) {
+    return NextResponse.json(
+      { ok: false, code: "UNAUTHENTICATED", message: "Sign in to DisputeIQ first." },
+      { status: 401 },
+    );
+  }
 
-  // 1. Verify the signed token.
+  // 2. Parse body.
+  const parsed = Body.safeParse(await req.json().catch(() => ({})));
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        ok: false,
+        code: "BAD_BODY",
+        message: parsed.error.issues
+          .slice(0, 3)
+          .map((i) => `${i.path.join(".")}: ${i.message}`)
+          .join("; "),
+      },
+      { status: 400 },
+    );
+  }
+  const { token, json } = parsed.data;
+
+  // 3. Verify HMAC bookmarklet token.
   const verify = verifyBookmarkletToken(token);
   if (!verify.ok) {
-    return jsonResponse(
+    await writeAuditLog({
+      action: "BOOKMARKLET_IMPORT_FAILED",
+      entityType: "User",
+      entityId: userId,
+      metadataJson: { stage: "verifyToken", code: verify.code },
+    }).catch(() => null);
+    return NextResponse.json(
       {
         ok: false,
         code: mapVerifyCode(verify.code),
         message: verify.message,
       },
-      verify.code === "EXPIRED_TOKEN" ? 401 : 401,
+      { status: 401 },
     );
   }
-  const clerkUserId = verify.payload.uid;
-
-  // 2. Read body. Bookmarklet sends Content-Type: text/plain; we use
-  //    req.text() which doesn't care about content-type. Hard-cap at 25 MB.
-  const bodyText = await req.text();
-  const sizeBytes = Buffer.byteLength(bodyText, "utf8");
-  if (sizeBytes === 0) {
-    return jsonResponse(
-      { ok: false, code: "EMPTY_BODY", message: "Request body is empty." },
-      400,
-    );
-  }
-  if (sizeBytes > MAX_BODY_BYTES) {
-    return jsonResponse(
+  if (verify.payload.uid !== userId) {
+    await writeAuditLog({
+      action: "BOOKMARKLET_IMPORT_FAILED",
+      entityType: "User",
+      entityId: userId,
+      metadataJson: { stage: "uidBinding", tokenUid: verify.payload.uid },
+    }).catch(() => null);
+    return NextResponse.json(
       {
         ok: false,
-        code: "BODY_TOO_LARGE",
-        message: `Body exceeds ${MAX_BODY_BYTES} bytes.`,
+        code: "TOKEN_USER_MISMATCH",
+        message:
+          "This bookmarklet was created for a different DisputeIQ account. Reinstall the bookmarklet from /dashboard/get-report.",
       },
-      413,
+      { status: 403 },
     );
   }
-  const trimmed = bodyText.trim();
+
+  // 4. Validate JSON shape (cheap pre-flight before encryption).
+  const trimmed = json.trim();
   if (trimmed[0] !== "{" && trimmed[0] !== "[") {
-    return jsonResponse(
+    return NextResponse.json(
       {
         ok: false,
         code: "NOT_JSON",
         message:
           "Body does not look like JSON. The bookmarklet must run on the MyScoreIQ JSON report page.",
       },
-      400,
+      { status: 400 },
     );
   }
   try {
     JSON.parse(trimmed);
   } catch (err) {
-    return jsonResponse(
+    return NextResponse.json(
       {
         ok: false,
         code: "PARSE_ERROR",
         message: `Invalid JSON: ${(err as Error).message}`,
       },
-      400,
+      { status: 400 },
     );
   }
 
-  // 3. Resolve Convex user from Clerk subject (service-gated lookup).
-  const secret = process.env.INTERNAL_SERVICE_SECRET ?? "";
-  if (!secret) {
-    return jsonResponse(
+  // 5. Get Convex JWT for this user.
+  const convexToken = await getToken({ template: "convex" });
+  if (!convexToken) {
+    return NextResponse.json(
       {
         ok: false,
-        code: "SERVER_NOT_CONFIGURED",
-        message: "Service secret missing on server.",
+        code: "NO_CONVEX_TOKEN",
+        message: "Could not mint Convex token. Sign out and sign back in.",
       },
-      500,
-    );
-  }
-  let convexUser: { _id: Id<"users">; email: string } | null;
-  try {
-    convexUser = (await fetchQuery(api.users.byClerkIdAsService, {
-      secret,
-      clerkUserId,
-    })) as { _id: Id<"users">; email: string } | null;
-  } catch (err) {
-    return jsonResponse(
-      {
-        ok: false,
-        code: "USER_LOOKUP_FAILED",
-        message: (err as Error).message,
-      },
-      500,
-    );
-  }
-  if (!convexUser) {
-    return jsonResponse(
-      {
-        ok: false,
-        code: "USER_NOT_FOUND",
-        message:
-          "Your DisputeIQ user record was not found. Sign in to DisputeIQ once to materialize it, then regenerate the bookmarklet.",
-      },
-      404,
+      { status: 500 },
     );
   }
 
-  const ctx = {
-    token: null as string | null,
-    service: { secret, actorUserId: convexUser._id },
-  };
-
-  // 4. Rate limit (lightweight) — count recent imports for this user via
-  //    the credit-import audit log. The 24h window is generous; any user
-  //    importing > 30 reports a day is almost certainly a misuse.
-  try {
-    const since = Date.now() - RATE_LIMIT_WINDOW_MS;
-    const recent = await fetchQuery(
-      api.creditImports.listForCurrentUser,
-      {},
-      { token: undefined as unknown as string },
-    ).catch(() => null);
-    // listForCurrentUser uses requireUser, so without a Clerk session it
-    // throws. Skip rate-limit check on failure; HMAC + TTL are the
-    // primary defense. If we ever want strict enforcement we'd add a
-    // service-gated counter query.
-    void since;
-    void recent;
-    void RATE_LIMIT_MAX;
-  } catch {
-    // intentional no-op — see comment above
-  }
-
-  // 5. Audit attempt.
+  // 6. Audit attempt (best-effort).
   await writeAuditLog({
-    targetUserId: clerkUserId,
-    actorUserId: clerkUserId,
     action: "BOOKMARKLET_IMPORT_ATTEMPT",
     entityType: "User",
-    entityId: clerkUserId,
-    metadataJson: { payloadBytes: sizeBytes },
+    entityId: userId,
+    metadataJson: { payloadBytes: Buffer.byteLength(trimmed, "utf8") },
   }).catch(() => null);
 
-  // 6. Run the import pipeline as service.
-  let importId: Id<"creditReportImports">;
+  // 7. Run pipeline — exact same call shape as /api/reports/paste's JSON
+  //    branch (already proven against cloud Convex).
   try {
-    const created = await createImport(ctx, {
-      provider: "MYSCOREIQ",
-      sourceUrl: process.env.MYSCOREIQ_JSON_REPORT_URL,
-      importMethod: "bookmarklet-json",
-    });
-    importId = created!._id;
-  } catch (err) {
-    await writeAuditLog({
-      targetUserId: clerkUserId,
-      actorUserId: clerkUserId,
-      action: "BOOKMARKLET_IMPORT_FAILED",
-      entityType: "User",
-      entityId: clerkUserId,
-      metadataJson: { stage: "createImport", error: (err as Error).message },
-    }).catch(() => null);
-    return jsonResponse(
+    const created = await createImport(
+      { token: convexToken },
       {
-        ok: false,
-        code: "CREATE_FAILED",
-        message: (err as Error).message,
+        provider: "MYSCOREIQ",
+        sourceUrl: process.env.MYSCOREIQ_JSON_REPORT_URL,
       },
-      500,
     );
-  }
-
-  try {
-    await captureRaw(ctx, { importId, bodyText: trimmed });
-  } catch (err) {
-    const code =
-      err instanceof ImportRunnerError ? err.code : "CAPTURE_FAILED";
-    await writeAuditLog({
-      targetUserId: clerkUserId,
-      actorUserId: clerkUserId,
-      action: "BOOKMARKLET_IMPORT_FAILED",
-      entityType: "CreditReportImport",
-      entityId: importId as unknown as string,
-      metadataJson: { stage: "captureRaw", code, error: (err as Error).message },
-    }).catch(() => null);
-    return jsonResponse(
-      {
-        ok: false,
-        importId: importId as unknown as string,
-        code,
-        message: (err as Error).message,
-      },
-      400,
+    const importId = created!._id;
+    await captureRaw(
+      { token: convexToken },
+      { importId, bodyText: trimmed, onlyIfOwnedByMe: true },
     );
-  }
-
-  try {
-    const result = await runNormalization(ctx, { importId });
+    const result = await runNormalization(
+      { token: convexToken },
+      { importId },
+    );
     await writeAuditLog({
-      targetUserId: clerkUserId,
-      actorUserId: clerkUserId,
       action: "BOOKMARKLET_IMPORT_SUCCESS",
       entityType: "CreditReportImport",
       entityId: importId as unknown as string,
@@ -269,35 +174,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         bureausDetected: result.report.bureausDetected,
       },
     }).catch(() => null);
-    return jsonResponse(
-      {
-        ok: true,
-        importId: importId as unknown as string,
-        tradelineCount: result.report.tradelines.length,
-        candidatesCreated: result.candidatesCreated,
-        redirect: `/dashboard/get-report?imported=${importId as unknown as string}`,
-      },
-      200,
-    );
+    return NextResponse.json({
+      ok: true,
+      importId: importId as unknown as string,
+      tradelineCount: result.report.tradelines.length,
+      candidatesCreated: result.candidatesCreated,
+      redirect: `/dashboard/get-report?imported=${importId as unknown as string}`,
+    });
   } catch (err) {
     const code =
-      err instanceof ImportRunnerError ? err.code : "NORMALIZE_FAILED";
+      err instanceof ImportRunnerError ? err.code : "PIPELINE_ERROR";
     await writeAuditLog({
-      targetUserId: clerkUserId,
-      actorUserId: clerkUserId,
       action: "BOOKMARKLET_IMPORT_FAILED",
-      entityType: "CreditReportImport",
-      entityId: importId as unknown as string,
-      metadataJson: { stage: "runNormalization", code, error: (err as Error).message },
+      entityType: "User",
+      entityId: userId,
+      metadataJson: { stage: "pipeline", code, error: (err as Error).message },
     }).catch(() => null);
-    return jsonResponse(
+    return NextResponse.json(
       {
         ok: false,
-        importId: importId as unknown as string,
         code,
         message: (err as Error).message,
       },
-      400,
+      { status: 400 },
     );
   }
 }
@@ -309,9 +208,7 @@ function mapVerifyCode(c: VerifyErrorCode): string {
     case "EXPIRED_TOKEN":
       return "EXPIRED_TOKEN";
     case "INVALID_SIGNATURE":
-      return "INVALID_TOKEN";
     case "MALFORMED_TOKEN":
-      return "INVALID_TOKEN";
     case "BAD_PAYLOAD":
       return "INVALID_TOKEN";
     case "NO_SECRET":

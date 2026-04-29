@@ -21,29 +21,6 @@ import { mutation, query } from "./_generated/server";
 import { requireRole, requireUser } from "./helpers";
 import type { Doc, Id } from "./_generated/dataModel";
 
-// Service-secret guard for the bookmarklet import path. The bookmarklet
-// runs on `member.myscoreiq.com` (no Clerk session reachable from there)
-// and the Next.js endpoint forwards the user identity via these two args
-// after verifying the user's signed bookmarklet token. The mutations
-// below accept either Clerk-auth (requireUser) or service-secret-auth
-// (this helper) so we can avoid duplicating ~200 lines of insert logic.
-function assertActorViaSecret(
-  args: {
-    serviceSecret?: string;
-    serviceActorUserId?: Id<"users">;
-  },
-): Id<"users"> | null {
-  if (!args.serviceSecret) return null;
-  const expected = process.env.INTERNAL_SERVICE_SECRET ?? "";
-  if (!expected || args.serviceSecret !== expected) {
-    throw new Error("FORBIDDEN_SERVICE_SECRET");
-  }
-  if (!args.serviceActorUserId) {
-    throw new Error("SERVICE_SECRET_REQUIRES_ACTOR");
-  }
-  return args.serviceActorUserId;
-}
-
 const creditProvider = v.union(
   v.literal("IDENTITYIQ"),
   v.literal("MYSCOREIQ"),
@@ -376,19 +353,12 @@ export const adminListAuditRows = query({
 export const getOwnedRaw = query({
   args: {
     id: v.id("creditReportImports"),
-    serviceSecret: v.optional(v.string()),
-    serviceActorUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const serviceActor = assertActorViaSecret(args);
     const imp = await ctx.db.get(args.id);
     if (!imp) return null;
-    if (serviceActor) {
-      if (imp.userId !== serviceActor) return null;
-    } else {
-      const user = await requireUser(ctx);
-      if (imp.userId !== user._id) return null;
-    }
+    const user = await requireUser(ctx);
+    if (imp.userId !== user._id) return null;
     const raw = await ctx.db
       .query("creditReportRaws")
       .withIndex("by_import", (q) => q.eq("importId", args.id))
@@ -410,33 +380,22 @@ export const createImport = mutation({
     providerRef: v.optional(v.string()),
     sourceUrl: v.optional(v.string()),
     importMethod: v.optional(v.string()),
-    // Service-secret path (bookmarklet endpoint). When supplied with a
-    // valid `serviceSecret`, the mutation skips Clerk requireUser and
-    // imports for `serviceActorUserId`.
-    serviceSecret: v.optional(v.string()),
-    serviceActorUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const serviceActor = assertActorViaSecret(args);
     let targetUserId: Id<"users">;
     let actorUserId: Id<"users"> | undefined;
-    if (serviceActor) {
-      targetUserId = serviceActor;
-      actorUserId = serviceActor;
-    } else {
-      const me = await requireUser(ctx);
-      actorUserId = me._id;
-      if (args.userId && args.userId !== me._id) {
-        // Cross-user import — must be admin.
-        if (me.role !== "OWNER" && me.role !== "ADMIN") {
-          throw new Error("FORBIDDEN");
-        }
-        const target = await ctx.db.get(args.userId);
-        if (!target) throw new Error("USER_NOT_FOUND");
-        targetUserId = args.userId;
-      } else {
-        targetUserId = me._id;
+    const me = await requireUser(ctx);
+    actorUserId = me._id;
+    if (args.userId && args.userId !== me._id) {
+      // Cross-user import — must be admin.
+      if (me.role !== "OWNER" && me.role !== "ADMIN") {
+        throw new Error("FORBIDDEN");
       }
+      const target = await ctx.db.get(args.userId);
+      if (!target) throw new Error("USER_NOT_FOUND");
+      targetUserId = args.userId;
+    } else {
+      targetUserId = me._id;
     }
     const now = Date.now();
     const importId = await ctx.db.insert("creditReportImports", {
@@ -462,7 +421,6 @@ export const createImport = mutation({
         provider: args.provider,
         sourceUrl: args.sourceUrl ?? null,
         importMethod: args.importMethod ?? null,
-        viaService: !!serviceActor,
       },
       createdAt: now,
     });
@@ -512,33 +470,22 @@ export const captureRaw = mutation({
     redactionFingerprint: v.optional(v.string()),
     contentEncoding: v.optional(v.string()),
     onlyIfOwnedByMe: v.optional(v.boolean()),
-    serviceSecret: v.optional(v.string()),
-    serviceActorUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const serviceActor = assertActorViaSecret(args);
     const imp = await ctx.db.get(args.importId);
     if (!imp) throw new Error("NOT_FOUND");
-    let actorUserId: Id<"users">;
-    if (serviceActor) {
-      // Service callers may only operate on imports they own (the bookmarklet
-      // signed-token established the user identity).
-      if (imp.userId !== serviceActor) throw new Error("FORBIDDEN");
-      actorUserId = serviceActor;
-    } else {
-      const me = await requireUser(ctx);
-      actorUserId = me._id;
-      if (args.onlyIfOwnedByMe && imp.userId !== me._id) {
-        throw new Error("FORBIDDEN");
-      }
-      if (
-        !args.onlyIfOwnedByMe &&
-        imp.userId !== me._id &&
-        me.role !== "OWNER" &&
-        me.role !== "ADMIN"
-      ) {
-        throw new Error("FORBIDDEN");
-      }
+    const me = await requireUser(ctx);
+    const actorUserId: Id<"users"> = me._id;
+    if (args.onlyIfOwnedByMe && imp.userId !== me._id) {
+      throw new Error("FORBIDDEN");
+    }
+    if (
+      !args.onlyIfOwnedByMe &&
+      imp.userId !== me._id &&
+      me.role !== "OWNER" &&
+      me.role !== "ADMIN"
+    ) {
+      throw new Error("FORBIDDEN");
     }
 
     const now = Date.now();
@@ -598,24 +545,17 @@ export const markFailed = mutation({
     code: v.string(),
     message: v.string(),
     detailJson: v.optional(v.any()),
-    serviceSecret: v.optional(v.string()),
-    serviceActorUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const serviceActor = assertActorViaSecret(args);
     const imp = await ctx.db.get(args.importId);
     if (!imp) throw new Error("NOT_FOUND");
-    if (serviceActor) {
-      if (imp.userId !== serviceActor) throw new Error("FORBIDDEN");
-    } else {
-      const me = await requireUser(ctx);
-      if (
-        imp.userId !== me._id &&
-        me.role !== "OWNER" &&
-        me.role !== "ADMIN"
-      ) {
-        throw new Error("FORBIDDEN");
-      }
+    const me = await requireUser(ctx);
+    if (
+      imp.userId !== me._id &&
+      me.role !== "OWNER" &&
+      me.role !== "ADMIN"
+    ) {
+      throw new Error("FORBIDDEN");
     }
     const now = Date.now();
     await ctx.db.patch(args.importId, {
@@ -769,27 +709,18 @@ export const persistNormalization = mutation({
       }),
     ),
     auditMetadataJson: v.optional(v.any()),
-    serviceSecret: v.optional(v.string()),
-    serviceActorUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const serviceActor = assertActorViaSecret(args);
     const imp = await ctx.db.get(args.importId);
     if (!imp) throw new Error("NOT_FOUND");
-    let actorUserId: Id<"users"> | undefined;
-    if (serviceActor) {
-      if (imp.userId !== serviceActor) throw new Error("FORBIDDEN");
-      actorUserId = serviceActor;
-    } else {
-      const me = await requireUser(ctx);
-      actorUserId = me._id;
-      if (
-        imp.userId !== me._id &&
-        me.role !== "OWNER" &&
-        me.role !== "ADMIN"
-      ) {
-        throw new Error("FORBIDDEN");
-      }
+    const me = await requireUser(ctx);
+    const actorUserId: Id<"users"> = me._id;
+    if (
+      imp.userId !== me._id &&
+      me.role !== "OWNER" &&
+      me.role !== "ADMIN"
+    ) {
+      throw new Error("FORBIDDEN");
     }
 
     // Drop existing children.

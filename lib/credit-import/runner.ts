@@ -38,36 +38,13 @@ import type {
 const RUNNER_VERSION = "v1";
 
 /**
- * Two auth modes are supported:
- *
- *   - **Clerk session** (`token`): customer-facing flows. The Convex
- *     mutations call `requireUser` against the JWT and enforce ownership.
- *
- *   - **Service secret** (`service`): the bookmarklet endpoint runs the
- *     pipeline on behalf of a user whose identity is established by a
- *     signed bookmarklet token rather than a Clerk cookie. The mutations
- *     accept `serviceSecret + serviceActorUserId` and skip `requireUser`.
- *
- * Pass exactly one. Setting both is allowed but the service path wins
- * inside the Convex handlers.
+ * Convex auth context for the runner. The runner threads the caller's
+ * Clerk JWT through `fetchMutation` / `fetchQuery`; Convex mutations
+ * call `requireUser` against the JWT and enforce ownership.
  */
 export type RunnerCtx = {
   token: string | null;
-  service?: { secret: string; actorUserId: Id<"users"> };
 };
-
-function authArgs(
-  ctx: RunnerCtx,
-): {
-  serviceSecret?: string;
-  serviceActorUserId?: Id<"users">;
-} {
-  if (!ctx.service) return {};
-  return {
-    serviceSecret: ctx.service.secret,
-    serviceActorUserId: ctx.service.actorUserId,
-  };
-}
 
 export class ImportRunnerError extends Error {
   constructor(
@@ -103,7 +80,6 @@ export async function createImport(
       providerRef: input.providerRef,
       sourceUrl: input.sourceUrl,
       importMethod: input.importMethod,
-      ...authArgs(ctx),
     },
     { token: ctx.token ?? undefined },
   );
@@ -150,7 +126,6 @@ export async function captureRaw(
       payloadHash,
       redactionFingerprint,
       onlyIfOwnedByMe: opts.onlyIfOwnedByMe,
-      ...authArgs(ctx),
     },
     { token: ctx.token ?? undefined },
   );
@@ -208,7 +183,6 @@ async function markFailed(
       code,
       message,
       detailJson: detail ?? {},
-      ...authArgs(ctx),
     },
     { token: ctx.token ?? undefined },
   );
@@ -225,7 +199,7 @@ export async function runNormalization(
 ): Promise<{ report: NormalizedReport; candidatesCreated: number }> {
   const fetched = await fetchQuery(
     api.creditImports.getOwnedRaw,
-    { id: opts.importId, ...authArgs(ctx) },
+    { id: opts.importId },
     { token: ctx.token ?? undefined },
   );
   if (!fetched) throw new ImportRunnerError("NOT_FOUND", "Import not found.");
@@ -399,7 +373,6 @@ export async function runNormalization(
         candidateCount: candidates.length,
         validationWarnings: normalized.validationWarnings,
       },
-      ...authArgs(ctx),
     },
     { token: ctx.token ?? undefined },
   );

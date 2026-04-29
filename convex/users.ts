@@ -16,9 +16,14 @@ function assertInternalSecret(secret: string) {
 
 /**
  * Service-secret-gated lookup of a Convex user row by Clerk subject id.
- * Used by the bookmarklet import endpoint, which authenticates the user
- * via a signed token (not a Clerk session) and needs to resolve the
- * Clerk subject to a Convex `Id<"users">` to drive the import pipeline.
+ * Used by the (currently disabled) extension pairing routes which
+ * authenticate via signed extension tokens rather than Clerk cookies.
+ *
+ * The bookmarklet flow no longer uses this — bookmarklet imports run on a
+ * Clerk-authed relay page (see app/import/relay/page.tsx) and call the
+ * existing Clerk-auth path. This query exists for the extension routes
+ * still in the tree; they remain unreachable until the extension is
+ * re-enabled and the cloud Convex deployment has been updated.
  */
 export const byClerkIdAsService = query({
   args: { secret: v.string(), clerkUserId: v.string() },

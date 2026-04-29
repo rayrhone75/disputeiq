@@ -15,7 +15,11 @@ import { NextResponse } from "next/server";
 // session token template. Set role per-user in the Clerk dashboard
 // (User → Public metadata → `{"role":"ADMIN"}`) or via the API.
 
-const isProtected = createRouteMatcher(["/dashboard(.*)", "/admin(.*)"]);
+const isProtected = createRouteMatcher([
+  "/dashboard(.*)",
+  "/admin(.*)",
+  "/import(.*)",
+]);
 const isAdminOnly = createRouteMatcher(["/admin(.*)"]);
 const ADMIN_ROLES = new Set(["OWNER", "ADMIN", "SUPPORT"]);
 

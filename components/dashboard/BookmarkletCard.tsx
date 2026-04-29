@@ -19,30 +19,41 @@ const DEFAULT_JSON_URL =
   "https://member.myscoreiq.com/CreditReport.aspx?view=json";
 
 function buildBookmarkletCode(opts: {
-  endpoint: string;
-  token: string;
-  appBaseUrl: string;
+  relayUrl: string;
 }): string {
-  // Minified by hand for inline use as `javascript:` URL. The single-quote
-  // string template here is intentional — the JS string itself contains
-  // double quotes for HTML safety, and we URI-encode it before inserting
-  // into an href.
+  // Bookmarklet pattern: open the DisputeIQ relay tab, then postMessage the
+  // JSON to it once the relay signals "ready". The relay is a Clerk-authed
+  // page on disputeiq.org, so the actual import POST happens same-origin
+  // with full Clerk session — no CORS, no service-secret coupling.
+  //
+  // Why this dance instead of a direct fetch:
+  //   - member.myscoreiq.com has no Clerk session cookies, so a direct POST
+  //     to disputeiq.org cannot authenticate against Convex.
+  //   - The relay page on disputeiq.org has the user's Clerk session, can
+  //     mint a Convex JWT, and runs the existing import pipeline that
+  //     already works against the deployed Convex schema.
+  //
+  // The bookmarklet retries postMessage every 750ms for 30s so a sign-in
+  // redirect mid-flow doesn't lose the JSON (the relay re-sends "ready"
+  // after sign-in remount).
   const code =
-    "(function(){try{var b=document.body.innerText.trim();" +
-    "if(b[0]!=='{'&&b[0]!=='[')return alert('DisputeIQ: not a JSON page. Open https://member.myscoreiq.com/CreditReport.aspx?view=json first.');" +
+    "(function(){try{" +
+    "var b=document.body.innerText.trim();" +
+    "if(b[0]!=='{'&&b[0]!=='[')return alert('DisputeIQ: not a JSON page. Open https://member.myscoreiq.com/CreditReport.aspx?view=json first, then click this bookmarklet.');" +
     "var s=document.createElement('div');" +
     "s.style.cssText='position:fixed;top:16px;right:16px;z-index:2147483647;background:#0a0f1c;color:#fff;padding:14px 18px;border-radius:12px;font:14px/1.45 system-ui;box-shadow:0 12px 40px rgba(0,0,0,.4);max-width:320px';" +
-    "s.textContent='DisputeIQ: importing your report\\u2026';" +
+    "s.textContent='DisputeIQ: opening importer\\u2026';" +
     "document.body.appendChild(s);" +
-    "fetch('" + opts.endpoint + "?t=" + opts.token + "',{method:'POST',body:b,headers:{'Content-Type':'text/plain'}})" +
-    ".then(function(r){return r.json();})" +
-    ".then(function(d){" +
-    "if(d&&d.ok){s.innerHTML='<strong>DisputeIQ \\u2713</strong><br>Imported '+d.tradelineCount+' tradelines. <a href=\"" +
-    opts.appBaseUrl +
-    "'+d.redirect+'\" style=\"color:#7dd3fc\">Open dashboard \\u2192</a>';s.style.background='#064e3b';}" +
-    "else{s.innerHTML='<strong>DisputeIQ \\u2717</strong><br>'+(d&&d.message?d.message:'Import failed.');s.style.background='#7f1d1d';}" +
-    "})" +
-    ".catch(function(e){s.innerHTML='<strong>DisputeIQ \\u2717</strong><br>Network error: '+e.message;s.style.background='#7f1d1d';});" +
+    "var relay='" + opts.relayUrl + "';" +
+    "var relayOrigin=new URL(relay).origin;" +
+    "var w=window.open(relay,'_blank');" +
+    "if(!w){s.innerHTML='<strong>DisputeIQ \\u2717</strong><br>Browser blocked the popup. Allow pop-ups for this site and try again.';s.style.background='#7f1d1d';return;}" +
+    "var sent=false;" +
+    "function onMsg(ev){if(ev.origin!==relayOrigin)return;var d=ev.data;if(d&&d.k==='DIQ_READY'){try{w.postMessage({k:'DIQ_DATA',j:b},relayOrigin);sent=true;s.innerHTML='<strong>DisputeIQ \\u2713</strong><br>Sent to DisputeIQ. Watch the new tab for progress.';s.style.background='#064e3b';}catch(e){}}}" +
+    "window.addEventListener('message',onMsg);" +
+    "var tries=0;" +
+    "var iv=setInterval(function(){tries++;if(sent||tries>40||!w||w.closed){clearInterval(iv);if(!sent&&!w.closed){s.innerHTML='<strong>DisputeIQ \\u2717</strong><br>The DisputeIQ tab did not respond. Check that you are signed in and try again.';s.style.background='#7f1d1d';}return;}try{w.postMessage({k:'DIQ_PING'},relayOrigin);}catch(e){}},750);" +
+    "setTimeout(function(){window.removeEventListener('message',onMsg);},90000);" +
     "}catch(e){alert('DisputeIQ bookmarklet error: '+e.message);}})();";
   return "javascript:" + encodeURI(code);
 }
@@ -53,17 +64,13 @@ export function BookmarkletCard({ clerkUserId }: { clerkUserId: string }) {
     process.env.NEXT_PUBLIC_APP_URL ??
     "https://disputeiq.org";
   const jsonUrl = process.env.MYSCOREIQ_JSON_REPORT_URL ?? DEFAULT_JSON_URL;
-  const endpoint = `${appBaseUrl}/api/reports/import/bookmarklet`;
 
   let bookmarkletHref = "";
   let signError: string | null = null;
   try {
     const token = signBookmarkletToken(clerkUserId);
-    bookmarkletHref = buildBookmarkletCode({
-      endpoint,
-      token,
-      appBaseUrl,
-    });
+    const relayUrl = `${appBaseUrl}/import/relay?t=${encodeURIComponent(token)}`;
+    bookmarkletHref = buildBookmarkletCode({ relayUrl });
   } catch (err) {
     signError = (err as Error).message;
   }
