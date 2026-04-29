@@ -345,6 +345,31 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_user", ["userId", "createdAt"]),
 
+  // One row per Chrome-extension install paired to a DisputeIQ account.
+  // We never store the raw extension token — only its SHA-256 hash —
+  // so a leak of this table cannot impersonate the extension.
+  extensionPairings: defineTable({
+    userId: v.id("users"),
+    // SHA-256 hex of the long-lived extension-token. Lookup key.
+    tokenHash: v.string(),
+    // Pair-token jti, recorded for audit + future rotation.
+    pairJti: v.optional(v.string()),
+    extensionVersion: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+    pairedAt: v.number(),
+    expiresAt: v.number(),
+    lastUsedAt: v.optional(v.number()),
+    lastImportAt: v.optional(v.number()),
+    lastImportId: v.optional(v.id("creditReportImports")),
+    lastErrorAt: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+    revoked: v.boolean(),
+    revokedAt: v.optional(v.number()),
+    revokedReason: v.optional(v.string()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_token_hash", ["tokenHash"]),
+
   creditReportImports: defineTable({
     userId: v.id("users"),
     provider: creditProvider,

@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "DisputeIQ Connector",
+  "short_name": "DisputeIQ",
+  "version": "0.1.0",
+  "description": "One-click MyScoreIQ credit-report import for your DisputeIQ dashboard. Never stores your MyScoreIQ password.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "DisputeIQ Connector",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://member.myscoreiq.com/*"],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": [
+    "https://member.myscoreiq.com/*",
+    "https://disputeiq.org/*",
+    "https://www.disputeiq.org/*",
+    "http://localhost:3000/*"
+  ],
+  "permissions": ["storage", "activeTab", "scripting"],
+  "minimum_chrome_version": "120",
+  "web_accessible_resources": []
+}

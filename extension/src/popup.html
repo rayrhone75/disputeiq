@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>DisputeIQ Connector</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f5ee;
+        --surface: #ffffff;
+        --border: #e8e4d8;
+        --fg: #0a0f1c;
+        --fg-muted: #4a4638;
+        --fg-subtle: #6b6556;
+        --accent: #4f46e5;
+        --accent-fg: #ffffff;
+        --success-bg: #ecfdf5;
+        --success-fg: #064e3b;
+        --error-bg: #fef2f2;
+        --error-fg: #7f1d1d;
+        --warning-bg: #fffbeb;
+        --warning-fg: #78350f;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0a0f1c;
+          --surface: #111827;
+          --border: rgba(255, 255, 255, 0.08);
+          --fg: #f3f4f6;
+          --fg-muted: #cbd5e1;
+          --fg-subtle: #94a3b8;
+          --success-bg: rgba(16, 185, 129, 0.15);
+          --success-fg: #6ee7b7;
+          --error-bg: rgba(239, 68, 68, 0.15);
+          --error-fg: #fca5a5;
+          --warning-bg: rgba(245, 158, 11, 0.15);
+          --warning-fg: #fcd34d;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        width: 360px;
+        max-height: 600px;
+      }
+      header {
+        padding: 16px 18px 12px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      header .badge {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6, #d946ef);
+        display: grid;
+        place-items: center;
+        color: #fff;
+        font-weight: 700;
+        font-family: ui-serif, Georgia, serif;
+        font-style: italic;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--fg);
+      }
+      header .sub {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--fg-subtle);
+      }
+      main {
+        padding: 16px 18px;
+        overflow-y: auto;
+        max-height: 480px;
+      }
+      .section + .section {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .row + .row {
+        margin-top: 6px;
+      }
+      .label {
+        color: var(--fg-subtle);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+      .value {
+        color: var(--fg);
+        font-size: 12px;
+        font-weight: 500;
+      }
+      button {
+        font: inherit;
+        cursor: pointer;
+        border: 0;
+        padding: 9px 14px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      button.primary {
+        background: var(--fg);
+        color: var(--bg);
+      }
+      button.primary:hover {
+        opacity: 0.9;
+      }
+      button.secondary {
+        background: var(--surface);
+        color: var(--fg);
+        border: 1px solid var(--border);
+      }
+      button.secondary:hover {
+        background: var(--bg);
+      }
+      button.danger {
+        background: transparent;
+        color: var(--error-fg);
+        border: 1px solid var(--border);
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .stack {
+        display: grid;
+        gap: 8px;
+      }
+      input[type="text"],
+      textarea {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--fg);
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        font-size: 11px;
+      }
+      textarea {
+        resize: vertical;
+        min-height: 64px;
+      }
+      .badge-status {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 600;
+      }
+      .ok {
+        background: var(--success-bg);
+        color: var(--success-fg);
+      }
+      .err {
+        background: var(--error-bg);
+        color: var(--error-fg);
+      }
+      .warn {
+        background: var(--warning-bg);
+        color: var(--warning-fg);
+      }
+      .small {
+        font-size: 11px;
+        color: var(--fg-muted);
+        line-height: 1.5;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .hidden {
+        display: none !important;
+      }
+      .footer {
+        padding: 10px 18px;
+        border-top: 1px solid var(--border);
+        font-size: 10px;
+        color: var(--fg-subtle);
+        text-align: center;
+      }
+      .alert {
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-size: 11px;
+        line-height: 1.5;
+      }
+      .alert-success {
+        background: var(--success-bg);
+        color: var(--success-fg);
+      }
+      .alert-error {
+        background: var(--error-bg);
+        color: var(--error-fg);
+      }
+      .alert-warn {
+        background: var(--warning-bg);
+        color: var(--warning-fg);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="badge">D</div>
+      <div>
+        <div class="sub">DisputeIQ Connector</div>
+        <h1>MyScoreIQ Import</h1>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- ========== UNPAIRED ========== -->
+      <section class="section" id="view-unpaired">
+        <p class="small">
+          Pair this extension with your DisputeIQ account to import your
+          MyScoreIQ credit report with one click.
+        </p>
+        <div class="stack">
+          <button id="open-dashboard" class="secondary">
+            Open DisputeIQ to get a pairing code
+          </button>
+          <label class="label" for="pair-input">Pairing token</label>
+          <textarea
+            id="pair-input"
+            placeholder="Paste the pairing token from DisputeIQ"
+            rows="3"
+            autocomplete="off"
+            spellcheck="false"
+          ></textarea>
+          <button id="pair-btn" class="primary">Pair Extension</button>
+          <div id="pair-error" class="alert alert-error hidden"></div>
+        </div>
+      </section>
+
+      <!-- ========== PAIRED ========== -->
+      <section class="section hidden" id="view-paired">
+        <div class="row">
+          <span class="label">Account</span>
+          <span class="value" id="paired-email">—</span>
+        </div>
+        <div class="row">
+          <span class="label">Provider</span>
+          <span class="value">MyScoreIQ</span>
+        </div>
+        <div class="row">
+          <span class="label">Status</span>
+          <span class="badge-status ok" id="paired-status">Paired</span>
+        </div>
+        <div class="row">
+          <span class="label">Last import</span>
+          <span class="value" id="paired-last">never</span>
+        </div>
+
+        <div class="stack" style="margin-top: 14px">
+          <button id="import-btn" class="primary">
+            Import MyScoreIQ Report
+          </button>
+          <button id="open-msiq" class="secondary">
+            Open MyScoreIQ JSON page ↗
+          </button>
+        </div>
+
+        <div id="import-result" class="alert hidden" style="margin-top: 12px"></div>
+
+        <div class="row" style="margin-top: 14px">
+          <button id="disconnect-btn" class="danger">Disconnect</button>
+          <a id="open-dashboard-link" href="#" target="_blank"
+            >Open Dashboard ↗</a
+          >
+        </div>
+      </section>
+    </main>
+
+    <div class="footer">v<span id="ver">0.0</span> · Privacy: never stores your MyScoreIQ password.</div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

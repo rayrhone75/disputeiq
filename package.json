@@ -11,6 +11,9 @@
     "convex:dev": "convex dev",
     "convex:deploy": "convex deploy",
     "credit-import:smoke": "tsx scripts/credit-import-smoke.ts",
+    "extension:build": "node extension/build.mjs",
+    "extension:dev": "node extension/build.mjs --watch",
+    "extension:zip": "node extension/build.mjs && cd extension/dist && bestzip ../disputeiq-extension.zip *",
     "test": "vitest",
     "e2e": "playwright test"
   },
@@ -29,9 +32,11 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.48.0",
+    "@types/chrome": "^0.0.281",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "autoprefixer": "^10.4.20",
+    "esbuild": "^0.24.2",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "tsx": "^4.19.0",

@@ -6,6 +6,7 @@ import { MarkActivatedButton } from "@/components/dashboard/MarkActivatedButton"
 import { CreditReportStatusChip } from "@/components/dashboard/CreditReportStatusChip";
 import { ConnectReportPanel } from "@/components/dashboard/ConnectReportPanel";
 import { BookmarkletCard } from "@/components/dashboard/BookmarkletCard";
+import { ExtensionPairingCard } from "@/components/dashboard/ExtensionPairingCard";
 import { buildMsiqEnrollUrl, MSIQ, loadMsiqConfig } from "@/lib/integrations/myscoreiq";
 import { loadCreditReportStatus } from "@/lib/credit-import/status";
 
@@ -381,6 +382,8 @@ export default async function GetReportPage({
                 }
               />
             </div>
+
+            <ExtensionPairingCard />
 
             <BookmarkletCard clerkUserId={user.id} />
 
