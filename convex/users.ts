@@ -7,6 +7,30 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
+function assertInternalSecret(secret: string) {
+  const expected = process.env.INTERNAL_SERVICE_SECRET ?? "";
+  if (!expected || secret !== expected) {
+    throw new Error("FORBIDDEN_SERVICE_SECRET");
+  }
+}
+
+/**
+ * Service-secret-gated lookup of a Convex user row by Clerk subject id.
+ * Used by the bookmarklet import endpoint, which authenticates the user
+ * via a signed token (not a Clerk session) and needs to resolve the
+ * Clerk subject to a Convex `Id<"users">` to drive the import pipeline.
+ */
+export const byClerkIdAsService = query({
+  args: { secret: v.string(), clerkUserId: v.string() },
+  handler: async (ctx, { secret, clerkUserId }) => {
+    assertInternalSecret(secret);
+    return await ctx.db
+      .query("users")
+      .withIndex("by_clerk", (q) => q.eq("clerkUserId", clerkUserId))
+      .unique();
+  },
+});
+
 export const currentUser = query({
   args: {},
   handler: async (ctx) => {

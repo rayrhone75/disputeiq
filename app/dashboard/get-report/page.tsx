@@ -5,6 +5,7 @@ import { IdiqContinueButton } from "@/components/dashboard/IdiqContinueButton";
 import { MarkActivatedButton } from "@/components/dashboard/MarkActivatedButton";
 import { CreditReportStatusChip } from "@/components/dashboard/CreditReportStatusChip";
 import { ConnectReportPanel } from "@/components/dashboard/ConnectReportPanel";
+import { BookmarkletCard } from "@/components/dashboard/BookmarkletCard";
 import { buildMsiqEnrollUrl, MSIQ, loadMsiqConfig } from "@/lib/integrations/myscoreiq";
 import { loadCreditReportStatus } from "@/lib/credit-import/status";
 
@@ -380,6 +381,8 @@ export default async function GetReportPage({
                 }
               />
             </div>
+
+            <BookmarkletCard clerkUserId={user.id} />
 
             <div
               id="helpful-docs"
