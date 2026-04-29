@@ -28,8 +28,14 @@ export default clerkMiddleware(async (auth, req) => {
     const { userId, sessionClaims } = await auth();
     if (!userId) {
       const signin = req.nextUrl.clone();
+      // Preserve the original query string (e.g. /import/relay?t=<token>)
+      // so the bookmarklet handshake survives sign-in. We rebuild from
+      // scratch to avoid leaking the original page's query params onto
+      // the /sign-in URL itself.
+      const target = req.nextUrl.pathname + req.nextUrl.search;
       signin.pathname = "/sign-in";
-      signin.searchParams.set("redirect_url", req.nextUrl.pathname);
+      signin.search = "";
+      signin.searchParams.set("redirect_url", target);
       return NextResponse.redirect(signin);
     }
     if (isAdminOnly(req)) {
