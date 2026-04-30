@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { RawConnectorAnchor } from "./RawConnectorAnchor";
 
 // MyScoreIQ Auto-Connect modal.
 //
@@ -293,28 +294,21 @@ function SetupStep({
       </ol>
 
       <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50 p-5 text-center dark:border-violet-500/30 dark:from-violet-500/15 dark:to-indigo-500/10">
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- intentional drag-to-bookmark anchor */}
-        <a
-          href={tokenReady ? connectorHref : "javascript:void(0)"}
-          draggable
-          onClick={(e) => e.preventDefault()}
-          className={`inline-flex select-none items-center gap-2 rounded-xl px-6 py-3.5 text-sm font-semibold shadow-[0_18px_48px_-18px_rgba(99,102,241,0.55)] transition ${
-            tokenReady
-              ? "bg-fg text-canvas hover:-translate-y-0.5"
-              : "cursor-progress bg-surface-muted text-fg-subtle"
-          }`}
-          title="Drag this to your bookmarks bar"
-        >
-          <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none">
-            <path
-              d="M3 6l5-3 5 3v6.5L8 15l-5-2.5V6z"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              strokeLinejoin="round"
-            />
-          </svg>
-          DisputeIQ Secure Connector
-        </a>
+        {tokenReady ? (
+          <RawConnectorAnchor
+            href={connectorHref}
+            className="inline-flex select-none items-center gap-2 rounded-xl bg-fg px-6 py-3.5 text-sm font-semibold text-canvas shadow-[0_18px_48px_-18px_rgba(99,102,241,0.55)] transition hover:-translate-y-0.5 no-underline"
+            label="📑 DisputeIQ Secure Connector"
+          />
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="inline-flex cursor-progress select-none items-center gap-2 rounded-xl bg-surface-muted px-6 py-3.5 text-sm font-semibold text-fg-subtle"
+          >
+            Preparing connector…
+          </button>
+        )}
         <p className="mt-3 text-[11px] leading-5 text-fg-muted">
           ↑ Drag this button up to your bookmarks bar
         </p>
@@ -444,14 +438,23 @@ function ConnectStep({
         </button>
       </div>
 
-      {/* Hidden but kept in DOM so a savvy user can still drag the
-          Connector again from inside the modal. Most users won't need it. */}
-      <div className="hidden">
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- intentional drag handle */}
-        <a href={connectorHref} draggable onClick={(e) => e.preventDefault()}>
-          DisputeIQ Secure Connector
-        </a>
-      </div>
+      {/* Visible drag handle for repeat-installs from the Connect phase
+          (e.g. bookmark got deleted). Uses RawConnectorAnchor to bypass
+          React 19's javascript: URL sanitization. */}
+      {tokenReady && (
+        <div className="rounded-xl border border-dashed border-border bg-surface-muted/40 p-3 text-center text-[11px]">
+          <p className="text-fg-muted">
+            Need to reinstall the connector? Drag this:
+          </p>
+          <div className="mt-2">
+            <RawConnectorAnchor
+              href={connectorHref}
+              className="inline-flex select-none items-center gap-2 rounded-lg bg-fg px-3 py-1.5 text-[11px] font-semibold text-canvas no-underline"
+              label="📑 DisputeIQ Secure Connector"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
