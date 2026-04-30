@@ -10,6 +10,7 @@ import { Timeline } from "./_components/Timeline";
 import { ActionRail } from "./_components/ActionRail";
 import { MessagesPanel } from "./_components/MessagesPanel";
 import { HealthSignals } from "./_components/HealthSignals";
+import { CustomerAdvisorView } from "./_components/CustomerAdvisorView";
 import { ToastProvider } from "./_components/toast";
 import {
   aggregate,
@@ -126,6 +127,10 @@ function Body({
             threads={state.data.threads}
             timeline={state.data.timeline}
             followUps={state.data.followUps}
+          />
+          <CustomerAdvisorView
+            console={state.data.console}
+            agg={agg}
           />
           <MessagesPanel
             customerId={state.data.console.user._id}

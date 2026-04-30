@@ -2,6 +2,11 @@
 
 import Link from "next/link";
 import type { Aggregates, DashboardOverview } from "./types";
+import {
+  deriveAdvisorSuggestions,
+  type AdvisorIcon,
+  type AdvisorTone,
+} from "@/lib/dashboard/advisor";
 
 // Section D — Stats + Advisor.
 //
@@ -170,104 +175,55 @@ type Suggestion = {
   title: string;
   body: string;
   href: string;
-  tone: "emerald" | "indigo" | "amber" | "rose" | "sky" | "violet";
+  tone: AdvisorTone;
   icon: React.ReactNode;
 };
 
 function buildSuggestions(o: DashboardOverview, agg: Aggregates): Suggestion[] {
-  const out: Suggestion[] = [];
+  return deriveAdvisorSuggestions(
+    {
+      onboarding: o.onboarding,
+      creditReportStatus: { kind: o.creditReportStatus.kind },
+      packetUsage: { plan: o.packetUsage.plan, remaining: o.packetUsage.remaining },
+      user: { billingOverride: o.user?.billingOverride ?? null },
+    },
+    {
+      totalItems: agg.totalItems,
+      removed: agg.removed,
+      inDispute: agg.inDispute,
+      draftReady: agg.draftReady,
+      responseReceived: agg.responseReceived,
+      escalationReady: agg.escalationReady,
+    },
+  ).map((s) => ({
+    title: s.title,
+    body: s.body,
+    href: s.href,
+    tone: s.tone,
+    icon: renderAdvisorIcon(s.icon),
+  }));
+}
 
-  if (!o.onboarding.hasProfile) {
-    out.push({
-      title: "Finish your profile",
-      body: "Address and identity details unlock letter generation. Two minutes.",
-      href: "/dashboard/onboarding",
-      tone: "violet",
-      icon: <IconUser />,
-    });
+function renderAdvisorIcon(name: AdvisorIcon): React.ReactNode {
+  switch (name) {
+    case "user":
+      return <IconUser />;
+    case "card":
+      return <IconCard />;
+    case "upload":
+      return <IconUpload />;
+    case "send":
+      return <IconSend />;
+    case "inbox":
+      return <IconInbox />;
+    case "alert":
+      return <IconAlert />;
+    case "celebrate":
+      return <IconSparkle />;
+    case "sparkle":
+    default:
+      return <IconSparkle />;
   }
-  if (!o.onboarding.hasSubscription) {
-    out.push({
-      title: "Choose a plan to start disputing",
-      body: "Every plan includes monthly packets, certified mail, and bureau tracking.",
-      href: "/dashboard/onboarding",
-      tone: "indigo",
-      icon: <IconCard />,
-    });
-  }
-  if (
-    o.creditReportStatus.kind === "not_started" ||
-    o.creditReportStatus.kind === "failed"
-  ) {
-    out.push({
-      title:
-        o.creditReportStatus.kind === "failed"
-          ? "Retry your report import"
-          : "Connect your credit report",
-      body: "We'll analyze every tradeline and surface dispute opportunities the moment it lands.",
-      href: "/dashboard/get-report",
-      tone: o.creditReportStatus.kind === "failed" ? "amber" : "violet",
-      icon: <IconUpload />,
-    });
-  }
-  if (agg.draftReady > 0) {
-    out.push({
-      title: `Approve ${agg.draftReady} ${agg.draftReady === 1 ? "letter" : "letters"} ready to mail`,
-      body: "Review the draft, approve, and we'll send certified mail tomorrow morning.",
-      href: "/dashboard/letters",
-      tone: "emerald",
-      icon: <IconSend />,
-    });
-  }
-  if (agg.responseReceived > 0) {
-    out.push({
-      title: `Bureau ${agg.responseReceived === 1 ? "responded" : "responses received"}`,
-      body: "Open the dispute timeline to see what they said and decide your next move.",
-      href: "/dashboard/disputes",
-      tone: "sky",
-      icon: <IconInbox />,
-    });
-  }
-  if (agg.escalationReady > 0) {
-    out.push({
-      title: `Escalate ${agg.escalationReady} stalled ${agg.escalationReady === 1 ? "item" : "items"}`,
-      body: "These were delivered but not removed. Time for method-of-verification or CFPB pressure.",
-      href: "/dashboard/disputes",
-      tone: "rose",
-      icon: <IconAlert />,
-    });
-  }
-  if (
-    o.onboarding.hasSubscription &&
-    o.creditReportStatus.kind === "imported" &&
-    agg.totalItems > 0 &&
-    agg.inDispute === 0 &&
-    agg.removed === 0 &&
-    agg.draftReady === 0
-  ) {
-    out.push({
-      title: "Pick your first dispute round",
-      body: "Your file is analyzed and ranked. Approve a round to kick off your first packet.",
-      href: "/dashboard/disputes",
-      tone: "emerald",
-      icon: <IconSparkle />,
-    });
-  }
-  if (
-    o.packetUsage.plan &&
-    o.packetUsage.remaining === 0 &&
-    agg.draftReady > 0
-  ) {
-    out.push({
-      title: "You're at your monthly packet limit",
-      body: `Upgrade your plan or pay-per-packet to send the ${agg.draftReady} drafted letters now.`,
-      href: "/dashboard/settings",
-      tone: "amber",
-      icon: <IconCard />,
-    });
-  }
-
-  return out.slice(0, 3);
 }
 
 function IconUser() {

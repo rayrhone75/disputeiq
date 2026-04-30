@@ -42,6 +42,9 @@ export function CustomerHeader({
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {c.user.isVip && <Pill tone="amber">★ VIP</Pill>}
+                {c.user.billingOverride && (
+                  <Pill tone="emerald">{overrideBadge(c.user)}</Pill>
+                )}
                 <Pill tone={planTone}>{planLabel}</Pill>
                 <Pill tone="neutral">
                   Joined {joined}
@@ -183,6 +186,18 @@ function Mini({
       </div>
     </div>
   );
+}
+
+function overrideBadge(u: CustomerConsole["user"]): string {
+  if (u.billingOverride === "free") return "FREE · Comped";
+  if (u.billingOverride === "discounted") {
+    return `${u.billingOverrideValue ?? "—"}% OFF`;
+  }
+  if (u.billingOverride === "custom") {
+    const cents = u.billingOverrideValue ?? 0;
+    return `CUSTOM · $${(cents / 100).toFixed(0)}`;
+  }
+  return "OVERRIDE";
 }
 
 function subscriptionTone(

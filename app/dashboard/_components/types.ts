@@ -99,6 +99,12 @@ export type DashboardOverview = {
     id: string;
     email: string;
     isGraceUser: boolean;
+    isVip?: boolean;
+    /** App-layer billing override set by an admin. */
+    billingOverride?: "free" | "discounted" | "custom" | null;
+    billingOverrideValue?: number | null;
+    billingOverrideReason?: string | null;
+    billingOverrideExpiresAt?: number | null;
   };
 };
 

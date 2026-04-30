@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { CustomerConsole } from "./types";
 import { useToast } from "./toast";
 import { LinkResultModal } from "./LinkResultModal";
+import { BillingOverrideModal } from "./BillingOverrideModal";
 
 // Account controls — admin-level user actions.
 // Phase 1 wires:
@@ -38,6 +39,7 @@ export function AccountControls({
     expiresInSeconds?: number;
     warning?: string | null;
   } | null>(null);
+  const [overrideModalOpen, setOverrideModalOpen] = useState(false);
 
   async function postJson<T>(
     path: string,
@@ -116,6 +118,84 @@ export function AccountControls({
     }
   }
 
+  async function handleClearOverride() {
+    setBusy("override-clear");
+    try {
+      const res = await fetch(
+        `/api/admin/customers/${c.user._id}/billing-override`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: "Cleared from Customer 360" }),
+        },
+      );
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        code?: string;
+        message?: string;
+      };
+      if (!data.ok) {
+        push(
+          "error",
+          data.code === "FORBIDDEN"
+            ? "Owner / admin only"
+            : "Couldn't clear override",
+          data.message ?? undefined,
+        );
+        return;
+      }
+      push("success", "Override cleared");
+      onChange();
+    } catch (err) {
+      push("error", "Couldn't clear override", (err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleRecoveryAttempt() {
+    setBusy("recovery");
+    try {
+      const res = await fetch(
+        `/api/admin/customers/${c.user._id}/billing-recovery`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        },
+      );
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        code?: string;
+        message?: string;
+      };
+      if (!data.ok) {
+        push(
+          "error",
+          data.code === "FORBIDDEN"
+            ? "Owner / admin only"
+            : "Couldn't log recovery attempt",
+          data.message ?? undefined,
+        );
+        return;
+      }
+      push(
+        "success",
+        "Recovery attempt logged",
+        "Use the Stripe Dashboard to retry the actual charge.",
+      );
+      onChange();
+    } catch (err) {
+      push(
+        "error",
+        "Couldn't log recovery attempt",
+        (err as Error).message,
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function handleVip(targetVip: boolean) {
     setBusy("vip");
     try {
@@ -143,6 +223,7 @@ export function AccountControls({
   }
 
   const isVip = !!c.user.isVip;
+  const hasOverride = !!c.user.billingOverride;
 
   return (
     <>
@@ -183,27 +264,53 @@ export function AccountControls({
             busy={busy === "vip"}
             onClick={() => handleVip(!isVip)}
           />
-          <ComingSoonButton
+          <ActionButton
             icon={<IconGift />}
-            title="Comp month"
-            subtitle="Waive next billing cycle"
+            title={hasOverride ? "Update override" : "Comp / discount"}
+            subtitle={
+              hasOverride
+                ? overrideSubtitle(c.user)
+                : "Free, % off, or custom rate"
+            }
+            tone={hasOverride ? "amber" : "violet"}
+            onClick={() => setOverrideModalOpen(true)}
           />
-          <ComingSoonButton
-            icon={<IconPercent />}
-            title="Apply discount"
-            subtitle="Custom % off + duration"
-          />
-          {c.subscription?.status === "active" ? (
-            <ComingSoonButton
+          {hasOverride ? (
+            <ActionButton
+              icon={<IconReactivate />}
+              title="Clear override"
+              subtitle="Revert to standard Stripe billing"
+              tone="amber"
+              busy={busy === "override-clear"}
+              onClick={handleClearOverride}
+            />
+          ) : (
+            <ActionButton
+              icon={<IconRecovery />}
+              title="Log recovery attempt"
+              subtitle="Adds a retry note to the audit log"
+              busy={busy === "recovery"}
+              onClick={handleRecoveryAttempt}
+            />
+          )}
+          {stripeUrl ? (
+            <ActionLink
+              href={stripeUrl}
               icon={<IconCancel />}
-              title="Cancel subscription"
-              subtitle="Pause future billing"
+              title={
+                c.subscription?.status === "active"
+                  ? "Pause / cancel in Stripe"
+                  : "Reactivate in Stripe"
+              }
+              subtitle="Open the billing portal"
+              external
             />
           ) : (
             <ComingSoonButton
-              icon={<IconReactivate />}
-              title="Reactivate subscription"
-              subtitle="Resume billing"
+              icon={<IconCancel />}
+              title="Pause / cancel in Stripe"
+              subtitle="No Stripe customer linked"
+              disabled
             />
           )}
           <ComingSoonButton
@@ -211,22 +318,6 @@ export function AccountControls({
             title="View as customer"
             subtitle="Read-only impersonation"
           />
-          {stripeUrl ? (
-            <ActionLink
-              href={stripeUrl}
-              icon={<IconStripe />}
-              title="Open in Stripe"
-              subtitle="Customer dashboard"
-              external
-            />
-          ) : (
-            <ComingSoonButton
-              icon={<IconStripe />}
-              title="Open in Stripe"
-              subtitle="No Stripe customer linked"
-              disabled
-            />
-          )}
           <ActionLink
             href={`/admin/audit-logs?userId=${c.user._id}`}
             icon={<IconAudit />}
@@ -235,6 +326,17 @@ export function AccountControls({
           />
         </div>
       </section>
+
+      {overrideModalOpen && (
+        <BillingOverrideModal
+          customerId={c.user._id}
+          initialType={c.user.billingOverride ?? null}
+          initialValue={c.user.billingOverrideValue ?? null}
+          initialReason={c.user.billingOverrideReason ?? null}
+          onClose={() => setOverrideModalOpen(false)}
+          onSaved={onChange}
+        />
+      )}
 
       {linkModal && (
         <LinkResultModal
@@ -376,6 +478,18 @@ function ActionLink({
   );
 }
 
+function overrideSubtitle(u: CustomerConsole["user"]): string {
+  if (u.billingOverride === "free") return "Comped — no charges enforced";
+  if (u.billingOverride === "discounted") {
+    return `${u.billingOverrideValue ?? "—"}% off — ${u.billingOverrideReason ?? "no reason"}`;
+  }
+  if (u.billingOverride === "custom") {
+    const cents = u.billingOverrideValue ?? 0;
+    return `Custom $${(cents / 100).toFixed(2)} / cycle`;
+  }
+  return "No override";
+}
+
 function Spinner() {
   return (
     <svg viewBox="0 0 16 16" className="h-4 w-4 animate-spin text-fg-muted" fill="none">
@@ -450,6 +564,15 @@ function IconReactivate() {
   return (
     <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none">
       <path d="M2 8a6 6 0 1010-4l2-1m-2 1l-1-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconRecovery() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none">
+      <path d="M3 7a5 5 0 019-3l1 1m-1-1V2m0 2h2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="6" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M5.2 12l.7.7L7 11.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

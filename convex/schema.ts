@@ -130,6 +130,26 @@ export default defineSchema({
     isVip: v.optional(v.boolean()),
     vipMarkedAt: v.optional(v.number()),
     vipMarkedByUserId: v.optional(v.id("users")),
+    // App-layer billing override. Stripe stays the source of truth for
+    // actual charges; this flag tells the customer-facing UI to
+    // suppress upgrade prompts / past-due banners when set, and the
+    // admin Customer 360 to render the appropriate badge.
+    //   "free"        — comped account, no charges enforced.
+    //   "discounted"  — % off; billingOverrideValue holds the percent.
+    //   "custom"      — admin-defined; value is dollars/cents per cycle.
+    // Admin clears the override to revert to standard Stripe billing.
+    billingOverride: v.optional(
+      v.union(
+        v.literal("free"),
+        v.literal("discounted"),
+        v.literal("custom"),
+      ),
+    ),
+    billingOverrideValue: v.optional(v.number()),
+    billingOverrideReason: v.optional(v.string()),
+    billingOverrideByUserId: v.optional(v.id("users")),
+    billingOverrideAt: v.optional(v.number()),
+    billingOverrideExpiresAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

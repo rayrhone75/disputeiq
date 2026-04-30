@@ -3,6 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BillingPortalButton } from "@/components/dashboard/BillingPortalButton";
+import { HelpCard } from "@/components/dashboard/HelpCard";
+import {
+  PlanComparisonModal,
+  UpgradePromptBanner,
+  type UpgradeTrigger,
+} from "@/components/dashboard/UpgradePrompt";
+import type { PlanCode } from "@/lib/billing/plans";
 import { HealthHero } from "./_components/HealthHero";
 import { NextStepCard } from "./_components/NextStepCard";
 import { ProgressTracker } from "./_components/ProgressTracker";
@@ -28,6 +35,7 @@ type State =
 
 export function DashboardClient({ firstName }: { firstName: string }) {
   const [state, setState] = useState<State>({ kind: "loading" });
+  const [planModalOpen, setPlanModalOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,12 +87,26 @@ export function DashboardClient({ firstName }: { firstName: string }) {
   const agg = computeAggregates(overview);
   const subStatus = overview.subscription?.status ?? null;
   const greeting = `${greet()}${firstName ? `, ${firstName}` : ""}`;
+  // App-layer billing override controls customer-facing billing UX.
+  // When a customer is comped or on a discount, suppress the past-due
+  // banner — Stripe may still show past-due upstream, but the customer
+  // shouldn't see a payment interrupt for a comped account.
+  const override = overview.user.billingOverride ?? null;
+  const overrideActive =
+    !!override &&
+    (!overview.user.billingOverrideExpiresAt ||
+      overview.user.billingOverrideExpiresAt > Date.now());
+  const showPastDue = subStatus === "past_due" && !overrideActive;
+  const showCanceled = subStatus === "canceled" && !overrideActive;
+  const upgradeTrigger = pickUpgradeTrigger(overview, agg, overrideActive);
 
   return (
     <div className="space-y-7">
-      {/* Past-due is the only billing interrupt that floats to the top. */}
-      {subStatus === "past_due" && <PastDueBanner />}
-      {subStatus === "canceled" && <CanceledBanner />}
+      {overrideActive && <OverrideBanner override={override!} value={overview.user.billingOverrideValue ?? null} />}
+      {/* Past-due is the only billing interrupt that floats to the top
+          (and only when the override hasn't suppressed it). */}
+      {showPastDue && <PastDueBanner />}
+      {showCanceled && <CanceledBanner />}
 
       <HealthHero
         agg={agg}
@@ -92,7 +114,24 @@ export function DashboardClient({ firstName }: { firstName: string }) {
         greeting={greeting}
       />
 
+      {upgradeTrigger && (
+        <UpgradePromptBanner
+          trigger={upgradeTrigger}
+          currentPlan={(overview.subscription?.planCode as PlanCode | undefined) ?? null}
+          draftReady={agg.draftReady}
+          removed={agg.removed}
+          onChoosePlan={() => setPlanModalOpen(true)}
+        />
+      )}
+
       <NextStepCard overview={overview} agg={agg} />
+
+      {planModalOpen && (
+        <PlanComparisonModal
+          currentPlan={(overview.subscription?.planCode as PlanCode | undefined) ?? null}
+          onClose={() => setPlanModalOpen(false)}
+        />
+      )}
 
       <ProgressTracker overview={overview} />
 
@@ -100,9 +139,45 @@ export function DashboardClient({ firstName }: { firstName: string }) {
 
       <RecentActivity overview={overview} />
 
+      <HelpCard context="dashboard" />
+
       <Disclosure />
     </div>
   );
+}
+
+function pickUpgradeTrigger(
+  o: DashboardOverview,
+  agg: ReturnType<typeof computeAggregates>,
+  overrideActive: boolean,
+): UpgradeTrigger | null {
+  // Suppress upgrades when an admin has comped/discounted the account.
+  if (overrideActive) return null;
+  // Don't pitch upgrades to customers who haven't even chosen a plan yet —
+  // the next-step card already routes them to /onboarding.
+  if (!o.onboarding.hasSubscription) return null;
+
+  // Highest priority: user is at packet limit AND has letters waiting.
+  if (
+    o.packetUsage.plan &&
+    o.packetUsage.remaining === 0 &&
+    agg.draftReady > 0
+  ) {
+    return "packet_limit";
+  }
+  // Celebrate the first deletion or two.
+  if (agg.removed > 0 && agg.removed <= 2 && o.subscription?.planCode === "starter") {
+    return "first_deletion";
+  }
+  // Many drafts queued on Starter — Pro fits 3.
+  if (
+    o.subscription?.planCode === "starter" &&
+    agg.draftReady >= 2 &&
+    o.packetUsage.remaining < agg.draftReady
+  ) {
+    return "many_drafts";
+  }
+  return null;
 }
 
 function greet(): string {
@@ -111,6 +186,50 @@ function greet(): string {
   if (h < 12) return "Good morning";
   if (h < 18) return "Good afternoon";
   return "Good evening";
+}
+
+function OverrideBanner({
+  override,
+  value,
+}: {
+  override: "free" | "discounted" | "custom";
+  value: number | null;
+}) {
+  const headline =
+    override === "free"
+      ? "You're on the house"
+      : override === "discounted"
+        ? `Discount applied: ${value ?? "—"}% off`
+        : `Custom plan active`;
+  const body =
+    override === "free"
+      ? "An admin has comped your account. No charges from DisputeIQ until this is removed."
+      : override === "discounted"
+        ? "Your subscription is discounted by support. The discount applies until removed."
+        : `Your account is on a custom rate set by support${
+            typeof value === "number"
+              ? ` ($${(value / 100).toFixed(2)} per cycle)`
+              : ""
+          }.`;
+  return (
+    <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-200">
+          <svg viewBox="0 0 16 16" className="h-4 w-4" fill="currentColor">
+            <path d="M3.5 7l3.5 3.5L12.5 4 14 5.5l-7 7L2 7.5z" />
+          </svg>
+        </span>
+        <div>
+          <h2 className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+            {headline}
+          </h2>
+          <p className="mt-0.5 text-[12px] leading-5 text-emerald-900/85 dark:text-emerald-200/85">
+            {body}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function PastDueBanner() {

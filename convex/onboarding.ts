@@ -249,6 +249,11 @@ export const dashboardOverview = query({
         id: user._id,
         email: user.email,
         isGraceUser: user.isGraceUser,
+        isVip: !!user.isVip,
+        billingOverride: user.billingOverride ?? null,
+        billingOverrideValue: user.billingOverrideValue ?? null,
+        billingOverrideReason: user.billingOverrideReason ?? null,
+        billingOverrideExpiresAt: user.billingOverrideExpiresAt ?? null,
       },
     };
   },

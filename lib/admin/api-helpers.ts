@@ -15,7 +15,9 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { requireRole } from "@/lib/auth";
 
-const ALLOWED_ROLES = ["OWNER", "ADMIN", "SUPPORT"] as const;
+const DEFAULT_ALLOWED_ROLES = ["OWNER", "ADMIN", "SUPPORT"] as const;
+const BILLING_ROLES = ["OWNER", "ADMIN"] as const;
+type RoleList = ReadonlyArray<"OWNER" | "ADMIN" | "SUPPORT">;
 
 export type AdminApiCtx = {
   /** Clerk Convex JWT — pass to fetchMutation/fetchQuery as `token`. */
@@ -38,6 +40,12 @@ export type AdminApiResult<T> =
  */
 export async function gateAdminRoute(
   rawId: string,
+  /**
+   * Optional override of the allowed-role list. Default lets
+   * OWNER/ADMIN/SUPPORT through. Pass a tighter list (e.g.
+   * `["OWNER", "ADMIN"]`) for billing or other money-touching routes.
+   */
+  allowedRoles: RoleList = DEFAULT_ALLOWED_ROLES,
 ): Promise<
   | { ok: true; ctx: AdminApiCtx }
   | { ok: false; status: number; body: Record<string, unknown> }
@@ -50,9 +58,9 @@ export async function gateAdminRoute(
       body: { ok: false, code: "UNAUTHENTICATED" },
     };
   }
-  const me = await requireRole(ALLOWED_ROLES as unknown as Array<
-    "OWNER" | "ADMIN" | "SUPPORT" | "USER"
-  >).catch(() => null);
+  const me = await requireRole(
+    allowedRoles as unknown as Array<"OWNER" | "ADMIN" | "SUPPORT" | "USER">,
+  ).catch(() => null);
   if (!me) {
     return {
       ok: false,
@@ -82,6 +90,13 @@ export async function gateAdminRoute(
       customerId: rawId as unknown as Id<"users">,
     },
   };
+}
+
+/** Convenience: same as gateAdminRoute but restricted to OWNER/ADMIN. */
+export async function gateBillingRoute(
+  rawId: string,
+): Promise<ReturnType<typeof gateAdminRoute>> {
+  return gateAdminRoute(rawId, BILLING_ROLES);
 }
 
 /**

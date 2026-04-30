@@ -5,6 +5,8 @@
 // JSON-serializes everything (Date / Id → string), and these are the
 // shapes we actually consume.
 
+export type BillingOverrideType = "free" | "discounted" | "custom";
+
 export type CustomerUser = {
   _id: string;
   clerkUserId: string;
@@ -16,6 +18,12 @@ export type CustomerUser = {
   isVip?: boolean | null;
   vipMarkedAt?: number | null;
   vipMarkedByUserId?: string | null;
+  billingOverride?: BillingOverrideType | null;
+  billingOverrideValue?: number | null;
+  billingOverrideReason?: string | null;
+  billingOverrideByUserId?: string | null;
+  billingOverrideAt?: number | null;
+  billingOverrideExpiresAt?: number | null;
   createdAt: number;
   updatedAt: number;
 };
