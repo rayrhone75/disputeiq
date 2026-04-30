@@ -117,54 +117,123 @@ export function ExtensionPairingCard() {
   const activePairings = pairings?.filter((p) => !p.revoked) ?? [];
 
   return (
-    <div className="rounded-3xl border border-indigo-300 bg-indigo-50/70 p-6 shadow-sm dark:border-indigo-500/30 dark:bg-indigo-500/10">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-indigo-700 dark:text-indigo-300">
-        Chrome extension import
-      </p>
-      <h3 className="mt-1 text-lg font-semibold text-fg">
-        DisputeIQ Connector for Chrome
-      </h3>
-      <p className="mt-2 text-sm leading-6 text-fg-muted">
-        Install once. Then pair with your DisputeIQ account and click
-        Import in the popup whenever you want a fresh credit report — no
-        copy/paste, no password storage.
-      </p>
+    <div className="rounded-3xl border-2 border-indigo-300 bg-indigo-50/70 p-6 shadow-[0_30px_80px_-20px_rgba(99,102,241,0.45)] dark:border-indigo-500/30 dark:bg-indigo-500/10 sm:p-7">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-indigo-700 dark:text-indigo-300">
+            Recommended · One-click import
+          </p>
+          <h3 className="mt-1 text-xl font-semibold tracking-tight text-fg sm:text-2xl">
+            DisputeIQ Connector for Chrome
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-fg-muted">
+            Install once. From then on, sign in to MyScoreIQ in your
+            browser, click the Connector icon, and your report imports
+            automatically. Same pattern Client Dispute Manager / Dispute
+            Panda / Dispute Fox use — secure, no copy-paste, no password
+            storage.
+          </p>
+        </div>
+        <span className="hidden shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30 sm:inline-block">
+          Best
+        </span>
+      </div>
 
-      <div className="mt-4 rounded-2xl border border-border bg-surface p-4 text-xs leading-6 text-fg-muted">
-        <p className="font-semibold text-fg">Install (developer mode for now):</p>
-        <ol className="mt-1 list-decimal pl-5 space-y-1">
+      <div className="mt-4 grid gap-3 sm:grid-cols-[auto_1fr] sm:items-center">
+        <a
+          href="/downloads/disputeiq-connector-v0.1.0.zip"
+          download
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-fg px-6 py-3.5 text-sm font-semibold text-canvas shadow-[0_18px_48px_-18px_rgba(99,102,241,0.55)] transition hover:-translate-y-0.5 hover:opacity-95"
+        >
+          <svg viewBox="0 0 18 18" className="h-5 w-5" fill="none">
+            <path
+              d="M9 2v9m0 0l-3.5-3.5M9 11l3.5-3.5M3 14h12"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Install Connector
+        </a>
+        <p className="text-[12px] leading-5 text-fg-muted">
+          Downloads a small <code className="font-mono">.zip</code> that
+          installs as a Chrome extension. We&apos;re finishing Chrome Web
+          Store approval; for now it&apos;s a quick 30-second one-time
+          install.
+        </p>
+      </div>
+
+      <details className="mt-3 rounded-2xl border border-border bg-surface px-4 py-3 text-xs leading-6 text-fg-muted">
+        <summary className="cursor-pointer list-none font-semibold text-fg-muted hover:text-fg">
+          <span className="inline-flex items-center gap-2">
+            Install steps (30 seconds)
+            <svg
+              viewBox="0 0 16 16"
+              className="h-3.5 w-3.5 transition group-open:rotate-180"
+              fill="none"
+            >
+              <path
+                d="M4 6l4 4 4-4"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </summary>
+        <ol className="mt-2 list-decimal pl-5 space-y-1">
           <li>
-            Build the extension: run{" "}
-            <code className="font-mono">npm run extension:build</code> in the
-            DisputeIQ repo.
+            Click <strong>Install Connector</strong> above. You&apos;ll get
+            a file called{" "}
+            <code className="font-mono">disputeiq-connector-v0.1.0.zip</code>{" "}
+            in your Downloads folder.
+          </li>
+          <li>
+            Unzip it (right-click → <strong>Extract All…</strong> on
+            Windows, or just double-click on Mac). You&apos;ll get a folder.
           </li>
           <li>
             In Chrome, open{" "}
-            <code className="font-mono">chrome://extensions</code> → enable{" "}
-            <strong>Developer mode</strong>.
+            <code className="font-mono">chrome://extensions</code> and toggle{" "}
+            <strong>Developer mode</strong> (top-right) on.
           </li>
           <li>
-            Click <strong>Load unpacked</strong> → select{" "}
-            <code className="font-mono">extension/dist/</code>.
+            Click <strong>Load unpacked</strong> → select the unzipped
+            folder.
           </li>
-          <li>Pin the DisputeIQ Connector icon to your toolbar.</li>
+          <li>
+            Pin the DisputeIQ Connector icon (puzzle-piece menu → pin)
+            so it&apos;s always one click away.
+          </li>
         </ol>
-      </div>
+        <p className="mt-2 text-[11px] text-fg-subtle">
+          Edge and Brave use the same flow — they&apos;re Chrome under the
+          hood.
+        </p>
+      </details>
 
-      <div className="mt-5 space-y-3">
+      <div className="mt-5 space-y-3 border-t border-indigo-200/60 pt-5 dark:border-indigo-500/20">
         <div>
-          <p className="text-sm font-semibold text-fg">Pair the extension</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-fg-subtle">
+            Step 2 · After install
+          </p>
+          <p className="mt-1 text-sm font-semibold text-fg">
+            Pair the extension to your DisputeIQ account
+          </p>
           <p className="mt-1 text-xs text-fg-muted">
-            Generate a one-time token, then paste it into the extension
-            popup. The token expires in 5 minutes.
+            Click the button to generate a one-time pairing code. Open the
+            DisputeIQ Connector popup in Chrome (puzzle-piece icon in your
+            toolbar) and paste the code there. Code expires in 5 minutes.
           </p>
           <button
             type="button"
             onClick={startPair}
             disabled={busy}
-            className="mt-3 rounded-xl bg-fg px-5 py-2.5 text-sm font-semibold text-canvas hover:opacity-90 disabled:opacity-60"
+            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-fg px-5 py-2.5 text-sm font-semibold text-canvas hover:opacity-90 disabled:opacity-60"
           >
-            {busy ? "Generating…" : "Generate pairing token"}
+            {busy ? "Generating…" : "Generate pairing code"}
           </button>
         </div>
 
@@ -220,9 +289,25 @@ export function ExtensionPairingCard() {
       </div>
 
       {pairings === undefined ? null : activePairings.length === 0 ? (
-        <p className="mt-5 border-t border-indigo-200/60 pt-4 text-[11px] text-fg-subtle dark:border-indigo-500/20">
-          No paired extensions yet.
-        </p>
+        <div className="mt-5 border-t border-indigo-200/60 pt-5 dark:border-indigo-500/20">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-fg-subtle">
+            Step 3 · Connect your report
+          </p>
+          <p className="mt-1 text-sm text-fg-muted">
+            Once paired, sign in to your{" "}
+            <a
+              href="https://member.myscoreiq.com/CreditReport.aspx?view=json"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-fg underline"
+            >
+              MyScoreIQ tri-merge report
+            </a>{" "}
+            in any tab and click the DisputeIQ Connector icon. The
+            extension imports your report in seconds — your password
+            never leaves MyScoreIQ.
+          </p>
+        </div>
       ) : (
         <div className="mt-5 border-t border-indigo-200/60 pt-4 dark:border-indigo-500/20">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-fg-muted">
