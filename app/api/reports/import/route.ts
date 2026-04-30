@@ -21,7 +21,15 @@ export async function POST(req: NextRequest) {
         sourceUrl: typeof body.sourceUrl === "string" ? body.sourceUrl : undefined,
       },
     );
-    return NextResponse.json({ import: imp });
+    // Convex docs use `_id` as the canonical id field. Every existing
+    // client of this endpoint reads `cj.import.id` (the pre-Convex
+    // shape). Without this alias, downstream requests POST to
+    // `/api/reports/import/undefined/...` and silently fail — the
+    // visible "upload doesn't work" symptom.
+    const importDoc = imp
+      ? { id: (imp as { _id: string })._id, ...imp }
+      : null;
+    return NextResponse.json({ import: importDoc });
   } catch (err) {
     if (err instanceof ImportRunnerError) {
       return NextResponse.json({ error: err.code, message: err.message }, { status: 400 });

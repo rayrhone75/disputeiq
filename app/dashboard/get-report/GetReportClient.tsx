@@ -8,6 +8,7 @@ import { FallbackOptions } from "./_components/FallbackOptions";
 import { TrustRow } from "./_components/TrustRow";
 import { StepAnalyze } from "./_components/StepAnalyze";
 import { StepResults } from "./_components/StepResults";
+import { ManualUploadCard } from "./_components/ManualUploadCard";
 import { HelpCard } from "@/components/dashboard/HelpCard";
 import type { CreditReportSnapshot } from "@/app/api/credit-report/snapshot/route";
 
@@ -125,6 +126,7 @@ export function GetReportClient({
           {phase === "hero" && (
             <div className="space-y-7">
               <HeroLanding onConnect={handleConnect} />
+              <ManualUploadCard />
               <FallbackOptions />
               <TrustRow />
               <HelpCard context="get-report" />

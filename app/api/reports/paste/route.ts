@@ -32,8 +32,14 @@ import {
 // We pick by sniffing the trimmed body's first character. JSON detection
 // fails closed: if `JSON.parse` throws, we fall back to the text parser.
 
+// 25 MB matches the bookmarklet relay cap. MyScoreIQ tri-merge JSONs
+// can exceed 2 MB easily; the prior limit silently rejected the manual
+// upload path.
 const schema = z.object({
-  text: z.string().min(100, "Report text must be at least 100 characters.").max(2_000_000),
+  text: z
+    .string()
+    .min(100, "Report text must be at least 100 characters.")
+    .max(25 * 1024 * 1024),
 });
 
 export async function POST(req: NextRequest) {
