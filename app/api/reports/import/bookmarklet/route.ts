@@ -35,6 +35,12 @@ const Body = z.object({
   json: z.string().min(2).max(25 * 1024 * 1024),
 });
 
+// Same reasoning as /api/reports/paste — large MSIQ JSONs + Convex
+// round-trips need more than the 10s default.
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   // 1. Clerk session — must be present.
   const { userId, getToken } = await auth();

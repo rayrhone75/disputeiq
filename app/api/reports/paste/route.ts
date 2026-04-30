@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth } from "@clerk/nextjs/server";
 import { fetchMutation } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { parseReportText } from "@/lib/report-parser";
 import {
   createImport,
@@ -42,6 +43,13 @@ const schema = z.object({
     .max(25 * 1024 * 1024),
 });
 
+// Explicit route segment config — large JSON bodies + Convex round-trips
+// can take longer than Vercel's 10s default. Without these, big imports
+// silently 504.
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const { userId, getToken } = await auth();
   if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
@@ -64,30 +72,38 @@ export async function POST(req: NextRequest) {
       // isn't JSON). Don't fail; let the heuristic parser try.
       return await pasteAsLegacyText(token, text);
     }
+    // Three steps that can each fail independently. We split the try/
+    // catch so a normalize failure doesn't bury the fact that the file
+    // IS in the database — admins can still recover. Two error classes:
+    //   1. createImport / captureRaw fails → 400, no reportId.
+    //   2. runNormalization fails → 200 with parseStatus="needs_manual_review"
+    //      and reportId set, so the import is still recoverable.
+    let importId: Id<"creditReportImports"> | null = null;
     try {
       const created = await createImport(
         { token },
         { provider: "MYSCOREIQ", sourceUrl: undefined },
       );
-      const importId = created!._id;
+      importId =
+        (created as { _id: Id<"creditReportImports"> } | null)?._id ?? null;
+      if (!importId) {
+        return NextResponse.json(
+          {
+            reportId: null,
+            parsedCount: 0,
+            reviewFlags: ["CREATE_RETURNED_NULL"],
+            bureauGuess: null,
+            parseStatus: "needs_manual_review",
+            error: "CREATE_FAILED",
+            message: "Could not create the import row. Try again or contact support.",
+          },
+          { status: 500 },
+        );
+      }
       await captureRaw(
         { token },
         { importId, bodyText: trimmed, onlyIfOwnedByMe: true },
       );
-      const result = await runNormalization({ token }, { importId });
-      return NextResponse.json({
-        reportId: importId,
-        parsedCount: result.report.tradelines.length,
-        reviewFlags: result.report.validationWarnings,
-        bureauGuess: result.report.bureausDetected[0] ?? null,
-        parseStatus:
-          result.report.tradelines.length > 0 ? "parsed" : "needs_manual_review",
-        // Hint to the client: use this redirect for JSON-imports so the
-        // user lands on the Connect page that shows their connected
-        // status. The legacy text path keeps redirecting to the old
-        // /dashboard/reports/[id] detail.
-        redirectTo: "/dashboard/get-report?imported=1",
-      });
     } catch (err) {
       if (err instanceof ImportRunnerError) {
         return NextResponse.json(
@@ -107,13 +123,47 @@ export async function POST(req: NextRequest) {
         {
           reportId: null,
           parsedCount: 0,
-          reviewFlags: ["JSON_PIPELINE_ERROR"],
+          reviewFlags: ["JSON_CAPTURE_ERROR"],
           bureauGuess: null,
           parseStatus: "needs_manual_review",
+          error: "CAPTURE_ERROR",
           message: (err as Error).message,
         },
         { status: 500 },
       );
+    }
+
+    // Normalization step — failures here are RECOVERABLE. We return 200
+    // with the importId so the customer's dashboard shows the import
+    // and support can re-run normalization later.
+    try {
+      const result = await runNormalization({ token }, { importId });
+      return NextResponse.json({
+        reportId: importId,
+        parsedCount: result.report.tradelines.length,
+        reviewFlags: result.report.validationWarnings,
+        bureauGuess: result.report.bureausDetected[0] ?? null,
+        parseStatus:
+          result.report.tradelines.length > 0
+            ? "parsed"
+            : "needs_manual_review",
+        redirectTo: "/dashboard/get-report?imported=1",
+      });
+    } catch (err) {
+      const code =
+        err instanceof ImportRunnerError ? err.code : "JSON_NORMALIZE_ERROR";
+      // Return 200 (not 4xx/5xx) — the file is uploaded, just not
+      // analyzed. The dashboard will show "needs review" cleanly.
+      return NextResponse.json({
+        reportId: importId,
+        parsedCount: 0,
+        reviewFlags: [code],
+        bureauGuess: null,
+        parseStatus: "needs_manual_review",
+        message:
+          "Your file was uploaded but our parser couldn't analyze it automatically. Support will review it shortly.",
+        redirectTo: "/dashboard/get-report?imported=1",
+      });
     }
   }
 

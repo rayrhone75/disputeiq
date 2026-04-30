@@ -43,6 +43,18 @@ export function ManualUploadCard() {
       setMessage("File is over 25 MB — too large for direct upload.");
       return;
     }
+    // Validate JSON locally so we can surface a precise error before the
+    // server round-trip. Cheap insurance against the user pasting half a
+    // file or a corrupt copy.
+    try {
+      JSON.parse(trimmed);
+    } catch (err) {
+      setStatus("err");
+      setMessage(
+        `JSON is malformed: ${(err as Error).message.slice(0, 140)}`,
+      );
+      return;
+    }
     setStatus("submitting");
     setMessage("");
     try {
@@ -51,38 +63,70 @@ export function ManualUploadCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: trimmed }),
       });
-      const data = (await res.json().catch(() => ({}))) as {
-        reportId?: string | null;
-        parsedCount?: number;
-        parseStatus?: string;
-        redirectTo?: string;
-        error?: string;
-        message?: string;
-        reviewFlags?: string[];
-      };
-      if (!res.ok || data.parseStatus === "needs_manual_review") {
-        const flags = (data.reviewFlags ?? []).join(", ");
+      let data:
+        | {
+            reportId?: string | null;
+            parsedCount?: number;
+            parseStatus?: string;
+            redirectTo?: string;
+            error?: string | Record<string, unknown>;
+            message?: string;
+            reviewFlags?: string[];
+            bureauGuess?: string | null;
+          }
+        | null = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+      if (!res.ok) {
+        const errStr =
+          typeof data?.error === "string"
+            ? data.error
+            : data?.error
+              ? JSON.stringify(data.error)
+              : `HTTP ${res.status}`;
         setStatus("err");
         setMessage(
-          data.message ??
-            data.error ??
-            (flags
-              ? `Parser couldn't extract tradelines. Flags: ${flags}`
-              : "Import failed. Try a different file."),
+          data?.message ?? `Server rejected the import (${errStr}).`,
         );
+        // eslint-disable-next-line no-console
+        console.error("[ManualUploadCard] /api/reports/paste failed", {
+          status: res.status,
+          data,
+        });
         return;
       }
-      setStatus("ok");
-      setMessage(
-        `Imported — ${data.parsedCount ?? 0} tradelines analyzed.`,
-      );
-      // Redirect after a brief success display so the dashboard reflects
-      // the new state.
-      const target = data.redirectTo ?? "/dashboard/get-report?imported=1";
-      setTimeout(() => router.push(target), 900);
+      // 2xx response. The file is saved to the database — it has a
+      // reportId. The parser may have produced 0 tradelines (parseStatus
+      // = "needs_manual_review"), which is a SOFT warning, not a fatal
+      // error: the file is in the system; support can review it. We
+      // redirect either way so the customer sees their dashboard update.
+      const parsedCount = data?.parsedCount ?? 0;
+      const reviewFlags = data?.reviewFlags ?? [];
+      if (data?.parseStatus === "needs_manual_review" || parsedCount === 0) {
+        setStatus("ok");
+        setMessage(
+          reviewFlags.length > 0
+            ? `Uploaded. Our parser flagged it for review (${reviewFlags
+                .slice(0, 3)
+                .join(", ")}) — support will follow up.`
+            : "Uploaded. Our parser couldn't auto-extract tradelines — support will review it shortly.",
+        );
+      } else {
+        setStatus("ok");
+        setMessage(`Imported — ${parsedCount} tradelines analyzed.`);
+      }
+      const target = data?.redirectTo ?? "/dashboard/get-report?imported=1";
+      setTimeout(() => router.push(target), 1500);
     } catch (err) {
       setStatus("err");
-      setMessage((err as Error).message);
+      setMessage(
+        `Network error: ${(err as Error).message}. If this keeps happening, paste support a screenshot.`,
+      );
+      // eslint-disable-next-line no-console
+      console.error("[ManualUploadCard] network error", err);
     }
   }
 
