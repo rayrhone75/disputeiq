@@ -29,9 +29,10 @@ export default async function AdminHome() {
 
       <AttentionFeed />
 
-      <nav className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <nav className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {[
           { href: "/admin/customers", label: "Customers", desc: "Customer 360" },
+          { href: "/admin/automations", label: "Automations", desc: "Rule events" },
           { href: "/admin/credit-imports", label: "Imports", desc: "Reports" },
           { href: "/admin/mail-jobs", label: "Mail jobs", desc: "Certified mail" },
           { href: "/admin/audit-logs", label: "Audit log", desc: "Every event" },

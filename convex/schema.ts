@@ -229,6 +229,40 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_thread", ["threadId", "createdAt"]),
 
+  // Phase-4 automation events. Each row is one rule firing for one
+  // customer. The sweep is idempotent: when a rule is firing and an
+  // open event already exists, we bump `lastSeenAt`; we never insert
+  // duplicates. When a previously-firing rule no longer fires, we
+  // auto-resolve the event.
+  automationEvents: defineTable({
+    customerId: v.id("users"),
+    ruleKey: v.string(),
+    severity: v.union(
+      v.literal("info"),
+      v.literal("warn"),
+      v.literal("alert"),
+    ),
+    status: v.union(
+      v.literal("open"),
+      v.literal("reviewed"),
+      v.literal("resolved"),
+    ),
+    label: v.string(),
+    payloadJson: v.optional(v.any()),
+    firstFiredAt: v.number(),
+    lastSeenAt: v.number(),
+    reviewedAt: v.optional(v.number()),
+    reviewedByUserId: v.optional(v.id("users")),
+    resolvedAt: v.optional(v.number()),
+    resolvedByUserId: v.optional(v.id("users")),
+    /** "auto" when the sweep auto-resolved a no-longer-firing event. */
+    resolvedReason: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_customer_rule", ["customerId", "ruleKey"])
+    .index("by_status_created", ["status", "createdAt"])
+    .index("by_status_severity", ["status", "severity", "createdAt"]),
+
   userProfiles: defineTable({
     userId: v.id("users"),
     fullName: v.string(),
