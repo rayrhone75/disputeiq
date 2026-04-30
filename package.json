@@ -11,6 +11,7 @@
     "convex:dev": "convex dev",
     "convex:deploy": "convex deploy",
     "credit-import:smoke": "tsx scripts/credit-import-smoke.ts",
+    "extension:icons": "node extension/scripts/build-icons.mjs",
     "extension:build": "node extension/build.mjs",
     "extension:dev": "node extension/build.mjs --watch",
     "extension:zip": "node extension/build.mjs && cd extension/dist && bestzip ../disputeiq-extension.zip *",

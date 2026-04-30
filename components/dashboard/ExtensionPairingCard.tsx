@@ -139,30 +139,15 @@ export function ExtensionPairingCard() {
         </span>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-[auto_1fr] sm:items-center">
-        <a
-          href="/downloads/disputeiq-connector-v0.1.0.zip"
-          download
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-fg px-6 py-3.5 text-sm font-semibold text-canvas shadow-[0_18px_48px_-18px_rgba(99,102,241,0.55)] transition hover:-translate-y-0.5 hover:opacity-95"
-        >
-          <svg viewBox="0 0 18 18" className="h-5 w-5" fill="none">
-            <path
-              d="M9 2v9m0 0l-3.5-3.5M9 11l3.5-3.5M3 14h12"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          Install Connector
-        </a>
-        <p className="text-[12px] leading-5 text-fg-muted">
-          Downloads a small <code className="font-mono">.zip</code> that
-          installs as a Chrome extension. We&apos;re finishing Chrome Web
-          Store approval; for now it&apos;s a quick 30-second one-time
-          install.
-        </p>
-      </div>
+      <InstallCta />
+
+      <p className="mt-3 text-[11px] leading-5 text-fg-subtle">
+        Need help? See the public install page at{" "}
+        <a href="/connector" className="underline hover:text-fg">
+          /connector
+        </a>{" "}
+        for full step-by-step instructions.
+      </p>
 
       <details className="mt-3 rounded-2xl border border-border bg-surface px-4 py-3 text-xs leading-6 text-fg-muted">
         <summary className="cursor-pointer list-none font-semibold text-fg-muted hover:text-fg">
@@ -352,6 +337,85 @@ export function ExtensionPairingCard() {
         reads the JSON your authenticated browser already loaded and
         POSTs it to DisputeIQ over HTTPS, signed with a token unique to
         your install. Revoke any time from this card.
+      </p>
+    </div>
+  );
+}
+
+// Install CTA: prefers the Chrome Web Store URL when configured, falls
+// back to the bundled ZIP and a manual-install disclosure. Picking the
+// right path at build time means a single env var flip switches every
+// install button at once.
+function InstallCta() {
+  const webStoreUrl =
+    process.env.NEXT_PUBLIC_CHROME_WEB_STORE_URL ?? null;
+  const zipUrl = "/downloads/disputeiq-connector-v0.1.0.zip";
+
+  if (webStoreUrl) {
+    return (
+      <div className="mt-4 grid gap-3 sm:grid-cols-[auto_1fr] sm:items-center">
+        <a
+          href={webStoreUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-fg px-6 py-3.5 text-sm font-semibold text-canvas shadow-[0_18px_48px_-18px_rgba(99,102,241,0.55)] transition hover:-translate-y-0.5 hover:opacity-95"
+        >
+          <svg viewBox="0 0 18 18" className="h-5 w-5" fill="none">
+            <circle
+              cx="9"
+              cy="9"
+              r="7"
+              stroke="currentColor"
+              strokeWidth="1.6"
+            />
+            <circle
+              cx="9"
+              cy="9"
+              r="2.5"
+              stroke="currentColor"
+              strokeWidth="1.6"
+            />
+            <path
+              d="M9 6.5h6.5M9 6.5L5.5 12.5M9 6.5L11 12.5"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </svg>
+          Add to Chrome
+        </a>
+        <p className="text-[12px] leading-5 text-fg-muted">
+          One-click install from the Chrome Web Store. Works in Chrome,
+          Edge, Brave, and other Chromium browsers.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 grid gap-3 sm:grid-cols-[auto_1fr] sm:items-center">
+      <a
+        href={zipUrl}
+        download
+        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-fg px-6 py-3.5 text-sm font-semibold text-canvas shadow-[0_18px_48px_-18px_rgba(99,102,241,0.55)] transition hover:-translate-y-0.5 hover:opacity-95"
+      >
+        <svg viewBox="0 0 18 18" className="h-5 w-5" fill="none">
+          <path
+            d="M9 2v9m0 0l-3.5-3.5M9 11l3.5-3.5M3 14h12"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        Install Connector
+      </a>
+      <p className="text-[12px] leading-5 text-fg-muted">
+        We&apos;re awaiting Chrome Web Store approval. For now, this is a
+        signed{" "}
+        <code className="font-mono">.zip</code> — 30-second one-time
+        install. The Web Store flow goes live the moment we&apos;re
+        approved.
       </p>
     </div>
   );

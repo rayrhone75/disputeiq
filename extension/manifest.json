@@ -32,10 +32,9 @@
   "host_permissions": [
     "https://member.myscoreiq.com/*",
     "https://disputeiq.org/*",
-    "https://www.disputeiq.org/*",
-    "http://localhost:3000/*"
+    "https://www.disputeiq.org/*"
   ],
-  "permissions": ["storage", "activeTab", "scripting"],
+  "permissions": ["storage", "activeTab"],
   "minimum_chrome_version": "120",
   "web_accessible_resources": []
 }
