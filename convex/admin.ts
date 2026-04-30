@@ -674,6 +674,93 @@ export const dashboardCounts = query({
 });
 
 /**
+ * Aggregated "Customers needing attention" feed for /admin home.
+ *
+ * For each user we compute the inputs the `deriveHealthSignals` rules
+ * consume (profile / subscription state / import status / dispute count
+ * / last activity / unread message threads), then return a flat list
+ * of `{ userId, email, isVip, signal }` rows sorted by severity. The
+ * pure derivation lives in `lib/admin/health.ts` so the same rules run
+ * in the customer-360 panel and here.
+ *
+ * We collect the raw inputs server-side to avoid round-tripping the
+ * full per-user payload — the API layer applies the rules.
+ */
+export const customersNeedingAttentionInputs = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit }) => {
+    await requireRole(ctx, ["OWNER", "ADMIN", "SUPPORT"]);
+    const take = Math.min(Math.max(limit ?? 100, 1), 500);
+    const users = await ctx.db.query("users").collect();
+    users.sort((a, b) => b.createdAt - a.createdAt);
+    const slice = users.slice(0, take);
+    const cutoffStaleMs = Date.now() - 24 * 60 * 60 * 1000;
+
+    return await Promise.all(
+      slice.map(async (u) => {
+        const [profile, subscription, latestImport, allImports, disputes, recentLogs, threads] =
+          await Promise.all([
+            ctx.db
+              .query("userProfiles")
+              .withIndex("by_user", (q) => q.eq("userId", u._id))
+              .unique(),
+            ctx.db
+              .query("userSubscriptions")
+              .withIndex("by_user", (q) => q.eq("userId", u._id))
+              .unique(),
+            ctx.db
+              .query("creditReportImports")
+              .withIndex("by_user_status", (q) => q.eq("userId", u._id))
+              .order("desc")
+              .first(),
+            ctx.db
+              .query("creditReportImports")
+              .withIndex("by_user_status", (q) => q.eq("userId", u._id))
+              .collect(),
+            ctx.db
+              .query("disputeCases")
+              .withIndex("by_user", (q) => q.eq("userId", u._id))
+              .collect(),
+            ctx.db
+              .query("auditLogs")
+              .withIndex("by_target", (q) => q.eq("targetUserId", u._id))
+              .order("desc")
+              .first(),
+            ctx.db
+              .query("messageThreads")
+              .withIndex("by_customer", (q) => q.eq("customerId", u._id))
+              .collect(),
+          ]);
+        const staleAdminUnreadThreads = threads.filter(
+          (t) =>
+            t.status === "open" &&
+            t.unreadForAdmin &&
+            t.lastMessageAt <= cutoffStaleMs,
+        ).length;
+        return {
+          user: {
+            _id: u._id,
+            email: u.email,
+            createdAt: u.createdAt,
+            isVip: !!u.isVip,
+            archivedAt: u.archivedAt ?? null,
+          },
+          hasProfile: !!profile,
+          hasActiveSubscription:
+            !!subscription && subscription.status === "active",
+          subscriptionStatus: subscription?.status ?? null,
+          importsCount: allImports.length,
+          latestImportStatus: latestImport?.status ?? null,
+          disputesStarted: disputes.length,
+          lastActivityAt: recentLogs?.createdAt ?? null,
+          staleAdminUnreadThreads,
+        };
+      }),
+    );
+  },
+});
+
+/**
  * Customer console payload (support workspace).
  * Returns the user, their profile, subscription, recent imports/disputes/
  * payments, consents, and the most-recent audit trail.

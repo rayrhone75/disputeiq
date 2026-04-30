@@ -47,7 +47,7 @@ export async function GET(
       );
     }
     const targetId = id as unknown as Id<"users">;
-    const [console, timeline, notes, followUps] = await Promise.all([
+    const [console, timeline, notes, followUps, threads] = await Promise.all([
       fetchQuery(api.admin.customerConsole, { userId: targetId }, { token }),
       fetchQuery(
         api.auditLogs.forUser,
@@ -64,6 +64,11 @@ export async function GET(
         { customerId: targetId },
         { token },
       ).catch(() => []),
+      fetchQuery(
+        api.messages.listThreadsForCustomer,
+        { customerId: targetId },
+        { token },
+      ).catch(() => []),
     ]);
     if (!console) {
       return NextResponse.json(
@@ -77,6 +82,7 @@ export async function GET(
       timeline,
       notes,
       followUps,
+      threads,
     });
   } catch (err) {
     return NextResponse.json(

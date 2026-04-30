@@ -3,13 +3,17 @@ import type { ReactNode } from "react";
 import { UserButton } from "@clerk/nextjs";
 import { cn } from "@/components/ui/primitives";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { MessagesNavBadge } from "@/components/ui/MessagesNavBadge";
 
 // Command-center layout: premium left rail + executive top bar.
 // Used by both /dashboard and /admin via per-segment layouts.
 
-const NAV_DASHBOARD = [
+type NavItem = { href: string; label: string; badge?: "messages" };
+
+const NAV_DASHBOARD: NavItem[] = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/get-report", label: "Get Report" },
+  { href: "/dashboard/messages", label: "Messages", badge: "messages" },
   { href: "/dashboard/reports", label: "Reports" },
   { href: "/dashboard/disputes", label: "Disputes" },
   { href: "/dashboard/letters", label: "Letters" },
@@ -17,7 +21,7 @@ const NAV_DASHBOARD = [
   { href: "/dashboard/settings", label: "Settings" },
 ];
 
-const NAV_ADMIN = [
+const NAV_ADMIN: NavItem[] = [
   { href: "/admin", label: "Command Center" },
   { href: "/admin/support", label: "Support" },
   { href: "/admin/settings", label: "Platform Settings" },
@@ -68,7 +72,10 @@ export function AppShell({
                 )}
               >
                 <span>{item.label}</span>
-                <span className="h-1.5 w-1.5 rounded-full bg-transparent group-hover:bg-accent-500" />
+                <span className="flex items-center gap-2">
+                  {item.badge === "messages" && <MessagesNavBadge />}
+                  <span className="h-1.5 w-1.5 rounded-full bg-transparent group-hover:bg-accent-500" />
+                </span>
               </Link>
             ))}
           </nav>

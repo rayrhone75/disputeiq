@@ -4,6 +4,7 @@ import { fetchQuery } from "convex/nextjs";
 import { requireRole } from "@/lib/auth";
 import { api } from "@/convex/_generated/api";
 import { PageHeader, Surface } from "@/components/ui/primitives";
+import { AttentionFeed } from "./_components/AttentionFeed";
 
 export default async function AdminHome() {
   await requireRole(["OWNER", "ADMIN", "SUPPORT"]);
@@ -25,6 +26,8 @@ export default async function AdminHome() {
         title="Command center"
         description="Real-time platform metrics from the database."
       />
+
+      <AttentionFeed />
 
       <nav className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {[

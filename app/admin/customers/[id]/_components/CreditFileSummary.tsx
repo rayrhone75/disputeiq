@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import type { Aggregates, CustomerConsole } from "./types";
+import type { Aggregates, CustomerConsole, TimelineRow } from "./types";
 
 // Credit-file summary — section 3.
 //
 // Latest report card (provider, status, bureau coverage, age) + a stat
 // row pulled from the aggregate (negatives / disputes sent / deletions
-// / verified / remaining). Deep links to the existing admin import
-// pages where the deeper detail lives.
+// / verified / remaining) + an "Import journey" mini-timeline that
+// surfaces assisted-import progress when the customer 360 timeline
+// shows admin link issuance + customer import attempts.
 
 const BUREAUS = ["EXPERIAN", "EQUIFAX", "TRANSUNION"] as const;
 const BUREAU_LABEL: Record<(typeof BUREAUS)[number], string> = {
@@ -17,12 +18,24 @@ const BUREAU_LABEL: Record<(typeof BUREAUS)[number], string> = {
   TRANSUNION: "TransUnion",
 };
 
+const IMPORT_JOURNEY_ACTIONS = new Set([
+  "ADMIN_IMPORT_LINK_ISSUED",
+  "BOOKMARKLET_IMPORT_ATTEMPT",
+  "BOOKMARKLET_IMPORT_SUCCESS",
+  "BOOKMARKLET_IMPORT_FAILED",
+  "CREDIT_IMPORT_NORMALIZED",
+  "CREDIT_IMPORT_FAILED",
+  "REPORT_PASTED",
+]);
+
 export function CreditFileSummary({
   console: c,
   agg,
+  timeline = [],
 }: {
   console: CustomerConsole;
   agg: Aggregates;
+  timeline?: TimelineRow[];
 }) {
   const latest = agg.latestImport;
   return (
@@ -122,6 +135,8 @@ export function CreditFileSummary({
         </div>
       )}
 
+      <ImportJourney rows={timeline} />
+
       {/* Stat row */}
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Stat label="Negatives" value={agg.totalNegatives} tone="rose" />
@@ -133,6 +148,120 @@ export function CreditFileSummary({
       </div>
     </section>
   );
+}
+
+function ImportJourney({ rows }: { rows: TimelineRow[] }) {
+  const journey = rows
+    .filter((r) => IMPORT_JOURNEY_ACTIONS.has(r.action))
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 4);
+  if (journey.length === 0) return null;
+
+  return (
+    <div className="mt-5 rounded-2xl border border-border bg-surface-muted/40 p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-fg-subtle">
+        Assisted-import journey
+      </p>
+      <ol className="mt-2 space-y-1.5">
+        {journey.map((r) => {
+          const meta = describeJourney(r);
+          return (
+            <li key={r._id} className="flex items-start gap-2.5 text-[12px]">
+              <span
+                className={`mt-1 h-2 w-2 shrink-0 rounded-full ${meta.dot}`}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="font-semibold text-fg">{meta.title}</span>
+                {meta.detail && (
+                  <span className="text-fg-muted"> · {meta.detail}</span>
+                )}
+              </span>
+              <span className="shrink-0 text-[11px] text-fg-subtle">
+                {formatRelative(r.createdAt)}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+function describeJourney(r: TimelineRow): {
+  title: string;
+  detail: string;
+  dot: string;
+} {
+  const meta = (r.metadataJson ?? {}) as Record<string, unknown>;
+  switch (r.action) {
+    case "ADMIN_IMPORT_LINK_ISSUED":
+      return {
+        title: "Admin issued import link",
+        detail: "Customer can sign in via magic link and connect MyScoreIQ.",
+        dot: "bg-violet-500",
+      };
+    case "BOOKMARKLET_IMPORT_ATTEMPT":
+      return {
+        title: "Customer started import",
+        detail:
+          typeof meta.payloadBytes === "number"
+            ? `Connector running (${Math.round(
+                (meta.payloadBytes as number) / 1024,
+              )} KB payload)`
+            : "Connector running",
+        dot: "bg-sky-500",
+      };
+    case "BOOKMARKLET_IMPORT_SUCCESS":
+      return {
+        title: "Import succeeded",
+        detail:
+          typeof meta.tradelineCount === "number"
+            ? `${meta.tradelineCount} tradelines normalized`
+            : "Report normalized",
+        dot: "bg-emerald-500",
+      };
+    case "CREDIT_IMPORT_NORMALIZED":
+      return {
+        title: "Report normalized",
+        detail: "Tradelines, inquiries, and dispute candidates ready.",
+        dot: "bg-emerald-500",
+      };
+    case "BOOKMARKLET_IMPORT_FAILED":
+    case "CREDIT_IMPORT_FAILED":
+      return {
+        title: "Import failed",
+        detail:
+          typeof meta.code === "string"
+            ? (meta.code as string)
+            : "Customer or pipeline error",
+        dot: "bg-rose-500",
+      };
+    case "REPORT_PASTED":
+      return {
+        title: "Customer pasted a report",
+        detail: "Manual paste fallback used.",
+        dot: "bg-amber-500",
+      };
+    default:
+      return {
+        title: r.action.replace(/_/g, " ").toLowerCase(),
+        detail: "",
+        dot: "bg-fg-subtle/60",
+      };
+  }
+}
+
+function formatRelative(ms: number): string {
+  if (!ms) return "—";
+  const diff = Date.now() - ms;
+  const min = 60_000;
+  const hr = 60 * min;
+  const day = 24 * hr;
+  if (diff < min) return "just now";
+  if (diff < hr) return `${Math.floor(diff / min)}m ago`;
+  if (diff < day) return `${Math.floor(diff / hr)}h ago`;
+  if (diff < 7 * day) return `${Math.floor(diff / day)}d ago`;
+  return new Date(ms).toLocaleDateString();
 }
 
 function Stat({

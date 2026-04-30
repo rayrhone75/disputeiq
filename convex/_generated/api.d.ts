@@ -19,6 +19,7 @@ import type * as extensionPairings from "../extensionPairings.js";
 import type * as helpers from "../helpers.js";
 import type * as leads from "../leads.js";
 import type * as mailJobs from "../mailJobs.js";
+import type * as messages from "../messages.js";
 import type * as onboarding from "../onboarding.js";
 import type * as payments from "../payments.js";
 import type * as platformSettings from "../platformSettings.js";
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   helpers: typeof helpers;
   leads: typeof leads;
   mailJobs: typeof mailJobs;
+  messages: typeof messages;
   onboarding: typeof onboarding;
   payments: typeof payments;
   platformSettings: typeof platformSettings;

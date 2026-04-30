@@ -52,6 +52,20 @@ export type CustomerFollowUp = {
   createdAt: number;
 };
 
+export type CustomerThread = {
+  _id: string;
+  customerId: string;
+  subject?: string | null;
+  status: "open" | "resolved";
+  resolvedAt?: number | null;
+  escalated?: boolean | null;
+  lastMessageAt: number;
+  lastMessageFrom: "customer" | "admin";
+  unreadForAdmin: boolean;
+  unreadForCustomer: boolean;
+  createdAt: number;
+};
+
 export type CustomerSubscription = null | {
   status: string;
   planCode: string;
@@ -136,6 +150,7 @@ export type Customer360Payload = {
   timeline: TimelineRow[];
   notes: CustomerNote[];
   followUps: CustomerFollowUp[];
+  threads: CustomerThread[];
 };
 
 export type Aggregates = {

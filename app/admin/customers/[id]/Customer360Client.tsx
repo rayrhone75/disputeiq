@@ -8,12 +8,15 @@ import { CreditFileSummary } from "./_components/CreditFileSummary";
 import { SupportCenter } from "./_components/SupportCenter";
 import { Timeline } from "./_components/Timeline";
 import { ActionRail } from "./_components/ActionRail";
+import { MessagesPanel } from "./_components/MessagesPanel";
+import { HealthSignals } from "./_components/HealthSignals";
 import { ToastProvider } from "./_components/toast";
 import {
   aggregate,
   type Customer360Payload,
   type CustomerNote,
   type CustomerFollowUp,
+  type CustomerThread,
 } from "./_components/types";
 
 // Customer 360 — fat client orchestrator. Wraps everything in a
@@ -42,6 +45,7 @@ export function Customer360Client({ userId }: { userId: string }) {
         timeline?: Customer360Payload["timeline"];
         notes?: CustomerNote[];
         followUps?: CustomerFollowUp[];
+        threads?: CustomerThread[];
       };
       if (res.status === 404 || data.code === "NOT_FOUND") {
         setState({ kind: "missing" });
@@ -55,6 +59,7 @@ export function Customer360Client({ userId }: { userId: string }) {
             timeline: data.timeline ?? [],
             notes: data.notes ?? [],
             followUps: data.followUps ?? [],
+            threads: data.threads ?? [],
           },
         });
         return;
@@ -116,8 +121,23 @@ function Body({
             console={state.data.console}
             onChange={onRefresh}
           />
+          <HealthSignals
+            console={state.data.console}
+            threads={state.data.threads}
+            timeline={state.data.timeline}
+            followUps={state.data.followUps}
+          />
+          <MessagesPanel
+            customerId={state.data.console.user._id}
+            initialThreads={state.data.threads}
+            onChange={onRefresh}
+          />
           <div className="grid gap-6 lg:grid-cols-2">
-            <CreditFileSummary console={state.data.console} agg={agg} />
+            <CreditFileSummary
+              console={state.data.console}
+              agg={agg}
+              timeline={state.data.timeline}
+            />
             <SupportCenter
               customerId={state.data.console.user._id}
               notes={state.data.notes}

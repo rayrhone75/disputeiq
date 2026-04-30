@@ -173,6 +173,42 @@ export default defineSchema({
     .index("by_customer", ["customerId", "dueAt"])
     .index("by_customer_status", ["customerId", "status"]),
 
+  // Two-way messaging between customers and admins. Each thread has
+  // exactly one customer participant; admins are an undifferentiated
+  // group (whoever picks up the thread is "the admin" for that message).
+  // Per-side unread booleans on the thread are sufficient for v1 — we
+  // don't need a per-message receipt table.
+  messageThreads: defineTable({
+    customerId: v.id("users"),
+    subject: v.optional(v.string()),
+    status: v.union(v.literal("open"), v.literal("resolved")),
+    resolvedAt: v.optional(v.number()),
+    resolvedByUserId: v.optional(v.id("users")),
+    escalated: v.optional(v.boolean()),
+    escalatedAt: v.optional(v.number()),
+    escalatedByUserId: v.optional(v.id("users")),
+    lastMessageAt: v.number(),
+    lastMessageFrom: v.union(v.literal("customer"), v.literal("admin")),
+    unreadForCustomer: v.boolean(),
+    unreadForAdmin: v.boolean(),
+    lastAdminUserId: v.optional(v.id("users")),
+    createdByUserId: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_customer", ["customerId", "lastMessageAt"])
+    .index("by_admin_unread", ["unreadForAdmin", "lastMessageAt"])
+    .index("by_customer_unread", ["customerId", "unreadForCustomer"]),
+
+  messages: defineTable({
+    threadId: v.id("messageThreads"),
+    // Denormalized so the customer access check is one row read.
+    customerId: v.id("users"),
+    fromUserId: v.id("users"),
+    fromRole: v.union(v.literal("customer"), v.literal("admin")),
+    body: v.string(),
+    createdAt: v.number(),
+  }).index("by_thread", ["threadId", "createdAt"]),
+
   userProfiles: defineTable({
     userId: v.id("users"),
     fullName: v.string(),
