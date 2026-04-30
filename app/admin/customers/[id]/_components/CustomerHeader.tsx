@@ -41,6 +41,7 @@ export function CustomerHeader({
                 {c.user.email}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
+                {c.user.isVip && <Pill tone="amber">★ VIP</Pill>}
                 <Pill tone={planTone}>{planLabel}</Pill>
                 <Pill tone="neutral">
                   Joined {joined}

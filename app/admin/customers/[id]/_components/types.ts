@@ -13,8 +13,43 @@ export type CustomerUser = {
   isGraceUser: boolean;
   archivedAt?: number | null;
   archivedReason?: string | null;
+  isVip?: boolean | null;
+  vipMarkedAt?: number | null;
+  vipMarkedByUserId?: string | null;
   createdAt: number;
   updatedAt: number;
+};
+
+export type NoteCategory =
+  | "general"
+  | "billing"
+  | "escalation"
+  | "compliance";
+
+export type CustomerNote = {
+  _id: string;
+  customerId: string;
+  authorUserId: string;
+  authorEmail: string;
+  category: NoteCategory;
+  body: string;
+  pinned: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type FollowUpStatus = "pending" | "done" | "dismissed";
+
+export type CustomerFollowUp = {
+  _id: string;
+  customerId: string;
+  createdByUserId: string;
+  body: string;
+  dueAt: number;
+  status: FollowUpStatus;
+  completedAt?: number | null;
+  completedByUserId?: string | null;
+  createdAt: number;
 };
 
 export type CustomerSubscription = null | {
@@ -99,6 +134,8 @@ export type TimelineRow = {
 export type Customer360Payload = {
   console: CustomerConsole;
   timeline: TimelineRow[];
+  notes: CustomerNote[];
+  followUps: CustomerFollowUp[];
 };
 
 export type Aggregates = {
@@ -184,6 +221,8 @@ export function aggregate(data: Customer360Payload): Aggregates {
     escalationReady,
     responseReceived,
     totalSpentCents,
+    pendingFollowUps: data.followUps.filter((f) => f.status === "pending")
+      .length,
     daysSinceJoin:
       (Date.now() - data.console.user.createdAt) / (1000 * 60 * 60 * 24),
   });
@@ -217,13 +256,24 @@ function riskFor(input: {
   escalationReady: number;
   responseReceived: number;
   totalSpentCents: number;
+  pendingFollowUps: number;
   daysSinceJoin: number;
 }): { badge: Aggregates["riskBadge"]; reason: string } {
+  // Explicit admin-set VIP wins over computed values.
+  if (input.user.isVip) {
+    return { badge: "vip", reason: "Marked VIP by admin" };
+  }
   if (input.totalSpentCents >= 50_000) {
     return { badge: "vip", reason: "Lifetime value > $500" };
   }
   if (input.sub?.status === "past_due") {
     return { badge: "needs_help", reason: "Payment past due" };
+  }
+  if (input.pendingFollowUps > 0) {
+    return {
+      badge: "needs_help",
+      reason: `${input.pendingFollowUps} follow-up${input.pendingFollowUps === 1 ? "" : "s"} due`,
+    };
   }
   if (input.escalationReady > 0) {
     return {

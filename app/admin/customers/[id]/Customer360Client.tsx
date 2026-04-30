@@ -1,24 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CustomerHeader } from "./_components/CustomerHeader";
 import { AccountControls } from "./_components/AccountControls";
 import { CreditFileSummary } from "./_components/CreditFileSummary";
 import { SupportCenter } from "./_components/SupportCenter";
 import { Timeline } from "./_components/Timeline";
 import { ActionRail } from "./_components/ActionRail";
+import { ToastProvider } from "./_components/toast";
 import {
   aggregate,
   type Customer360Payload,
+  type CustomerNote,
+  type CustomerFollowUp,
 } from "./_components/types";
 
-// Customer 360 — fat client orchestrator.
-//
-// Mirrors the safe-fallback pattern used elsewhere: server wrapper does
-// the auth + role check, this client fetches /api/admin/customers/[id]
-// and renders the six premium sections. Failures show an inline error
-// instead of crashing.
+// Customer 360 — fat client orchestrator. Wraps everything in a
+// ToastProvider so admin actions can surface success/error pills.
 
 type State =
   | { kind: "loading" }
@@ -29,50 +28,73 @@ type State =
 export function Customer360Client({ userId }: { userId: string }) {
   const [state, setState] = useState<State>({ kind: "loading" });
 
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `/api/admin/customers/${encodeURIComponent(userId)}`,
+        { method: "GET", cache: "no-store" },
+      );
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        code?: string;
+        message?: string;
+        console?: Customer360Payload["console"];
+        timeline?: Customer360Payload["timeline"];
+        notes?: CustomerNote[];
+        followUps?: CustomerFollowUp[];
+      };
+      if (res.status === 404 || data.code === "NOT_FOUND") {
+        setState({ kind: "missing" });
+        return;
+      }
+      if (data.ok && data.console) {
+        setState({
+          kind: "ready",
+          data: {
+            console: data.console,
+            timeline: data.timeline ?? [],
+            notes: data.notes ?? [],
+            followUps: data.followUps ?? [],
+          },
+        });
+        return;
+      }
+      setState({
+        kind: "error",
+        message: data.message ?? "Could not load customer.",
+      });
+    } catch (err) {
+      setState({ kind: "error", message: (err as Error).message });
+    }
+  }, [userId]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const res = await fetch(
-          `/api/admin/customers/${encodeURIComponent(userId)}`,
-          { method: "GET", cache: "no-store" },
-        );
-        const data = (await res.json().catch(() => ({}))) as {
-          ok?: boolean;
-          code?: string;
-          message?: string;
-          console?: Customer360Payload["console"];
-          timeline?: Customer360Payload["timeline"];
-        };
-        if (cancelled) return;
-        if (res.status === 404 || data.code === "NOT_FOUND") {
-          setState({ kind: "missing" });
-          return;
-        }
-        if (data.ok && data.console) {
-          setState({
-            kind: "ready",
-            data: {
-              console: data.console,
-              timeline: data.timeline ?? [],
-            },
-          });
-          return;
-        }
-        setState({
-          kind: "error",
-          message: data.message ?? "Could not load customer.",
-        });
-      } catch (err) {
-        if (cancelled) return;
-        setState({ kind: "error", message: (err as Error).message });
-      }
+      await load();
+      if (cancelled) return;
     })();
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [load]);
 
+  return (
+    <ToastProvider>
+      <Body state={state} userId={userId} onRefresh={load} />
+    </ToastProvider>
+  );
+}
+
+function Body({
+  state,
+  userId,
+  onRefresh,
+}: {
+  state: State;
+  userId: string;
+  onRefresh: () => void;
+}) {
   if (state.kind === "loading") return <Skeleton />;
   if (state.kind === "missing") return <Missing userId={userId} />;
   if (state.kind === "error")
@@ -90,19 +112,29 @@ export function Customer360Client({ userId }: { userId: string }) {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-6">
-          <AccountControls console={state.data.console} />
+          <AccountControls
+            console={state.data.console}
+            onChange={onRefresh}
+          />
           <div className="grid gap-6 lg:grid-cols-2">
             <CreditFileSummary console={state.data.console} agg={agg} />
             <SupportCenter
+              customerId={state.data.console.user._id}
+              notes={state.data.notes}
+              followUps={state.data.followUps}
               timeline={state.data.timeline}
               needsHelp={needsHelp}
               needsHelpReason={agg.riskReason}
+              onChange={onRefresh}
             />
           </div>
           <Timeline rows={state.data.timeline} />
         </div>
         <div className="lg:sticky lg:top-6 lg:self-start">
-          <ActionRail />
+          <ActionRail
+            customerId={state.data.console.user._id}
+            onChange={onRefresh}
+          />
         </div>
       </div>
     </div>

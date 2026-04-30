@@ -9,7 +9,13 @@ import { useEffect, useMemo, useState } from "react";
 // surface it via /api/admin/customers/list so the page itself stays
 // fail-soft (no SSR Convex coupling).
 
-type Row = { id: string; email: string };
+type Row = {
+  id: string;
+  email: string;
+  isVip?: boolean;
+  createdAt?: number;
+  role?: string;
+};
 
 type State =
   | { kind: "loading" }
@@ -129,11 +135,21 @@ export function CustomersListClient() {
                         {initials(r.email)}
                       </div>
                       <div>
-                        <div className="text-sm font-semibold text-fg">
-                          {r.email}
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-fg">
+                            {r.email}
+                          </span>
+                          {r.isVip && (
+                            <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-700 ring-1 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-500/30">
+                              ★ VIP
+                            </span>
+                          )}
                         </div>
                         <div className="text-[11px] text-fg-subtle">
                           {r.id.slice(0, 24)}
+                          {r.createdAt
+                            ? ` · joined ${formatJoined(r.createdAt)}`
+                            : ""}
                         </div>
                       </div>
                     </div>
@@ -159,6 +175,14 @@ export function CustomersListClient() {
       </div>
     </div>
   );
+}
+
+function formatJoined(ms: number): string {
+  return new Date(ms).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 function initials(email: string): string {

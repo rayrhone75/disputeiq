@@ -125,11 +125,53 @@ export default defineSchema({
     archivedReason: v.optional(v.string()),
     archivedBy: v.optional(v.id("users")),
     piiAnonymizedAt: v.optional(v.number()),
+    // VIP marker — set by admins on the Customer 360 page. Optional so
+    // existing rows don't need a backfill.
+    isVip: v.optional(v.boolean()),
+    vipMarkedAt: v.optional(v.number()),
+    vipMarkedByUserId: v.optional(v.id("users")),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_clerk", ["clerkUserId"])
     .index("by_email", ["email"]),
+
+  // Internal admin-only notes attached to a customer. Visible only to
+  // OWNER/ADMIN/SUPPORT. Author is the admin user who wrote it.
+  customerNotes: defineTable({
+    customerId: v.id("users"),
+    authorUserId: v.id("users"),
+    authorEmail: v.string(),
+    category: v.union(
+      v.literal("general"),
+      v.literal("billing"),
+      v.literal("escalation"),
+      v.literal("compliance"),
+    ),
+    body: v.string(),
+    pinned: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_customer", ["customerId", "createdAt"]),
+
+  // Admin-set follow-up reminders for a customer (call back, check in,
+  // etc.). Status moves from "pending" → "done" or "dismissed".
+  customerFollowUps: defineTable({
+    customerId: v.id("users"),
+    createdByUserId: v.id("users"),
+    body: v.string(),
+    dueAt: v.number(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("done"),
+      v.literal("dismissed"),
+    ),
+    completedAt: v.optional(v.number()),
+    completedByUserId: v.optional(v.id("users")),
+    createdAt: v.number(),
+  })
+    .index("by_customer", ["customerId", "dueAt"])
+    .index("by_customer_status", ["customerId", "status"]),
 
   userProfiles: defineTable({
     userId: v.id("users"),

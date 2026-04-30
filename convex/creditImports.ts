@@ -288,10 +288,16 @@ export const adminGet = query({
 export const adminListUsers = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) => {
-    await requireRole(ctx, ["OWNER", "ADMIN"]);
+    await requireRole(ctx, ["OWNER", "ADMIN", "SUPPORT"]);
     const rows = await ctx.db.query("users").collect();
     rows.sort((a, b) => b.createdAt - a.createdAt);
-    return rows.slice(0, limit ?? 200).map((u) => ({ id: u._id, email: u.email }));
+    return rows.slice(0, limit ?? 200).map((u) => ({
+      id: u._id,
+      email: u.email,
+      isVip: !!u.isVip,
+      createdAt: u.createdAt,
+      role: u.role,
+    }));
   },
 });
 
