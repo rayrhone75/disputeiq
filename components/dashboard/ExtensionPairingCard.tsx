@@ -1,23 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
+import { useCallback, useEffect, useState } from "react";
 
 // Card on /dashboard/get-report that handles the Chrome-extension
 // pairing flow.
 //
+// Hard rule: NO direct `useQuery` / `useMutation` from convex/react.
+// Earlier versions used those hooks against api.extensionPairings.*,
+// and any throw inside a Convex query (user-not-mirrored, schema blip,
+// transient unavailability) propagated as an unhandled exception
+// during render — crashing the entire /dashboard/get-report route in
+// React 19. Now everything goes through fail-soft fetch endpoints
+// (/api/extension/pairings + /pairings/:id/revoke) so a Convex blip
+// degrades to a "Connector status unavailable — retry" panel instead
+// of a route-level crash.
+//
 // Flow:
-//   1. User installs the extension (link to Chrome Web Store / load
-//      unpacked instructions).
-//   2. User clicks "Generate pairing token" → POST /api/extension/pair/start
+//   1. Install the extension (Web Store URL when set, else ZIP download).
+//   2. Click "Generate pairing code" → POST /api/extension/pair/start
 //      → server returns { pairToken, displayCode }.
-//   3. UI shows BOTH the 6-letter display code (for humans) and the
-//      full pairToken (one-click "Copy" button). User pastes the full
-//      token into the extension popup.
-//   4. After successful pair, useQuery refreshes and the
-//      paired-extensions list appears.
+//   3. Show the 6-letter display code (for humans) + the full pairToken
+//      (one-click "Copy" button). User pastes the full token into the
+//      extension popup.
+//   4. After successful pair, refresh the listing via fetch.
 
 type PairResponse = {
   ok: true;
@@ -28,7 +33,7 @@ type PairResponse = {
 };
 
 type PairedExtension = {
-  _id: Id<"extensionPairings">;
+  _id: string;
   extensionVersion: string | null;
   userAgent: string | null;
   pairedAt: number;
@@ -41,11 +46,53 @@ type PairedExtension = {
   revokedAt: number | null;
 };
 
+type ListState =
+  | { kind: "loading" }
+  | { kind: "ready"; pairings: PairedExtension[] }
+  | { kind: "error"; message: string };
+
 export function ExtensionPairingCard() {
-  const pairings = useQuery(api.extensionPairings.listMine, {}) as
-    | PairedExtension[]
-    | undefined;
-  const revoke = useMutation(api.extensionPairings.revokeMine);
+  const [list, setList] = useState<ListState>({ kind: "loading" });
+
+  const refreshList = useCallback(async () => {
+    try {
+      const res = await fetch("/api/extension/pairings", {
+        method: "GET",
+        cache: "no-store",
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        pairings?: PairedExtension[];
+        message?: string;
+        code?: string;
+      };
+      if (data.ok && Array.isArray(data.pairings)) {
+        setList({ kind: "ready", pairings: data.pairings });
+      } else if (Array.isArray(data.pairings)) {
+        // ok:false but with empty pairings — soft failure mode. Show
+        // an error pill but keep the rest of the card functional.
+        setList({
+          kind: "error",
+          message:
+            data.message ?? "Connector status unavailable — retry below.",
+        });
+      } else {
+        setList({
+          kind: "error",
+          message: data.message ?? "Connector status unavailable.",
+        });
+      }
+    } catch (err) {
+      setList({
+        kind: "error",
+        message: `Connector status unavailable: ${(err as Error).message}`,
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshList();
+  }, [refreshList]);
 
   const [pair, setPair] = useState<PairResponse | null>(null);
   const [busy, setBusy] = useState(false);
@@ -100,7 +147,7 @@ export function ExtensionPairingCard() {
     }
   }
 
-  async function onRevoke(id: Id<"extensionPairings">) {
+  async function onRevoke(id: string) {
     if (
       !confirm(
         "Revoke this paired extension? It will stop working immediately.",
@@ -108,13 +155,27 @@ export function ExtensionPairingCard() {
     )
       return;
     try {
-      await revoke({ id });
+      const res = await fetch(
+        `/api/extension/pairings/${encodeURIComponent(id)}/revoke`,
+        { method: "POST" },
+      );
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        code?: string;
+        message?: string;
+      };
+      if (!res.ok || !data.ok) {
+        setErr(data.message ?? data.code ?? "Could not revoke.");
+        return;
+      }
+      await refreshList();
     } catch (e) {
       setErr((e as Error).message);
     }
   }
 
-  const activePairings = pairings?.filter((p) => !p.revoked) ?? [];
+  const activePairings =
+    list.kind === "ready" ? list.pairings.filter((p) => !p.revoked) : [];
 
   return (
     <div className="rounded-3xl border-2 border-indigo-300 bg-indigo-50/70 p-6 shadow-[0_30px_80px_-20px_rgba(99,102,241,0.45)] dark:border-indigo-500/30 dark:bg-indigo-500/10 sm:p-7">
@@ -273,7 +334,20 @@ export function ExtensionPairingCard() {
         )}
       </div>
 
-      {pairings === undefined ? null : activePairings.length === 0 ? (
+      {list.kind === "loading" ? null : list.kind === "error" ? (
+        <div className="mt-5 border-t border-indigo-200/60 pt-4 dark:border-indigo-500/20">
+          <div className="flex items-start justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-[12px] text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+            <span>Connector status unavailable — {list.message}</span>
+            <button
+              type="button"
+              onClick={() => void refreshList()}
+              className="shrink-0 rounded-lg border border-rose-300 bg-transparent px-2.5 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-500/40 dark:text-rose-300"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      ) : activePairings.length === 0 ? (
         <div className="mt-5 border-t border-indigo-200/60 pt-5 dark:border-indigo-500/20">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-fg-subtle">
             Step 3 · Connect your report
@@ -349,7 +423,10 @@ export function ExtensionPairingCard() {
 function InstallCta() {
   const webStoreUrl =
     process.env.NEXT_PUBLIC_CHROME_WEB_STORE_URL ?? null;
-  const zipUrl = "/downloads/disputeiq-connector-v0.1.0.zip";
+  // Routed through /api/extension/download so the response gets
+  // Content-Disposition: attachment + an audit-log entry. The version
+  // string in the file name is owned by extension/manifest.json.
+  const zipUrl = "/api/extension/download";
 
   if (webStoreUrl) {
     return (

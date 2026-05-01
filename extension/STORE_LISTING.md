@@ -191,6 +191,7 @@ Post-submission:
 
 ## 8. Versioning
 
-- Source of truth for the version number is `extension/manifest.json`.
-- When bumping, also rename `public/downloads/disputeiq-connector-v<version>.zip` and update the URL in `app/(marketing)/connector/page.tsx` + `components/dashboard/ExtensionPairingCard.tsx` (search for `disputeiq-connector-v0.1.0.zip`).
+- Source of truth for the version number is `extension/manifest.json`. The `version` field is imported directly by `app/api/extension/download/route.ts`, so the served filename (`disputeiq-connector-v<version>.zip`) tracks the manifest automatically.
+- When bumping the version: edit `extension/manifest.json`, run `npm run extension:zip`, and rename the zip in `public/downloads/` to match the new version. The download route + ExtensionPairingCard pick up the new filename without further edits.
+- The marketing page `app/(marketing)/connector/page.tsx` may still hardcode the version — search for `disputeiq-connector-v` on bumps.
 - After Web Store approval, the version flow becomes: bump manifest → `npm run extension:zip` → upload zip in Web Store dashboard → submit for re-review. The static `.zip` URL stops being load-bearing once the Web Store URL is set.

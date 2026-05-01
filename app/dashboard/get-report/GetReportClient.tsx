@@ -127,8 +127,7 @@ export function GetReportClient({
             <div className="space-y-7">
               <ExtensionPairingCard />
               <ManualUploadCard />
-              <BookmarkletFallback onConnect={handleConnect} />
-              <FallbackOptions />
+              <FallbackOptions onBookmarklet={handleConnect} />
               <TrustRow />
               <HelpCard context="get-report" />
             </div>
@@ -233,55 +232,3 @@ function FooterTrust() {
   );
 }
 
-function BookmarkletFallback({ onConnect }: { onConnect: () => void }) {
-  return (
-    <details className="group rounded-2xl border border-border bg-surface px-5 py-4">
-      <summary className="cursor-pointer list-none">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-fg">
-              Don&apos;t want to install anything?
-            </p>
-            <p className="mt-0.5 text-[12px] text-fg-muted">
-              Use the legacy browser bookmarklet — drag a button to your
-              bookmarks bar instead.
-            </p>
-          </div>
-          <svg
-            viewBox="0 0 16 16"
-            className="h-4 w-4 text-fg-muted transition group-open:rotate-180"
-            fill="none"
-          >
-            <path
-              d="M4 6l4 4 4-4"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-      </summary>
-      <div className="mt-3 rounded-xl bg-surface-muted/40 p-4 text-[12px] leading-5 text-fg-muted">
-        <p>
-          The bookmarklet predates the Connector extension and works
-          without an install. It&apos;s a single button you drag to your
-          browser&apos;s bookmarks bar; clicking it on your MyScoreIQ
-          report imports automatically.
-        </p>
-        <p className="mt-2">
-          The Connector extension is much more reliable — bookmarklets
-          can be blocked by browser settings or stripped on drag in some
-          browsers. Use this only if the extension install fails for you.
-        </p>
-        <button
-          type="button"
-          onClick={onConnect}
-          className="mt-3 inline-flex items-center gap-2 rounded-xl border border-border-strong bg-surface px-4 py-2 text-xs font-semibold text-fg hover:bg-surface-muted"
-        >
-          Open bookmarklet flow
-        </button>
-      </div>
-    </details>
-  );
-}

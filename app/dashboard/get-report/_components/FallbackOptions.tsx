@@ -3,19 +3,25 @@
 import { useState } from "react";
 import { ConnectReportPanel } from "@/components/dashboard/ConnectReportPanel";
 
-// "Need another option?" — collapsed by default. Reveals the existing
-// PDF upload + paste-text panel for the small fraction of users who
-// can't (or don't want to) use the MyScoreIQ Auto-Connect path.
+// "Need another option?" — collapsed by default. The single "what to
+// do if the Connector doesn't work for you" disclosure on the page.
+// Exposes three escape hatches behind one click:
+//   1. Drag & drop a PDF (via ConnectReportPanel)
+//   2. Paste report text (via ConnectReportPanel)
+//   3. Open the legacy bookmarklet flow (via onBookmarklet callback)
 //
-// Wraps the existing ConnectReportPanel — its "Drag & drop a PDF" and
-// "Paste report text" widgets already handle both file types. We don't
-// need to rewrite those flows; we just hide them behind a discreet
-// disclosure so the primary path stays clean.
+// The bookmarklet used to be its own collapsible above this card. Two
+// adjacent "fallback" disclosures with overlapping intent confused the
+// read — one consolidated card is clearer.
 
 const DEFAULT_JSON_URL =
   "https://member.myscoreiq.com/CreditReport.aspx?view=json";
 
-export function FallbackOptions() {
+export function FallbackOptions({
+  onBookmarklet,
+}: {
+  onBookmarklet?: () => void;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -68,11 +74,30 @@ export function FallbackOptions() {
             jsonReportUrl={DEFAULT_JSON_URL}
             retryImportId={null}
           />
+          {onBookmarklet && (
+            <div className="border-t border-border px-5 py-4">
+              <p className="text-sm font-semibold text-fg">
+                Or use the legacy bookmarklet
+              </p>
+              <p className="mt-1 text-[12px] leading-5 text-fg-muted">
+                A drag-to-bookmarks button that imports your report when
+                clicked on a MyScoreIQ tab. Less reliable than the
+                Connector — some browsers strip <code>javascript:</code>
+                URLs on drag — but works without an install.
+              </p>
+              <button
+                type="button"
+                onClick={onBookmarklet}
+                className="mt-3 inline-flex items-center gap-2 rounded-xl border border-border-strong bg-surface px-4 py-2 text-xs font-semibold text-fg hover:bg-surface-muted"
+              >
+                Open bookmarklet flow
+              </button>
+            </div>
+          )}
           <div className="px-5 pb-5 pt-2 text-[11px] leading-5 text-fg-subtle">
-            Most customers won&apos;t need this — the Auto-Connect path above
-            is the easy way. This is here for cases where you already have a
-            saved file or your browser doesn&apos;t support drag-and-drop
-            bookmarks.
+            Most customers won&apos;t need this — the Connector above is
+            the easy way. These are here for the rare case where the
+            extension install fails or you already have a saved file.
           </div>
         </div>
       )}
