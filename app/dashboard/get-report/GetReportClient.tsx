@@ -125,8 +125,8 @@ export function GetReportClient({
         <div className="mt-8 pb-16">
           {phase === "hero" && (
             <div className="space-y-7">
-              <ExtensionPairingCard />
               <ManualUploadCard />
+              <AdvancedAutoImport />
               <FallbackOptions onBookmarklet={handleConnect} />
               <TrustRow />
               <HelpCard context="get-report" />
@@ -232,3 +232,59 @@ function FooterTrust() {
   );
 }
 
+// Optional Connector path. Collapsed by default — most customers
+// download a PDF and upload it; the extension is for power users who
+// want one-click imports going forward.
+function AdvancedAutoImport() {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="rounded-2xl border border-border bg-surface">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-surface-muted/40"
+      >
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200">
+            <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none">
+              <path
+                d="M3 5h10M3 8h10M3 11h6"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+            </svg>
+          </span>
+          <div>
+            <div className="text-sm font-semibold text-fg">
+              Advanced · Auto Import
+            </div>
+            <div className="text-[12px] text-fg-muted">
+              Install the DisputeIQ Chrome extension to import future
+              reports with one click. Optional.
+            </div>
+          </div>
+        </div>
+        <svg
+          viewBox="0 0 16 16"
+          className={`h-4 w-4 text-fg-muted transition ${open ? "rotate-180" : ""}`}
+          fill="none"
+        >
+          <path
+            d="M4 6l4 4 4-4"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      {open && (
+        <div className="border-t border-border p-4 sm:p-5">
+          <ExtensionPairingCard />
+        </div>
+      )}
+    </section>
+  );
+}

@@ -3,65 +3,52 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-// Always-visible manual upload card for /dashboard/get-report.
+// Primary, headline upload card for /dashboard/get-report.
 //
-// Bypasses the multi-step Connect flow and goes straight to the
-// already-proven `/api/reports/paste` endpoint, which auto-detects JSON
-// payloads and routes them through the same import pipeline the
-// bookmarklet uses. Two affordances:
-//   1. Drag-and-drop / file-picker for a .json file.
-//   2. Textarea for pasting JSON.
-// Both submit identical bodies; the user picks whichever is easier.
+// Customer journey:
+//   1. Customer signs in to MyScoreIQ in another tab.
+//   2. Opens their credit report.
+//   3. Clicks "Download this report" or Print → "Save as PDF".
+//   4. Drags the file here. We accept PDF, HTML, TXT, or JSON.
+//
+// All four formats hit /api/reports/upload-any which auto-detects shape
+// and dispatches: JSON gets the full automated parse; PDF/HTML/TXT get
+// best-effort heuristic parsing + a "support is reviewing" status. The
+// customer always lands back on /dashboard/get-report?imported=1 so the
+// page can poll the snapshot endpoint and progress to results.
 
 type Status = "idle" | "submitting" | "ok" | "err";
+
+const ACCEPTED =
+  "application/pdf,.pdf,text/html,.html,.htm,application/json,.json,text/plain,.txt";
+
+const ACCEPTED_LABEL = "PDF, HTML, TXT, or JSON";
 
 export function ManualUploadCard() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string>("");
-  const [paste, setPaste] = useState<string>("");
-  const [showPaste, setShowPaste] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [pickedName, setPickedName] = useState<string | null>(null);
 
-  async function submitText(text: string) {
-    const trimmed = text.trim();
-    if (!trimmed) {
-      setStatus("err");
-      setMessage("Empty file or paste — nothing to import.");
-      return;
-    }
-    if (trimmed[0] !== "{" && trimmed[0] !== "[") {
+  async function submitFile(file: File) {
+    if (file.size > 25 * 1024 * 1024) {
       setStatus("err");
       setMessage(
-        "That doesn't look like JSON. The file should start with { or [. Make sure you exported the JSON view from MyScoreIQ.",
-      );
-      return;
-    }
-    if (trimmed.length > 25 * 1024 * 1024) {
-      setStatus("err");
-      setMessage("File is over 25 MB — too large for direct upload.");
-      return;
-    }
-    // Validate JSON locally so we can surface a precise error before the
-    // server round-trip. Cheap insurance against the user pasting half a
-    // file or a corrupt copy.
-    try {
-      JSON.parse(trimmed);
-    } catch (err) {
-      setStatus("err");
-      setMessage(
-        `JSON is malformed: ${(err as Error).message.slice(0, 140)}`,
+        `File is ${(file.size / (1024 * 1024)).toFixed(1)} MB — max 25 MB.`,
       );
       return;
     }
     setStatus("submitting");
     setMessage("");
+    setPickedName(file.name);
     try {
-      const res = await fetch("/api/reports/paste", {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/reports/upload-any", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: trimmed }),
+        body: fd,
       });
       let data:
         | {
@@ -73,6 +60,7 @@ export function ManualUploadCard() {
             message?: string;
             reviewFlags?: string[];
             bureauGuess?: string | null;
+            detectedFormat?: string;
           }
         | null = null;
       try {
@@ -89,96 +77,53 @@ export function ManualUploadCard() {
               : `HTTP ${res.status}`;
         setStatus("err");
         setMessage(
-          data?.message ?? `Server rejected the import (${errStr}).`,
+          data?.message ?? `Server rejected the upload (${errStr}).`,
         );
-        // eslint-disable-next-line no-console
-        console.error("[ManualUploadCard] /api/reports/paste failed", {
-          status: res.status,
-          data,
-        });
         return;
       }
-      // 2xx response. The file is saved to the database — it has a
-      // reportId. The parser may have produced 0 tradelines (parseStatus
-      // = "needs_manual_review"), which is a SOFT warning, not a fatal
-      // error: the file is in the system; support can review it. We
-      // redirect either way so the customer sees their dashboard update.
       const parsedCount = data?.parsedCount ?? 0;
-      const reviewFlags = data?.reviewFlags ?? [];
+      const fmt = (data?.detectedFormat ?? "file").toUpperCase();
       if (data?.parseStatus === "needs_manual_review" || parsedCount === 0) {
         setStatus("ok");
         setMessage(
-          reviewFlags.length > 0
-            ? `Uploaded. Our parser flagged it for review (${reviewFlags
-                .slice(0, 3)
-                .join(", ")}) — support will follow up.`
-            : "Uploaded. Our parser couldn't auto-extract tradelines — support will review it shortly.",
+          data?.message ??
+            `${fmt} received. Our parser is reviewing — you'll see your dispute candidates shortly.`,
         );
       } else {
         setStatus("ok");
-        setMessage(`Imported — ${parsedCount} tradelines analyzed.`);
+        setMessage(
+          data?.message ??
+            `${fmt} imported — ${parsedCount} tradelines analyzed.`,
+        );
       }
       const target = data?.redirectTo ?? "/dashboard/get-report?imported=1";
       setTimeout(() => router.push(target), 1500);
     } catch (err) {
       setStatus("err");
-      setMessage(
-        `Network error: ${(err as Error).message}. If this keeps happening, paste support a screenshot.`,
-      );
-      // eslint-disable-next-line no-console
-      console.error("[ManualUploadCard] network error", err);
+      setMessage(`Network error: ${(err as Error).message}.`);
     }
   }
 
-  async function onFile(file: File) {
-    if (!file) return;
-    const lower = file.name.toLowerCase();
-    if (
-      !lower.endsWith(".json") &&
-      !lower.endsWith(".txt") &&
-      file.type !== "application/json" &&
-      file.type !== "text/plain" &&
-      file.type !== ""
-    ) {
-      setStatus("err");
-      setMessage(
-        "Only .json (or .txt containing JSON) is supported here. PDF support is coming — for now, ask MyScoreIQ for the JSON view.",
-      );
-      return;
-    }
-    if (file.size > 25 * 1024 * 1024) {
-      setStatus("err");
-      setMessage("File is over 25 MB — too large for direct upload.");
-      return;
-    }
-    try {
-      const text = await file.text();
-      await submitText(text);
-    } catch (err) {
-      setStatus("err");
-      setMessage((err as Error).message);
-    }
-  }
-
-  function onPickFile() {
+  function onPick() {
     fileRef.current?.click();
   }
 
   return (
-    <section className="rounded-3xl bg-surface p-6 ring-1 ring-border shadow-[0_24px_60px_-30px_rgba(15,23,42,0.35)] sm:p-7">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-600 dark:text-violet-300">
-            Already have a file?
-          </p>
-          <h3 className="mt-1 text-lg font-semibold tracking-tight text-fg sm:text-xl">
-            Upload your credit report
-          </h3>
-          <p className="mt-1 text-sm leading-6 text-fg-muted">
-            Drag a JSON file onto the box below, pick one from your device,
-            or paste the report contents — all three work the same.
-          </p>
-        </div>
+    <section className="rounded-3xl border-2 border-violet-300 bg-violet-50/70 p-6 shadow-[0_30px_80px_-20px_rgba(139,92,246,0.45)] dark:border-violet-500/30 dark:bg-violet-500/10 sm:p-8">
+      <div className="flex flex-col gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
+          Step 1 · Upload your report
+        </p>
+        <h2 className="text-2xl font-semibold tracking-tight text-fg sm:text-3xl">
+          Upload your MyScoreIQ credit report
+        </h2>
+        <p className="max-w-2xl text-sm leading-6 text-fg-muted sm:text-base">
+          Drop the file you downloaded from MyScoreIQ. We accept{" "}
+          <span className="font-semibold text-fg">{ACCEPTED_LABEL}</span>.
+          We'll auto-detect the format, extract your accounts, inquiries,
+          collections, scores, and personal info, and pull dispute
+          opportunities — usually within a few seconds.
+        </p>
       </div>
 
       <div
@@ -191,28 +136,28 @@ export function ManualUploadCard() {
           e.preventDefault();
           setDragOver(false);
           const f = e.dataTransfer.files?.[0];
-          if (f) void onFile(f);
+          if (f) void submitFile(f);
         }}
         className={[
-          "mt-5 rounded-2xl border-2 border-dashed p-7 text-center transition",
+          "mt-6 rounded-2xl border-2 border-dashed p-8 text-center transition sm:p-10",
           dragOver
-            ? "border-violet-500 bg-violet-50/60 dark:bg-violet-500/10"
-            : "border-border bg-surface-muted/40",
+            ? "border-violet-500 bg-violet-100/70 dark:bg-violet-500/15"
+            : "border-violet-200 bg-white/60 dark:border-violet-500/20 dark:bg-surface/40",
         ].join(" ")}
       >
         <input
           ref={fileRef}
           type="file"
-          accept="application/json,.json,text/plain,.txt"
+          accept={ACCEPTED}
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) void onFile(f);
+            if (f) void submitFile(f);
           }}
           className="hidden"
         />
         <svg
           viewBox="0 0 24 24"
-          className="mx-auto h-9 w-9 text-fg-muted"
+          className="mx-auto h-10 w-10 text-violet-500 dark:text-violet-300"
           fill="none"
         >
           <path
@@ -223,51 +168,25 @@ export function ManualUploadCard() {
             strokeLinejoin="round"
           />
         </svg>
-        <p className="mt-3 text-sm font-semibold text-fg">
-          Drop your <code className="rounded bg-surface px-1 py-0.5 font-mono text-[11px]">.json</code> here
+        <p className="mt-4 text-base font-semibold text-fg">
+          Drag your credit report here
         </p>
         <p className="mt-1 text-[12px] text-fg-muted">or</p>
         <button
           type="button"
-          onClick={onPickFile}
-          className="mt-2 inline-flex items-center gap-2 rounded-xl bg-fg px-4 py-2 text-sm font-semibold text-canvas hover:opacity-90"
+          onClick={onPick}
+          disabled={status === "submitting"}
+          className="mt-3 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white shadow-md hover:bg-violet-700 disabled:opacity-60 sm:text-base"
         >
-          Choose file
+          {status === "submitting" ? "Uploading…" : "Upload Credit Report"}
         </button>
         <p className="mt-3 text-[11px] text-fg-subtle">
-          Max 25 MB. Your file is encrypted at rest.
+          {ACCEPTED_LABEL} · max 25 MB · encrypted at rest
         </p>
-      </div>
-
-      <div className="mt-4">
-        <button
-          type="button"
-          onClick={() => setShowPaste((v) => !v)}
-          className="text-xs font-semibold text-fg-muted hover:text-fg"
-          aria-expanded={showPaste}
-        >
-          {showPaste ? "Hide paste box ▲" : "Or paste the report text instead ▼"}
-        </button>
-        {showPaste && (
-          <div className="mt-3">
-            <textarea
-              value={paste}
-              onChange={(e) => setPaste(e.target.value)}
-              rows={6}
-              placeholder='Paste your MyScoreIQ JSON here — should start with { or ['
-              className="w-full rounded-xl border border-border bg-surface-muted/40 p-3 font-mono text-[12px] text-fg placeholder:text-fg-subtle focus:border-fg/30 focus:outline-none"
-            />
-            <div className="mt-2 flex items-center justify-end">
-              <button
-                type="button"
-                onClick={() => void submitText(paste)}
-                disabled={status === "submitting" || !paste.trim()}
-                className="rounded-xl bg-fg px-4 py-2 text-xs font-semibold text-canvas hover:opacity-90 disabled:opacity-50"
-              >
-                {status === "submitting" ? "Importing…" : "Import paste"}
-              </button>
-            </div>
-          </div>
+        {pickedName && status === "submitting" && (
+          <p className="mt-2 truncate text-[12px] text-fg-muted">
+            {pickedName}
+          </p>
         )}
       </div>
 
@@ -287,19 +206,40 @@ export function ManualUploadCard() {
         </p>
       )}
 
-      <p className="mt-4 text-[11px] leading-5 text-fg-subtle">
-        How to get the JSON: in MyScoreIQ open{" "}
-        <a
-          href="https://member.myscoreiq.com/CreditReport.aspx?view=json"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-fg"
-        >
-          your report&apos;s JSON view
-        </a>
-        , then save the page (Ctrl+S → "Webpage, JSON only") or right-click
-        → "Save as". Drop the saved file above.
-      </p>
+      <div className="mt-6 grid gap-3 rounded-2xl border border-violet-200/60 bg-white/40 p-4 text-[12px] leading-5 text-fg-muted dark:border-violet-500/20 dark:bg-surface/30 sm:grid-cols-2 sm:text-[13px]">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300 sm:col-span-2">
+          How to get the file from MyScoreIQ
+        </p>
+        <Step n={1}>
+          Sign in to your MyScoreIQ account at{" "}
+          <a
+            href="https://member.myscoreiq.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-fg underline"
+          >
+            member.myscoreiq.com
+          </a>
+          .
+        </Step>
+        <Step n={2}>Open your most recent credit report.</Step>
+        <Step n={3}>
+          Click <span className="font-semibold text-fg">Download this report</span>{" "}
+          (or use Print → <span className="font-semibold text-fg">Save as PDF</span>).
+        </Step>
+        <Step n={4}>Drag the saved file onto the box above.</Step>
+      </div>
     </section>
+  );
+}
+
+function Step({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-200 text-[10px] font-semibold text-violet-800 dark:bg-violet-500/30 dark:text-violet-100">
+        {n}
+      </span>
+      <div className="leading-5">{children}</div>
+    </div>
   );
 }

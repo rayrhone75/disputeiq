@@ -178,26 +178,21 @@ export function ExtensionPairingCard() {
     list.kind === "ready" ? list.pairings.filter((p) => !p.revoked) : [];
 
   return (
-    <div className="rounded-3xl border-2 border-indigo-300 bg-indigo-50/70 p-6 shadow-[0_30px_80px_-20px_rgba(99,102,241,0.45)] dark:border-indigo-500/30 dark:bg-indigo-500/10 sm:p-7">
+    <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-5 dark:border-indigo-500/20 dark:bg-indigo-500/5 sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-indigo-700 dark:text-indigo-300">
-            Recommended · One-click import
+            Optional · For repeat imports
           </p>
-          <h3 className="mt-1 text-xl font-semibold tracking-tight text-fg sm:text-2xl">
+          <h3 className="mt-1 text-lg font-semibold tracking-tight text-fg sm:text-xl">
             DisputeIQ Connector for Chrome
           </h3>
           <p className="mt-2 text-sm leading-6 text-fg-muted">
-            Install once. From then on, sign in to MyScoreIQ in your
-            browser, click the Connector icon, and your report imports
-            automatically. Same pattern Client Dispute Manager / Dispute
-            Panda / Dispute Fox use — secure, no copy-paste, no password
-            storage.
+            If you plan to pull updated reports often, install the
+            Connector once. After it's paired, future imports take one
+            click from your MyScoreIQ tab — no download, no upload.
           </p>
         </div>
-        <span className="hidden shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30 sm:inline-block">
-          Best
-        </span>
       </div>
 
       <InstallCta />
