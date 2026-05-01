@@ -17,7 +17,29 @@ import { useRouter } from "next/navigation";
 // customer always lands back on /dashboard/get-report?imported=1 so the
 // page can poll the snapshot endpoint and progress to results.
 
-type Status = "idle" | "submitting" | "ok" | "err";
+// Three terminal states map 1:1 to the API's `outcome` field. The
+// route is the source of truth — the client doesn't try to second-guess
+// it (no more "parsedCount === 0 → support reviewing" heuristics).
+type Outcome = "imported" | "needs_review" | "failed";
+type Status = "idle" | "submitting" | Outcome;
+
+type UploadResponse = {
+  outcome?: Outcome;
+  confidence?: "high" | "medium" | "low";
+  tradelineCount?: number;
+  negativeCount?: number;
+  candidateCount?: number | null;
+  importId?: string | null;
+  reportId?: string | null;
+  parsedCount?: number;
+  parseStatus?: string;
+  redirectTo?: string;
+  error?: string | Record<string, unknown>;
+  message?: string;
+  reviewFlags?: string[];
+  bureauGuess?: string | null;
+  detectedFormat?: string;
+};
 
 const ACCEPTED =
   "application/pdf,.pdf,text/html,.html,.htm,application/json,.json,text/plain,.txt";
@@ -31,10 +53,12 @@ export function ManualUploadCard() {
   const [message, setMessage] = useState<string>("");
   const [dragOver, setDragOver] = useState(false);
   const [pickedName, setPickedName] = useState<string | null>(null);
+  const [result, setResult] = useState<UploadResponse | null>(null);
+  const [redirectTarget, setRedirectTarget] = useState<string | null>(null);
 
   async function submitFile(file: File) {
     if (file.size > 25 * 1024 * 1024) {
-      setStatus("err");
+      setStatus("failed");
       setMessage(
         `File is ${(file.size / (1024 * 1024)).toFixed(1)} MB — max 25 MB.`,
       );
@@ -42,6 +66,8 @@ export function ManualUploadCard() {
     }
     setStatus("submitting");
     setMessage("");
+    setResult(null);
+    setRedirectTarget(null);
     setPickedName(file.name);
     try {
       const fd = new FormData();
@@ -50,57 +76,54 @@ export function ManualUploadCard() {
         method: "POST",
         body: fd,
       });
-      let data:
-        | {
-            reportId?: string | null;
-            parsedCount?: number;
-            parseStatus?: string;
-            redirectTo?: string;
-            error?: string | Record<string, unknown>;
-            message?: string;
-            reviewFlags?: string[];
-            bureauGuess?: string | null;
-            detectedFormat?: string;
-          }
-        | null = null;
+      let data: UploadResponse | null = null;
       try {
-        data = await res.json();
+        data = (await res.json()) as UploadResponse;
       } catch {
         data = null;
       }
-      if (!res.ok) {
+
+      // Pre-parse rejections (401/413/415/etc.) come back without an
+      // `outcome` field. Treat them as `failed`.
+      if (!res.ok && !data?.outcome) {
         const errStr =
           typeof data?.error === "string"
             ? data.error
             : data?.error
               ? JSON.stringify(data.error)
               : `HTTP ${res.status}`;
-        setStatus("err");
+        setStatus("failed");
         setMessage(
-          data?.message ?? `Server rejected the upload (${errStr}).`,
+          data?.message ?? `Couldn't upload this file (${errStr}).`,
         );
         return;
       }
-      const parsedCount = data?.parsedCount ?? 0;
-      const fmt = (data?.detectedFormat ?? "file").toUpperCase();
-      if (data?.parseStatus === "needs_manual_review" || parsedCount === 0) {
-        setStatus("ok");
-        setMessage(
-          data?.message ??
-            `${fmt} received. Our parser is reviewing — you'll see your dispute candidates shortly.`,
-        );
-      } else {
-        setStatus("ok");
-        setMessage(
-          data?.message ??
-            `${fmt} imported — ${parsedCount} tradelines analyzed.`,
-        );
-      }
+
+      const outcome: Outcome =
+        data?.outcome ??
+        // Backward-compat fallback if a deploy lag returns the old shape.
+        (data?.parseStatus === "needs_manual_review"
+          ? "needs_review"
+          : "imported");
+
+      setResult(data);
+      setStatus(outcome);
+      setMessage(data?.message ?? defaultMessageFor(outcome));
+
       const target = data?.redirectTo ?? "/dashboard/get-report?imported=1";
-      setTimeout(() => router.push(target), 1500);
+      setRedirectTarget(target);
+
+      // Auto-redirect ONLY for imported. needs_review and failed stay
+      // on the page so the customer reads the message and can re-try
+      // or contact support without being whisked away.
+      if (outcome === "imported") {
+        setTimeout(() => router.push(target), 1800);
+      }
     } catch (err) {
-      setStatus("err");
-      setMessage(`Network error: ${(err as Error).message}.`);
+      setStatus("failed");
+      setMessage(
+        `Network error — please try again. (${(err as Error).message})`,
+      );
     }
   }
 
@@ -195,15 +218,90 @@ export function ManualUploadCard() {
           Uploading and analyzing your report — this usually takes a few seconds…
         </p>
       )}
-      {status === "ok" && (
-        <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[12px] text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
-          {message} Redirecting…
-        </p>
+
+      {status === "imported" && (
+        <div className="mt-5 rounded-2xl border border-emerald-300 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+          <div className="flex items-start gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-200 text-emerald-900 dark:bg-emerald-500/30 dark:text-emerald-100">
+              <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none">
+                <path
+                  d="M3 8l3 3 7-7"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-semibold text-emerald-900 dark:text-emerald-100">
+                Your report was imported successfully.
+              </p>
+              <div className="mt-3 grid grid-cols-3 gap-3">
+                <CountTile
+                  label="Tradelines"
+                  value={result?.tradelineCount ?? 0}
+                />
+                <CountTile
+                  label="Negative items"
+                  value={result?.negativeCount ?? 0}
+                />
+                <CountTile
+                  label="Dispute candidates"
+                  value={result?.candidateCount ?? 0}
+                />
+              </div>
+              <div className="mt-4 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(redirectTarget ?? "/dashboard/get-report?imported=1")
+                  }
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
+                >
+                  View dispute opportunities
+                  <span aria-hidden>→</span>
+                </button>
+                <span className="text-[11px] text-emerald-900/70 dark:text-emerald-100/70">
+                  Redirecting automatically…
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
-      {status === "err" && (
-        <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-[12px] text-rose-900 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
-          {message}
-        </p>
+
+      {status === "needs_review" && (
+        <div className="mt-5 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
+          <p className="font-semibold">{message}</p>
+          <p className="mt-1 text-[12px] text-sky-900/80 dark:text-sky-200/80">
+            We've stored your file securely. You'll get an email the moment
+            your dispute candidates are ready — typically within one business
+            day. You don't need to do anything else.
+          </p>
+        </div>
+      )}
+
+      {status === "failed" && (
+        <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+          <p className="font-semibold">Couldn't import that file.</p>
+          <p className="mt-1 text-[12px] text-rose-900/80 dark:text-rose-200/80">
+            {message}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setStatus("idle");
+              setMessage("");
+              setResult(null);
+              setRedirectTarget(null);
+              setPickedName(null);
+            }}
+            className="mt-3 inline-flex items-center gap-2 rounded-xl border border-rose-300 bg-transparent px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-500/40 dark:text-rose-300"
+          >
+            Try a different file
+          </button>
+        </div>
       )}
 
       <div className="mt-6 grid gap-3 rounded-2xl border border-violet-200/60 bg-white/40 p-4 text-[12px] leading-5 text-fg-muted dark:border-violet-500/20 dark:bg-surface/30 sm:grid-cols-2 sm:text-[13px]">
@@ -242,4 +340,24 @@ function Step({ n, children }: { n: number; children: React.ReactNode }) {
       <div className="leading-5">{children}</div>
     </div>
   );
+}
+
+function CountTile({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl bg-white/70 p-3 ring-1 ring-emerald-200/70 dark:bg-emerald-500/15 dark:ring-emerald-500/30">
+      <p className="text-2xl font-semibold tracking-tight text-emerald-900 dark:text-emerald-50">
+        {value.toLocaleString()}
+      </p>
+      <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-900/70 dark:text-emerald-100/70">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function defaultMessageFor(outcome: Outcome): string {
+  if (outcome === "imported") return "Your report was imported successfully.";
+  if (outcome === "needs_review")
+    return "We received your report. Our support team is reviewing it.";
+  return "Couldn't import that file. Please try uploading it again.";
 }

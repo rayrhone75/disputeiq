@@ -102,7 +102,28 @@ function recordEvent(
   }).catch(() => null);
 }
 
+// Customer-facing response contract. The client (`ManualUploadCard`)
+// branches on `outcome` and renders one of three states:
+//   - "imported"     → success card with counts + "View dispute
+//                      opportunities" CTA + auto-redirect.
+//   - "needs_review" → polite "support is reviewing" message; no
+//                      retry, no error styling.
+//   - "failed"       → retry-friendly error (the upload didn't go
+//                      through; the user can try again).
+//
+// `parseStatus` and the legacy fields (reportId, parsedCount, …) stay
+// for backward compatibility with any other callers / tests.
+type Outcome = "imported" | "needs_review" | "failed";
+
 type SuccessShape = {
+  outcome: Outcome;
+  confidence: "high" | "medium" | "low";
+  tradelineCount: number;
+  /** collections + publicRecords for the success path; 0 elsewhere. */
+  negativeCount?: number;
+  candidateCount: number | null;
+  importId: string | null;
+  // Legacy mirrors of the above for any older callers that still read them:
   reportId: string | null;
   parsedCount: number;
   parseStatus: "parsed" | "needs_manual_review";
@@ -137,6 +158,11 @@ export async function POST(req: NextRequest) {
     // eslint-disable-next-line no-console
     console.error("[upload-any] unhandled error", err);
     return jsonResponse({
+      outcome: "needs_review",
+      confidence: "low",
+      tradelineCount: 0,
+      candidateCount: null,
+      importId: null,
       reportId: null,
       parsedCount: 0,
       parseStatus: "needs_manual_review",
@@ -162,7 +188,10 @@ async function runUploadAny(
       parseStatus: "rejected",
       errorMessage: "UNAUTHENTICATED",
     });
-    return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    return NextResponse.json(
+      { error: "UNAUTHENTICATED", outcome: "failed" as Outcome },
+      { status: 401 },
+    );
   }
   const token = (await getToken({ template: "convex" })) ?? null;
 
@@ -306,6 +335,7 @@ async function runUploadAny(
         "pdf",
         ctx,
         "pdf-heuristic",
+        myscore.confidence,
       );
     }
   }
@@ -323,6 +353,11 @@ async function runUploadAny(
     tradelineCount: parsedPdf.tradelines.length,
   });
   return jsonResponse({
+    outcome: "needs_review",
+    confidence: "low",
+    tradelineCount: parsedPdf.tradelines.length,
+    candidateCount: null,
+    importId: null,
     reportId: legacyId,
     parsedCount: parsedPdf.tradelines.length,
     parseStatus: "needs_manual_review",
@@ -473,6 +508,7 @@ async function runJsonPipeline(
   detectedFormat: DetectedFormat,
   ctx: UploadCtx,
   parserPath: ParserPath,
+  sourceConfidence?: "high" | "medium",
 ): Promise<NextResponse> {
   const trimmed = text.trim();
   try {
@@ -485,13 +521,21 @@ async function runJsonPipeline(
       errorMessage: `JSON_INVALID: ${(err as Error).message.slice(0, 200)}`,
     });
     return jsonResponse({
+      // Genuine retry path — the file the user uploaded wasn't valid
+      // JSON, so a re-upload of a correct file fixes it. "failed" is
+      // the right outcome, not "needs_review".
+      outcome: "failed",
+      confidence: "low",
+      tradelineCount: 0,
+      candidateCount: null,
+      importId: null,
       reportId: null,
       parsedCount: 0,
       parseStatus: "needs_manual_review",
       reviewFlags: ["JSON_INVALID"],
       bureauGuess: null,
       detectedFormat,
-      message: `JSON is malformed: ${(err as Error).message.slice(0, 140)}`,
+      message: `That file isn't valid JSON. Try downloading the report again — it may have saved partially.`,
     });
   }
 
@@ -510,19 +554,20 @@ async function runJsonPipeline(
         parseStatus: "needs_manual_review",
         errorMessage: "CREATE_RETURNED_NULL",
       });
-      return jsonResponse(
-        {
-          reportId: null,
-          parsedCount: 0,
-          parseStatus: "needs_manual_review",
-          reviewFlags: ["CREATE_RETURNED_NULL"],
-          bureauGuess: null,
-          detectedFormat,
-          message:
-            "Could not create the import row. Try again or contact support.",
-        },
-        500,
-      );
+      return jsonResponse({
+        outcome: "needs_review",
+        confidence: "low",
+        tradelineCount: 0,
+        candidateCount: null,
+        importId: null,
+        reportId: null,
+        parsedCount: 0,
+        parseStatus: "needs_manual_review",
+        reviewFlags: ["CREATE_RETURNED_NULL"],
+        bureauGuess: null,
+        detectedFormat,
+        message: "We received your report. Our support team is reviewing it.",
+      });
     }
     await captureRaw(
       { token },
@@ -536,18 +581,20 @@ async function runJsonPipeline(
         parseStatus: "needs_manual_review",
         errorMessage: `JSON_${err.code}: ${err.message.slice(0, 200)}`,
       });
-      return jsonResponse(
-        {
-          reportId: null,
-          parsedCount: 0,
-          parseStatus: "needs_manual_review",
-          reviewFlags: [`JSON_${err.code}`],
-          bureauGuess: null,
-          detectedFormat,
-          message: err.message,
-        },
-        400,
-      );
+      return jsonResponse({
+        outcome: "needs_review",
+        confidence: "low",
+        tradelineCount: 0,
+        candidateCount: null,
+        importId: null,
+        reportId: null,
+        parsedCount: 0,
+        parseStatus: "needs_manual_review",
+        reviewFlags: [`JSON_${err.code}`],
+        bureauGuess: null,
+        detectedFormat,
+        message: "We received your report. Our support team is reviewing it.",
+      });
     }
     recordEvent(ctx, {
       parserPath,
@@ -555,38 +602,61 @@ async function runJsonPipeline(
       parseStatus: "needs_manual_review",
       errorMessage: `JSON_CAPTURE_ERROR: ${(err as Error).message.slice(0, 200)}`,
     });
-    return jsonResponse(
-      {
-        reportId: null,
-        parsedCount: 0,
-        parseStatus: "needs_manual_review",
-        reviewFlags: ["JSON_CAPTURE_ERROR"],
-        bureauGuess: null,
-        detectedFormat,
-        message: (err as Error).message,
-      },
-      500,
-    );
+    return jsonResponse({
+      outcome: "needs_review",
+      confidence: "low",
+      tradelineCount: 0,
+      candidateCount: null,
+      importId: null,
+      reportId: null,
+      parsedCount: 0,
+      parseStatus: "needs_manual_review",
+      reviewFlags: ["JSON_CAPTURE_ERROR"],
+      bureauGuess: null,
+      detectedFormat,
+      message: "We received your report. Our support team is reviewing it.",
+    });
   }
 
   try {
     const result = await runNormalization({ token }, { importId });
-    const parseStatus =
-      result.report.tradelines.length > 0 ? "parsed" : "needs_manual_review";
+    const tradelineCount = result.report.tradelines.length;
+    const candidateCount = result.candidatesCreated;
+    const negativeCount =
+      result.report.collections.length + result.report.publicRecords.length;
+    const imported = tradelineCount > 0;
+    const parseStatus = imported ? "parsed" : "needs_manual_review";
+    // For sources where the caller already knows the parse confidence
+    // (e.g. PDF/HTML/TXT going through the MyScoreIQ text parser),
+    // honor that. Otherwise infer from the tradeline count: any
+    // tradelines at all is "high" for a JSON upload that already
+    // matched the adapter's schema.
+    const confidence = imported
+      ? sourceConfidence ?? "high"
+      : "low";
     recordEvent(ctx, {
       parserPath,
       ok: true,
       parseStatus,
-      tradelineCount: result.report.tradelines.length,
-      candidateCount: result.candidatesCreated,
+      tradelineCount,
+      candidateCount,
     });
     return jsonResponse({
+      outcome: imported ? "imported" : "needs_review",
+      confidence,
+      tradelineCount,
+      negativeCount,
+      candidateCount,
+      importId: importId as unknown as string,
       reportId: importId as unknown as string,
-      parsedCount: result.report.tradelines.length,
+      parsedCount: tradelineCount,
       parseStatus,
       reviewFlags: result.report.validationWarnings,
       bureauGuess: result.report.bureausDetected[0] ?? null,
       detectedFormat,
+      message: imported
+        ? "Your report was imported successfully."
+        : "We received your report. Our support team is reviewing it.",
     });
   } catch (err) {
     const code =
@@ -598,14 +668,21 @@ async function runJsonPipeline(
       errorMessage: `${code}: ${(err as Error).message.slice(0, 200)}`,
     });
     return jsonResponse({
+      // File made it into the new pipeline (creditReportImports row
+      // exists), but normalization couldn't run. Admin can re-run; the
+      // customer doesn't need to do anything. → needs_review, not failed.
+      outcome: "needs_review",
+      confidence: "low",
+      tradelineCount: 0,
+      candidateCount: null,
+      importId: importId as unknown as string,
       reportId: importId as unknown as string,
       parsedCount: 0,
       parseStatus: "needs_manual_review",
       reviewFlags: [code],
       bureauGuess: null,
       detectedFormat,
-      message:
-        "Your file was uploaded but our parser couldn't analyze it automatically. Support will review it shortly.",
+      message: "We received your report. Our support team is reviewing it.",
     });
   }
 }
@@ -655,6 +732,7 @@ async function runTextOrEmbeddedJson(
       detectedFormat,
       ctx,
       fallbackParserPath,
+      myscore.confidence,
     );
   }
 
@@ -684,14 +762,18 @@ async function runTextOrEmbeddedJson(
         : undefined,
   });
   return jsonResponse({
+    outcome: "needs_review",
+    confidence: "low",
+    tradelineCount: result.tradelines.length,
+    candidateCount: null,
+    importId: null,
     reportId: legacyId,
     parsedCount: result.tradelines.length,
     parseStatus: "needs_manual_review",
     reviewFlags: result.reviewFlags.concat(myscore.reasonCodes),
     bureauGuess: result.bureauGuess ?? null,
     detectedFormat,
-    message:
-      "We received your report. Our support team is reviewing it.",
+    message: "We received your report. Our support team is reviewing it.",
   });
 }
 
@@ -782,6 +864,7 @@ function jsonResponse(body: SuccessShape, status = 200): NextResponse {
   return NextResponse.json(
     {
       ...body,
+      negativeCount: body.negativeCount ?? 0,
       redirectTo: body.redirectTo ?? "/dashboard/get-report?imported=1",
     },
     { status },
