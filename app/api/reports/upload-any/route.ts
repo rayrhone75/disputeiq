@@ -114,17 +114,46 @@ type SuccessShape = {
 };
 
 export async function POST(req: NextRequest) {
-  const { userId, getToken } = await auth();
-
-  // Build the logging context as soon as we know who we are. Filled in
-  // further once the file is parsed; passed to every helper so each
-  // return point records exactly one importHealthEvents row.
+  // Hard rule: this endpoint must never return 5xx. Acceptance
+  // criterion #5 ("failed parse never breaks customer experience") is
+  // load-bearing — any unexpected throw becomes a 200 with the same
+  // friendly "we received your report" message, plus an
+  // importHealthEvents row so an admin can investigate.
   const ctx: UploadCtx = {
-    clerkUserId: userId ?? null,
+    clerkUserId: null,
     fileName: null,
     fileSize: null,
     format: "unknown",
   };
+  try {
+    return await runUploadAny(req, ctx);
+  } catch (err) {
+    recordEvent(ctx, {
+      parserPath: ctx.format === "unknown" ? "rejected" : "rejected",
+      ok: false,
+      parseStatus: "needs_manual_review",
+      errorMessage: `UNHANDLED: ${(err as Error).message.slice(0, 400)}`,
+    });
+    // eslint-disable-next-line no-console
+    console.error("[upload-any] unhandled error", err);
+    return jsonResponse({
+      reportId: null,
+      parsedCount: 0,
+      parseStatus: "needs_manual_review",
+      reviewFlags: ["UNHANDLED_ERROR"],
+      bureauGuess: null,
+      detectedFormat: ctx.format,
+      message: "We received your report. Our support team is reviewing it.",
+    });
+  }
+}
+
+async function runUploadAny(
+  req: NextRequest,
+  ctx: UploadCtx,
+): Promise<NextResponse> {
+  const { userId, getToken } = await auth();
+  ctx.clerkUserId = userId ?? null;
 
   if (!userId) {
     recordEvent(ctx, {
@@ -671,10 +700,16 @@ async function writeLegacyText(
   token: string | null,
   parsed: Pick<ParseResult, "tradelines" | "reviewFlags" | "bureauGuess">,
   rawSecureRef: string | undefined,
-): Promise<string> {
-  const created = await fetchMutation(
-    api.creditReports.createReport,
-    {
+): Promise<string | null> {
+  // Returns null on any failure — legacy creditReports may reject the
+  // call (USER_NOT_MIRRORED for very-new accounts, schema drift, token
+  // expiry, transient blip). The new pipeline's captureRaw stub still
+  // gives admins a copy to review, so we never want this to throw all
+  // the way out and turn into a 500 for the customer.
+  try {
+    const created = await fetchMutation(
+      api.creditReports.createReport,
+      {
       source: "MANUAL_UPLOAD",
       snapshotHash: crypto.randomBytes(16).toString("hex"),
       rawSecureRef,
@@ -707,7 +742,10 @@ async function writeLegacyText(
     },
     { token: token ?? undefined },
   );
-  return created.id as string;
+    return (created?.id as string) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // Best-effort capture into the new pipeline so admins can see the file
