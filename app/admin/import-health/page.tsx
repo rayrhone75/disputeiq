@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { fetchQuery } from "convex/nextjs";
@@ -218,9 +219,17 @@ export default async function AdminImportHealthPage() {
             </thead>
             <tbody>
               {recent.map((e) => (
-                <tr key={e._id} className="border-t border-border">
+                <tr
+                  key={e._id}
+                  className="border-t border-border hover:bg-surface-muted/40"
+                >
                   <td className="py-2 pr-3 whitespace-nowrap text-fg-muted">
-                    {new Date(e.createdAt).toLocaleString()}
+                    <Link
+                      href={`/admin/import-health/${e._id}`}
+                      className="hover:text-fg hover:underline"
+                    >
+                      {new Date(e.createdAt).toLocaleString()}
+                    </Link>
                   </td>
                   <td className="py-2 pr-3 font-mono">
                     {e.actorEmail ?? (

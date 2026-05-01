@@ -170,6 +170,35 @@ export type ImportHealthRecent = Array<
 >;
 
 /**
+ * Single event detail for the /admin/import-health/[id] drill-down.
+ * Hydrates the customer's email by Clerk subject so the page can show
+ * a useful header without a second round-trip.
+ */
+export const byId = query({
+  args: { id: v.id("importHealthEvents") },
+  handler: async (
+    ctx,
+    { id },
+  ): Promise<
+    | (Doc<"importHealthEvents"> & { actorEmail: string | null })
+    | null
+  > => {
+    await requireRole(ctx, ["OWNER", "ADMIN", "SUPPORT"]);
+    const row = await ctx.db.get(id);
+    if (!row) return null;
+    let actorEmail: string | null = null;
+    if (row.clerkUserId) {
+      const u = await ctx.db
+        .query("users")
+        .withIndex("by_clerk", (q) => q.eq("clerkUserId", row.clerkUserId!))
+        .unique();
+      if (u) actorEmail = u.email;
+    }
+    return { ...row, actorEmail };
+  },
+});
+
+/**
  * Latest N attempts with the customer's email hydrated for display. The
  * admin table renders one row per import-health event.
  */

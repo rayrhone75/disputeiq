@@ -1,0 +1,112 @@
+MyScoreIQ Tri-Merge Credit Report
+Report Date: 04/30/2026
+Member ID: 12345678
+
+Personal Information
+Name: Jane Q Consumer
+SSN: XXX-XX-6789
+Date of Birth: 04/12/1985
+Current Address: 123 Maple Street, Oakland, CA 94601
+Phone: 510-555-0101
+Employer: Acme Corp
+
+Credit Score
+Experian: 642 (FICO 8)
+Equifax: 651 (FICO 8)
+TransUnion: 638 (FICO 8)
+
+Summary
+Total Accounts: 5
+Open Accounts: 3
+Closed Accounts: 2
+Delinquent: 1
+Collections: 1
+Public Records: 1
+Hard Inquiries: 2
+
+Account History
+
+CAPITAL ONE
+Account Number: XXXXXXXXXXXX1234
+Account Type: Credit Card
+Status: Past Due
+Balance: $1,850.52
+High Balance: $2,000.00
+Credit Limit: $2,000.00
+Past Due: $150.00
+Monthly Payment: $35.00
+Date Opened: 03/15/2019
+Last Reported: 11/30/2025
+Last Activity: 10/15/2025
+Payment History: OK OK 30 60 OK OK OK OK OK OK OK OK
+Comments: Account in delinquency
+Bureau: Experian Equifax TransUnion
+
+BANK OF AMERICA MORTGAGE
+Account Number: XXXXXXXXXXXX5678
+Account Type: Mortgage
+Status: Current
+Balance: $245,000.00
+High Balance: $300,000.00
+Monthly Payment: $1,850.00
+Date Opened: 06/01/2010
+Last Reported: 04/01/2026
+Payment History: OK OK OK OK OK OK OK OK OK OK OK OK
+Comments: Account in good standing
+Bureau: Experian Equifax TransUnion
+
+CHASE AUTO LOAN
+Account Number: XXXXXXXXXXXX9012
+Account Type: Auto Loan / Installment
+Status: Charged Off
+Balance: $8,420.00
+High Balance: $25,000.00
+Monthly Payment: $0.00
+Date Opened: 08/20/2017
+Last Reported: 03/15/2026
+Payment History: OK OK OK 30 60 90 120 CO CO CO CO CO
+Comments: Charged off as bad debt
+Bureau: Experian Equifax TransUnion
+
+PORTFOLIO RECOVERY
+Account Number: XXXXXXXXXXXX3456
+Account Type: Collection
+Status: Open Collection
+Balance: $1,250.00
+Original Balance: $1,400.00
+Date Opened: 02/10/2024
+Last Reported: 04/15/2026
+Comments: Placed for collection
+Bureau: Experian Equifax TransUnion
+
+QUEST DIAGNOSTICS MEDICAL
+Account Number: XXXXXXXXXXXX7890
+Account Type: Medical Collection
+Status: Open Collection
+Balance: $475.00
+Original Balance: $475.00
+Date Opened: 09/05/2024
+Last Reported: 04/15/2026
+Comments: Medical debt placed for collection
+Bureau: Experian Equifax TransUnion
+
+Inquiries
+Chase Bank - 03/15/2026 - Hard - Experian
+Discover Card - 02/01/2026 - Hard - Equifax
+ABC Insurance - 01/15/2026 - Soft - TransUnion
+
+Public Records
+
+Bankruptcy Chapter 7
+Court: US Bankruptcy Court Northern District CA
+Case Number: 19-12345
+Date Filed: 06/12/2019
+Status: Discharged
+Bureau: Experian Equifax TransUnion
+
+Creditor Contacts
+Capital One - PO Box 30285, Salt Lake City, UT 84130
+Bank of America - PO Box 851001, Dallas, TX 75285
+Chase Auto - PO Box 901003, Fort Worth, TX 76101
+Portfolio Recovery - 120 Corporate Blvd, Norfolk, VA 23502
+Quest Diagnostics - PO Box 740709, Cincinnati, OH 45274

@@ -16,6 +16,7 @@ import {
   runNormalization,
   ImportRunnerError,
 } from "@/lib/credit-import/runner";
+import { parseMyScoreIQText } from "@/lib/credit-import/myscoreiq-text";
 
 // One endpoint to rule them all. Customers upload a credit report from
 // MyScoreIQ in any of four shapes:
@@ -262,31 +263,44 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Fall back to legacy heuristic write so /dashboard/reports has rows
-  // and support can review. Also call createImport+captureRaw so the
-  // import is visible in the new pipeline (FAILED state, but visible).
-  const legacyId = await writeLegacyText(token, parsedPdf, pdfRef);
-  await captureForReview(token, parsedPdf.text || "", "MYSCOREIQ_PDF");
+  // Run the dedicated MyScoreIQ text parser on the extracted PDF text.
+  // When it lands ≥ medium confidence we feed its JSON output through
+  // the same pipeline as a real JSON upload — the customer sees real
+  // tradelines and dispute candidates from the PDF without any new
+  // persistence code.
+  if (parsedPdf.text) {
+    const myscore = parseMyScoreIQText(parsedPdf.text);
+    if (myscore.confidence !== "low" && myscore.counts.tradelines > 0) {
+      return await runJsonPipeline(
+        token,
+        JSON.stringify(myscore.json),
+        "pdf",
+        ctx,
+        "pdf-heuristic",
+      );
+    }
+  }
 
-  const pdfParseStatus =
-    parsedPdf.tradelines.length > 0 ? "parsed" : "needs_manual_review";
+  // Low-confidence PDF — capture for admin review, write any tradelines
+  // the legacy heuristic could find to creditReports for /dashboard/
+  // reports visibility, and surface the friendly customer message.
+  const legacyId = await writeLegacyText(token, parsedPdf, pdfRef);
+  await captureForReview(token, parsedPdf.text || "", "MYSCOREIQ_PDF_LOW_CONFIDENCE");
+
   recordEvent(ctx, {
     parserPath: "pdf-heuristic",
     ok: true,
-    parseStatus: pdfParseStatus,
+    parseStatus: "needs_manual_review",
     tradelineCount: parsedPdf.tradelines.length,
   });
   return jsonResponse({
     reportId: legacyId,
     parsedCount: parsedPdf.tradelines.length,
-    parseStatus: pdfParseStatus,
+    parseStatus: "needs_manual_review",
     reviewFlags: parsedPdf.reviewFlags,
     bureauGuess: parsedPdf.bureauGuess ?? null,
     detectedFormat: "pdf",
-    message:
-      parsedPdf.tradelines.length > 0
-        ? `We extracted ${parsedPdf.tradelines.length} tradelines from your PDF. Support will verify and any missing items will be added shortly.`
-        : "We received your PDF. Our parser couldn't auto-extract tradelines from this layout — support will review it within one business day.",
+    message: "We received your report. Our support team is reviewing it.",
   });
 }
 
@@ -568,6 +582,23 @@ async function runJsonPipeline(
 }
 
 // ── Text path ────────────────────────────────────────────────────────────
+//
+// Three-step ladder, applied in order:
+//   1. If the text contains an embedded MyScoreIQ JSON blob (rare —
+//      some Print views inline it), pull it out and run the full JSON
+//      pipeline. Cleanest possible outcome.
+//   2. Otherwise run the dedicated MyScoreIQ text parser
+//      (lib/credit-import/myscoreiq-text.ts). When it returns
+//      confidence ≥ "medium", build a JSON payload in the adapter's
+//      shape and feed it through the SAME JSON pipeline — the
+//      customer sees real tradelines and dispute candidates without
+//      any new persistence code on our side.
+//   3. Confidence "low" means the parser couldn't find a tri-merge
+//      structure. Capture the raw text into the new pipeline so
+//      admins can review, write a legacy creditReports row for any
+//      tradelines the heuristic found, and return the friendly
+//      "We received your report. Our support team is reviewing it."
+//      message — never an error.
 async function runTextOrEmbeddedJson(
   token: string | null,
   text: string,
@@ -575,7 +606,6 @@ async function runTextOrEmbeddedJson(
   ctx: UploadCtx,
   fallbackParserPath: ParserPath,
 ): Promise<NextResponse> {
-  // Try embedded JSON first. Some MyScoreIQ exports include it inline.
   const embedded = sniffEmbeddedJson(text);
   if (embedded) {
     return await runJsonPipeline(
@@ -587,7 +617,21 @@ async function runTextOrEmbeddedJson(
     );
   }
 
-  // Heuristic text parse → legacy table.
+  // Dedicated MyScoreIQ text parser.
+  const myscore = parseMyScoreIQText(text);
+  if (myscore.confidence !== "low" && myscore.counts.tradelines > 0) {
+    return await runJsonPipeline(
+      token,
+      JSON.stringify(myscore.json),
+      detectedFormat,
+      ctx,
+      fallbackParserPath,
+    );
+  }
+
+  // Low-confidence fallback. Capture the raw text into the new
+  // pipeline so admins can review, and run the legacy heuristic so
+  // anything we can extract still lands in /dashboard/reports.
   const result = parseReportText(text);
   const legacyId = await writeLegacyText(
     token,
@@ -598,27 +642,27 @@ async function runTextOrEmbeddedJson(
     },
     undefined,
   );
-  await captureForReview(token, text, "MYSCOREIQ_TEXT");
+  await captureForReview(token, text, "MYSCOREIQ_TEXT_LOW_CONFIDENCE");
 
-  const parseStatus =
-    result.tradelines.length > 0 ? "parsed" : "needs_manual_review";
   recordEvent(ctx, {
     parserPath: fallbackParserPath,
     ok: true,
-    parseStatus,
+    parseStatus: "needs_manual_review",
     tradelineCount: result.tradelines.length,
+    errorMessage:
+      myscore.reasonCodes.length > 0
+        ? `LOW_CONFIDENCE: ${myscore.reasonCodes.join(",")}`
+        : undefined,
   });
   return jsonResponse({
     reportId: legacyId,
     parsedCount: result.tradelines.length,
-    parseStatus,
-    reviewFlags: result.reviewFlags,
+    parseStatus: "needs_manual_review",
+    reviewFlags: result.reviewFlags.concat(myscore.reasonCodes),
     bureauGuess: result.bureauGuess ?? null,
     detectedFormat,
     message:
-      result.tradelines.length > 0
-        ? `We extracted ${result.tradelines.length} tradelines from your file. Support will verify and any missing items will be added shortly.`
-        : "We received your file. Our parser couldn't auto-extract tradelines from this format — support will review it within one business day.",
+      "We received your report. Our support team is reviewing it.",
   });
 }
 
