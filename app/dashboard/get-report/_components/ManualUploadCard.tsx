@@ -113,11 +113,15 @@ export function ManualUploadCard() {
       const target = data?.redirectTo ?? "/dashboard/get-report?imported=1";
       setRedirectTarget(target);
 
-      // Auto-redirect ONLY for imported. needs_review and failed stay
-      // on the page so the customer reads the message and can re-try
-      // or contact support without being whisked away.
-      if (outcome === "imported") {
-        setTimeout(() => router.push(target), 1800);
+      // Auto-redirect for both imported AND needs_review — the
+      // customer's file is in our system either way, and the results
+      // page knows how to show the right state (real numbers when
+      // available, an "analyzing your report" loader otherwise). The
+      // only outcome that keeps them here is `failed`, where they need
+      // to re-pick a file.
+      if (outcome === "imported" || outcome === "needs_review") {
+        const delay = outcome === "imported" ? 1500 : 800;
+        setTimeout(() => router.push(target), delay);
       }
     } catch (err) {
       setStatus("failed");
@@ -272,13 +276,12 @@ export function ManualUploadCard() {
       )}
 
       {status === "needs_review" && (
-        <div className="mt-5 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
-          <p className="font-semibold">{message}</p>
-          <p className="mt-1 text-[12px] text-sky-900/80 dark:text-sky-200/80">
-            We've stored your file securely. You'll get an email the moment
-            your dispute candidates are ready — typically within one business
-            day. You don't need to do anything else.
-          </p>
+        <div className="mt-5 flex items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
+          <span
+            aria-hidden
+            className="inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-sky-600/30 border-t-sky-600 dark:border-sky-300/30 dark:border-t-sky-300"
+          />
+          <p className="font-semibold">Loading your report…</p>
         </div>
       )}
 
@@ -357,7 +360,9 @@ function CountTile({ label, value }: { label: string; value: number }) {
 
 function defaultMessageFor(outcome: Outcome): string {
   if (outcome === "imported") return "Your report was imported successfully.";
-  if (outcome === "needs_review")
-    return "We received your report. Our support team is reviewing it.";
+  // needs_review never displays this message — the UI shows a brief
+  // "Loading your report…" loader and redirects to the results page —
+  // but we keep a sensible default for any future caller.
+  if (outcome === "needs_review") return "Loading your report…";
   return "Couldn't import that file. Please try uploading it again.";
 }

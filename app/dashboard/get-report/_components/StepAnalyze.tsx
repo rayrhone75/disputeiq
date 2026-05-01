@@ -37,7 +37,10 @@ export function StepAnalyze({
   useEffect(() => {
     // Run a soft progression — each stage takes ~1.6s. If the import
     // finishes before the animation does, we fast-forward through the
-    // remaining stages and trigger onDone.
+    // remaining stages. We always call onDone once the animation
+    // completes so the customer never gets stuck on this screen even
+    // if normalization couldn't extract structured data — StepResults
+    // still renders sensibly with a partial snapshot.
     let cancelled = false;
     let i = 0;
     const tick = async () => {
@@ -53,8 +56,8 @@ export function StepAnalyze({
         });
         i += 1;
       }
-      if (!cancelled && imported) {
-        await sleep(700);
+      if (!cancelled) {
+        await sleep(imported ? 700 : 400);
         if (!cancelled) onDone();
       }
     };

@@ -86,23 +86,37 @@ export function GetReportClient({
     return () => window.clearInterval(id);
   }, [snapshot.kind, refresh]);
 
-  // Auto-advance the perceived state. Once snapshot turns "in_progress"
-  // the animated analyze screen takes over; once "ready" we land on
-  // results. analyzeReached makes the transition sticky if the snapshot
-  // briefly dips back to "none" between polls.
+  // Auto-advance the perceived state. Once snapshot turns
+  // "in_progress" the animated analyze screen takes over; once "ready"
+  // we land on results. analyzeReached makes the transition sticky if
+  // the snapshot briefly dips back to "none" between polls.
+  //
+  // `justImported` is the load-bearing escape hatch: the upload card
+  // sets ?imported=1 on every successful submission. The customer's
+  // file IS in our system at that point (creditReportImports row
+  // exists, even if normalization couldn't extract tradelines), so we
+  // pin them to the analyze screen until the snapshot catches up.
+  // Without this, snapshot.kind === "failed" or "none" would drop the
+  // customer back to the upload card — exactly the dead-end report we
+  // had to fix.
   useEffect(() => {
     if (!loaded) return;
+    if (justImported) setAnalyzeReached(true);
     if (snapshot.kind === "in_progress") setAnalyzeReached(true);
+    if (snapshot.kind === "failed") setAnalyzeReached(true);
     if (snapshot.kind === "ready") {
       setAnalyzeReached(true);
       setResultsReached(true);
     }
-  }, [loaded, snapshot.kind]);
+  }, [loaded, snapshot.kind, justImported]);
 
   const phase: "hero" | "analyze" | "results" =
     resultsReached || snapshot.kind === "ready"
       ? "results"
-      : analyzeReached || snapshot.kind === "in_progress"
+      : analyzeReached ||
+          snapshot.kind === "in_progress" ||
+          snapshot.kind === "failed" ||
+          justImported
         ? "analyze"
         : "hero";
 
