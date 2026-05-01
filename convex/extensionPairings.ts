@@ -9,7 +9,7 @@
 
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireUser } from "./helpers";
+import { currentUserOrNull, requireUser } from "./helpers";
 import type { Id } from "./_generated/dataModel";
 
 function assertInternalSecret(secret: string) {
@@ -29,7 +29,14 @@ function assertInternalSecret(secret: string) {
 export const listMine = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireUser(ctx);
+    // Use the non-throwing variant so first-time users (Clerk identity
+    // exists but no Convex users row yet) get an empty list instead of
+    // a "USER_NOT_MIRRORED" exception. The exception form was bubbling
+    // through fetchQuery as a generic "Server Error" and turning the
+    // dashboard's connector card into a red banner for every new
+    // account on first visit.
+    const user = await currentUserOrNull(ctx);
+    if (!user) return [];
     const rows = await ctx.db
       .query("extensionPairings")
       .withIndex("by_user", (q) => q.eq("userId", user._id))

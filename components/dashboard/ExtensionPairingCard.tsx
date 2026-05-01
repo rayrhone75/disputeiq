@@ -335,17 +335,21 @@ export function ExtensionPairingCard() {
       </div>
 
       {list.kind === "loading" ? null : list.kind === "error" ? (
+        // Status couldn't load (rare — Convex blip, network drop). We
+        // deliberately don't show a red banner here: the page shouldn't
+        // look broken for a first-time customer who has no pairings
+        // anyway. Silent neutral hint + a quiet retry link.
         <div className="mt-5 border-t border-indigo-200/60 pt-4 dark:border-indigo-500/20">
-          <div className="flex items-start justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-[12px] text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
-            <span>Connector status unavailable — {list.message}</span>
+          <p className="text-[12px] text-fg-subtle">
+            No connector paired yet.{" "}
             <button
               type="button"
               onClick={() => void refreshList()}
-              className="shrink-0 rounded-lg border border-rose-300 bg-transparent px-2.5 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-500/40 dark:text-rose-300"
+              className="underline underline-offset-2 hover:text-fg"
             >
-              Retry
+              Refresh status
             </button>
-          </div>
+          </p>
         </div>
       ) : activePairings.length === 0 ? (
         <div className="mt-5 border-t border-indigo-200/60 pt-5 dark:border-indigo-500/20">
