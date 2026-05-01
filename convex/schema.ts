@@ -669,6 +669,54 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_import_bureau", ["importId", "bureau"]),
 
+  // One row per upload attempt at /api/reports/upload-any. Append-only;
+  // never edited or deleted. Powers /admin/import-health so we can spot
+  // if a particular file format / parser branch is silently failing in
+  // production. Stores no PII — only counts, the parser branch taken,
+  // and a truncated error message when one applies.
+  importHealthEvents: defineTable({
+    // Clerk subject — may be undefined in the rare case auth fails
+    // mid-request (e.g., session expiry between auth check and log).
+    clerkUserId: v.optional(v.string()),
+    // Detected file format. "unknown" means we rejected the upload.
+    format: v.union(
+      v.literal("json"),
+      v.literal("pdf"),
+      v.literal("html"),
+      v.literal("txt"),
+      v.literal("unknown"),
+    ),
+    // Which branch the route ultimately ran. "embedded-json" means we
+    // sniffed JSON inside a PDF/HTML/TXT body. "rejected" is the
+    // pre-parse rejection path (unsupported, oversized, malformed
+    // multipart). The five non-"rejected" values mirror the five paths
+    // the user asked us to track.
+    parserPath: v.union(
+      v.literal("json"),
+      v.literal("embedded-json"),
+      v.literal("pdf-heuristic"),
+      v.literal("html-heuristic"),
+      v.literal("txt-heuristic"),
+      v.literal("rejected"),
+    ),
+    ok: v.boolean(),
+    // Mirrors what the route returns to the client: "parsed",
+    // "needs_manual_review", or "rejected". Helps separate "truly
+    // failed" from "uploaded but parser couldn't extract structured
+    // data".
+    parseStatus: v.optional(v.string()),
+    tradelineCount: v.number(),
+    candidateCount: v.optional(v.number()),
+    fileSize: v.optional(v.number()),
+    fileName: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_created", ["createdAt"])
+    .index("by_user_created", ["clerkUserId", "createdAt"])
+    .index("by_format_created", ["format", "createdAt"])
+    .index("by_ok_created", ["ok", "createdAt"]),
+
   creditDisputeCandidates: defineTable({
     importId: v.id("creditReportImports"),
     tradelineId: v.optional(v.id("creditTradelines")),

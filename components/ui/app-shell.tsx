@@ -28,6 +28,7 @@ const NAV_ADMIN: NavItem[] = [
   { href: "/admin/pricing", label: "Pricing" },
   { href: "/admin/reports", label: "Report Diagnostics" },
   { href: "/admin/credit-imports", label: "Credit Imports" },
+  { href: "/admin/import-health", label: "Import Health" },
   { href: "/admin/audit-logs", label: "Audit Log" },
   { href: "/admin/mail-jobs", label: "Mail Jobs" },
   { href: "/admin/growth", label: "Growth Console" },

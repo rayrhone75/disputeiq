@@ -52,6 +52,55 @@ const MAX_BYTES = 25 * 1024 * 1024;
 
 type DetectedFormat = "json" | "pdf" | "html" | "txt" | "unknown";
 
+type ParserPath =
+  | "json"
+  | "embedded-json"
+  | "pdf-heuristic"
+  | "html-heuristic"
+  | "txt-heuristic"
+  | "rejected";
+
+// Context carried through every helper so the import-health log can
+// attribute each event back to its user + file. Built once at the top
+// of POST after auth + file extraction.
+type UploadCtx = {
+  clerkUserId: string | null;
+  fileName: string | null;
+  fileSize: number | null;
+  format: DetectedFormat;
+};
+
+// Fire-and-forget logger. Never throws — a Convex blip must not block
+// the actual upload response. Telemetry being best-effort matters more
+// than catching every event.
+function recordEvent(
+  ctx: UploadCtx,
+  outcome: {
+    parserPath: ParserPath;
+    ok: boolean;
+    parseStatus?: string;
+    tradelineCount?: number;
+    candidateCount?: number;
+    errorMessage?: string;
+  },
+): void {
+  const secret = process.env.INTERNAL_SERVICE_SECRET ?? "";
+  if (!secret) return;
+  void fetchMutation(api.importHealth.record, {
+    secret,
+    clerkUserId: ctx.clerkUserId ?? undefined,
+    format: ctx.format,
+    parserPath: outcome.parserPath,
+    ok: outcome.ok,
+    parseStatus: outcome.parseStatus,
+    tradelineCount: outcome.tradelineCount ?? 0,
+    candidateCount: outcome.candidateCount,
+    fileSize: ctx.fileSize ?? undefined,
+    fileName: ctx.fileName ?? undefined,
+    errorMessage: outcome.errorMessage,
+  }).catch(() => null);
+}
+
 type SuccessShape = {
   reportId: string | null;
   parsedCount: number;
@@ -65,7 +114,24 @@ type SuccessShape = {
 
 export async function POST(req: NextRequest) {
   const { userId, getToken } = await auth();
+
+  // Build the logging context as soon as we know who we are. Filled in
+  // further once the file is parsed; passed to every helper so each
+  // return point records exactly one importHealthEvents row.
+  const ctx: UploadCtx = {
+    clerkUserId: userId ?? null,
+    fileName: null,
+    fileSize: null,
+    format: "unknown",
+  };
+
   if (!userId) {
+    recordEvent(ctx, {
+      parserPath: "rejected",
+      ok: false,
+      parseStatus: "rejected",
+      errorMessage: "UNAUTHENTICATED",
+    });
     return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
   }
   const token = (await getToken({ template: "convex" })) ?? null;
@@ -74,6 +140,12 @@ export async function POST(req: NextRequest) {
   try {
     form = await req.formData();
   } catch (err) {
+    recordEvent(ctx, {
+      parserPath: "rejected",
+      ok: false,
+      parseStatus: "rejected",
+      errorMessage: `BAD_FORM: ${(err as Error).message.slice(0, 200)}`,
+    });
     return NextResponse.json(
       { error: "BAD_FORM", message: (err as Error).message },
       { status: 400 },
@@ -82,12 +154,27 @@ export async function POST(req: NextRequest) {
 
   const file = form.get("file") as File | null;
   if (!file) {
+    recordEvent(ctx, {
+      parserPath: "rejected",
+      ok: false,
+      parseStatus: "rejected",
+      errorMessage: "BAD_REQUEST: missing file field",
+    });
     return NextResponse.json(
       { error: "BAD_REQUEST", message: "Attach a file as `file`." },
       { status: 400 },
     );
   }
+  ctx.fileName = file.name || null;
+  ctx.fileSize = file.size;
+
   if (file.size > MAX_BYTES) {
+    recordEvent(ctx, {
+      parserPath: "rejected",
+      ok: false,
+      parseStatus: "rejected",
+      errorMessage: `FILE_TOO_LARGE: ${file.size} bytes`,
+    });
     return NextResponse.json(
       {
         error: "FILE_TOO_LARGE",
@@ -100,8 +187,15 @@ export async function POST(req: NextRequest) {
   const buf = Buffer.from(await file.arrayBuffer());
   const lowerName = (file.name || "").toLowerCase();
   const detected = detectFormat(buf, lowerName, file.type);
+  ctx.format = detected;
 
   if (detected === "unknown") {
+    recordEvent(ctx, {
+      parserPath: "rejected",
+      ok: false,
+      parseStatus: "rejected",
+      errorMessage: `UNSUPPORTED_FORMAT: name=${lowerName} mime=${file.type}`,
+    });
     return NextResponse.json(
       {
         error: "UNSUPPORTED_FORMAT",
@@ -115,20 +209,26 @@ export async function POST(req: NextRequest) {
   // ── JSON (or text that happens to start with `{`) ────────────────────
   if (detected === "json") {
     const text = buf.toString("utf8");
-    return await runJsonPipeline(token, text, "json");
+    return await runJsonPipeline(token, text, "json", ctx, "json");
   }
 
   // ── TXT ──────────────────────────────────────────────────────────────
   if (detected === "txt") {
     const text = buf.toString("utf8");
-    return await runTextOrEmbeddedJson(token, text, "txt");
+    return await runTextOrEmbeddedJson(token, text, "txt", ctx, "txt-heuristic");
   }
 
   // ── HTML ─────────────────────────────────────────────────────────────
   if (detected === "html") {
     const html = buf.toString("utf8");
     const text = stripHtml(html);
-    return await runTextOrEmbeddedJson(token, text, "html");
+    return await runTextOrEmbeddedJson(
+      token,
+      text,
+      "html",
+      ctx,
+      "html-heuristic",
+    );
   }
 
   // ── PDF ──────────────────────────────────────────────────────────────
@@ -152,7 +252,13 @@ export async function POST(req: NextRequest) {
   if (parsedPdf.text) {
     const embedded = sniffEmbeddedJson(parsedPdf.text);
     if (embedded) {
-      return await runJsonPipeline(token, embedded, "pdf");
+      return await runJsonPipeline(
+        token,
+        embedded,
+        "pdf",
+        ctx,
+        "embedded-json",
+      );
     }
   }
 
@@ -162,11 +268,18 @@ export async function POST(req: NextRequest) {
   const legacyId = await writeLegacyText(token, parsedPdf, pdfRef);
   await captureForReview(token, parsedPdf.text || "", "MYSCOREIQ_PDF");
 
+  const pdfParseStatus =
+    parsedPdf.tradelines.length > 0 ? "parsed" : "needs_manual_review";
+  recordEvent(ctx, {
+    parserPath: "pdf-heuristic",
+    ok: true,
+    parseStatus: pdfParseStatus,
+    tradelineCount: parsedPdf.tradelines.length,
+  });
   return jsonResponse({
     reportId: legacyId,
     parsedCount: parsedPdf.tradelines.length,
-    parseStatus:
-      parsedPdf.tradelines.length > 0 ? "parsed" : "needs_manual_review",
+    parseStatus: pdfParseStatus,
     reviewFlags: parsedPdf.reviewFlags,
     bureauGuess: parsedPdf.bureauGuess ?? null,
     detectedFormat: "pdf",
@@ -315,11 +428,19 @@ async function runJsonPipeline(
   token: string | null,
   text: string,
   detectedFormat: DetectedFormat,
+  ctx: UploadCtx,
+  parserPath: ParserPath,
 ): Promise<NextResponse> {
   const trimmed = text.trim();
   try {
     JSON.parse(trimmed);
   } catch (err) {
+    recordEvent(ctx, {
+      parserPath,
+      ok: false,
+      parseStatus: "needs_manual_review",
+      errorMessage: `JSON_INVALID: ${(err as Error).message.slice(0, 200)}`,
+    });
     return jsonResponse({
       reportId: null,
       parsedCount: 0,
@@ -340,6 +461,12 @@ async function runJsonPipeline(
     importId =
       (created as { _id: Id<"creditReportImports"> } | null)?._id ?? null;
     if (!importId) {
+      recordEvent(ctx, {
+        parserPath,
+        ok: false,
+        parseStatus: "needs_manual_review",
+        errorMessage: "CREATE_RETURNED_NULL",
+      });
       return jsonResponse(
         {
           reportId: null,
@@ -360,6 +487,12 @@ async function runJsonPipeline(
     );
   } catch (err) {
     if (err instanceof ImportRunnerError) {
+      recordEvent(ctx, {
+        parserPath,
+        ok: false,
+        parseStatus: "needs_manual_review",
+        errorMessage: `JSON_${err.code}: ${err.message.slice(0, 200)}`,
+      });
       return jsonResponse(
         {
           reportId: null,
@@ -373,6 +506,12 @@ async function runJsonPipeline(
         400,
       );
     }
+    recordEvent(ctx, {
+      parserPath,
+      ok: false,
+      parseStatus: "needs_manual_review",
+      errorMessage: `JSON_CAPTURE_ERROR: ${(err as Error).message.slice(0, 200)}`,
+    });
     return jsonResponse(
       {
         reportId: null,
@@ -389,13 +528,19 @@ async function runJsonPipeline(
 
   try {
     const result = await runNormalization({ token }, { importId });
+    const parseStatus =
+      result.report.tradelines.length > 0 ? "parsed" : "needs_manual_review";
+    recordEvent(ctx, {
+      parserPath,
+      ok: true,
+      parseStatus,
+      tradelineCount: result.report.tradelines.length,
+      candidateCount: result.candidatesCreated,
+    });
     return jsonResponse({
       reportId: importId as unknown as string,
       parsedCount: result.report.tradelines.length,
-      parseStatus:
-        result.report.tradelines.length > 0
-          ? "parsed"
-          : "needs_manual_review",
+      parseStatus,
       reviewFlags: result.report.validationWarnings,
       bureauGuess: result.report.bureausDetected[0] ?? null,
       detectedFormat,
@@ -403,6 +548,12 @@ async function runJsonPipeline(
   } catch (err) {
     const code =
       err instanceof ImportRunnerError ? err.code : "JSON_NORMALIZE_ERROR";
+    recordEvent(ctx, {
+      parserPath,
+      ok: false,
+      parseStatus: "needs_manual_review",
+      errorMessage: `${code}: ${(err as Error).message.slice(0, 200)}`,
+    });
     return jsonResponse({
       reportId: importId as unknown as string,
       parsedCount: 0,
@@ -421,11 +572,19 @@ async function runTextOrEmbeddedJson(
   token: string | null,
   text: string,
   detectedFormat: DetectedFormat,
+  ctx: UploadCtx,
+  fallbackParserPath: ParserPath,
 ): Promise<NextResponse> {
   // Try embedded JSON first. Some MyScoreIQ exports include it inline.
   const embedded = sniffEmbeddedJson(text);
   if (embedded) {
-    return await runJsonPipeline(token, embedded, detectedFormat);
+    return await runJsonPipeline(
+      token,
+      embedded,
+      detectedFormat,
+      ctx,
+      "embedded-json",
+    );
   }
 
   // Heuristic text parse → legacy table.
@@ -441,11 +600,18 @@ async function runTextOrEmbeddedJson(
   );
   await captureForReview(token, text, "MYSCOREIQ_TEXT");
 
+  const parseStatus =
+    result.tradelines.length > 0 ? "parsed" : "needs_manual_review";
+  recordEvent(ctx, {
+    parserPath: fallbackParserPath,
+    ok: true,
+    parseStatus,
+    tradelineCount: result.tradelines.length,
+  });
   return jsonResponse({
     reportId: legacyId,
     parsedCount: result.tradelines.length,
-    parseStatus:
-      result.tradelines.length > 0 ? "parsed" : "needs_manual_review",
+    parseStatus,
     reviewFlags: result.reviewFlags,
     bureauGuess: result.bureauGuess ?? null,
     detectedFormat,
