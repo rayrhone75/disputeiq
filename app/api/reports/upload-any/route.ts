@@ -206,7 +206,11 @@ async function runUploadAny(
       errorMessage: `BAD_FORM: ${(err as Error).message.slice(0, 200)}`,
     });
     return NextResponse.json(
-      { error: "BAD_FORM", message: (err as Error).message },
+      {
+        error: "BAD_FORM",
+        outcome: "failed" as Outcome,
+        message: (err as Error).message,
+      },
       { status: 400 },
     );
   }
@@ -220,7 +224,11 @@ async function runUploadAny(
       errorMessage: "BAD_REQUEST: missing file field",
     });
     return NextResponse.json(
-      { error: "BAD_REQUEST", message: "Attach a file as `file`." },
+      {
+        error: "BAD_REQUEST",
+        outcome: "failed" as Outcome,
+        message: "Attach a file as `file`.",
+      },
       { status: 400 },
     );
   }
@@ -237,6 +245,7 @@ async function runUploadAny(
     return NextResponse.json(
       {
         error: "FILE_TOO_LARGE",
+        outcome: "failed" as Outcome,
         message: `File is ${(file.size / (1024 * 1024)).toFixed(1)} MB — max 25 MB.`,
       },
       { status: 413 },
@@ -258,6 +267,7 @@ async function runUploadAny(
     return NextResponse.json(
       {
         error: "UNSUPPORTED_FORMAT",
+        outcome: "failed" as Outcome,
         message:
           "Unsupported file. Upload a PDF, HTML, TXT, or JSON copy of your MyScoreIQ report.",
       },
