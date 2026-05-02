@@ -73,6 +73,15 @@ const disputeCandidateReason = v.union(
 /**
  * Latest import for the calling user (used by status derivation).
  */
+// Stuck PENDING imports without a captured raw payload are skipped
+// after 5 minutes — they happen when captureRaw threw (e.g. encryption
+// key missing, Convex blip mid-write) and would otherwise pin the
+// customer's snapshot in `kind: "in_progress"` indefinitely. The snapshot
+// endpoint reads the result of this query, so by skipping these we let
+// the customer fall through to the upload card / a fresh import without
+// any manual cleanup.
+const STALE_PENDING_MS = 5 * 60 * 1000;
+
 export const latestForCurrentUser = query({
   args: {},
   handler: async (ctx) => {
@@ -83,7 +92,19 @@ export const latestForCurrentUser = query({
       .collect();
     if (rows.length === 0) return null;
     rows.sort((a, b) => b.createdAt - a.createdAt);
-    return rows[0];
+
+    const now = Date.now();
+    for (const row of rows) {
+      if (row.status === "PENDING" && now - row.createdAt > STALE_PENDING_MS) {
+        const raw = await ctx.db
+          .query("creditReportRaws")
+          .withIndex("by_import", (q) => q.eq("importId", row._id))
+          .first();
+        if (!raw) continue; // stuck — skip to next-newest
+      }
+      return row;
+    }
+    return null;
   },
 });
 
