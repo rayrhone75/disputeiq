@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { fetchMutation } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -194,6 +194,38 @@ async function runUploadAny(
     );
   }
   const token = (await getToken({ template: "convex" })) ?? null;
+
+  // CRITICAL: ensure the customer's Convex `users` row exists before
+  // any pipeline mutation runs. Convex `createImport` (and every other
+  // user-scoped function) calls `requireUser(ctx)`, which throws
+  // `USER_NOT_MIRRORED` for any Clerk identity that hasn't been
+  // upserted yet. The dashboard pages don't auto-mirror, so a
+  // brand-new customer's first action is often this upload — which
+  // would silently fail and leave them with an empty results screen.
+  // The mutation is idempotent (no-op when nothing has changed), so
+  // calling it on every upload is cheap and safe.
+  if (token) {
+    try {
+      const u = await currentUser();
+      const email =
+        u?.primaryEmailAddress?.emailAddress ??
+        u?.emailAddresses?.[0]?.emailAddress ??
+        "";
+      if (email) {
+        await fetchMutation(
+          api.users.upsertFromClerk,
+          { email },
+          { token },
+        );
+      }
+    } catch {
+      // Don't block the upload on a mirror miss — the safety-net
+      // catch below will turn any subsequent throw into a clean
+      // `needs_review` for the customer plus a logged event for
+      // admin triage. Most causes (transient Convex blip) won't
+      // affect the next request.
+    }
+  }
 
   let form: FormData;
   try {
