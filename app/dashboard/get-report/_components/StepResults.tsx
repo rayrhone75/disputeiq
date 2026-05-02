@@ -267,53 +267,47 @@ function EmptyResultsRecovery() {
               We didn&apos;t find any tradelines in your last upload.
             </h1>
             <p className="mt-3 text-sm leading-6 text-fg-muted sm:text-base">
-              That usually means the file was a <em>saved HTML page</em>{" "}
-              (MyScoreIQ renders the report with JavaScript, so the saved
-              HTML is empty), an image-only PDF, or didn&apos;t finish
-              processing. Please try again — the JSON download from
-              MyScoreIQ is the most reliable option.
+              That usually means the file was a saved HTML page (MyScoreIQ
+              renders with JavaScript, so the saved HTML is often empty)
+              or an image-only PDF. The most reliable fix is to print
+              your report to PDF — that captures whatever you see on
+              screen, regardless of how MyScoreIQ delivers it.
             </p>
 
             <div className="mt-6 grid gap-3 rounded-2xl border border-amber-200/60 bg-white/40 p-4 text-[13px] leading-5 text-fg-muted dark:border-amber-500/20 dark:bg-surface/30">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
-                Best option · Download the JSON
+                Best option · Print → Save as PDF
               </p>
               <ol className="ml-4 list-decimal space-y-1.5">
-                <li>
-                  Sign in to your MyScoreIQ account.
-                </li>
-                <li>
-                  Open your most recent credit report.
-                </li>
-                <li>
-                  In the URL bar add{" "}
-                  <code className="rounded bg-surface-muted/40 px-1 font-mono text-[12px]">
-                    ?view=json
-                  </code>
-                  {" "}and press Enter (full URL:{" "}
-                  <a
-                    href="https://member.myscoreiq.com/CreditReport.aspx?view=json"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-semibold text-fg underline"
-                  >
-                    member.myscoreiq.com/CreditReport.aspx?view=json
-                  </a>
-                  ).
-                </li>
+                <li>Open your credit report in MyScoreIQ.</li>
                 <li>
                   Press{" "}
                   <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
-                    Ctrl+S
+                    Ctrl+P
                   </kbd>{" "}
                   (or{" "}
                   <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
-                    ⌘+S
+                    ⌘+P
                   </kbd>
-                  ) and save the JSON file.
+                  ) to open the Print dialog.
                 </li>
-                <li>Drop the JSON file on the upload card below.</li>
+                <li>
+                  Set <strong>Destination</strong> to{" "}
+                  <strong>Save as PDF</strong> (Chrome/Edge) or pick a PDF
+                  printer in Safari/Firefox.
+                </li>
+                <li>Click <strong>Save</strong> and pick a location on your computer.</li>
+                <li>
+                  Drop that PDF on the upload card on the next page —
+                  it&apos;ll have all your tradelines, account history,
+                  and inquiries.
+                </li>
               </ol>
+              <p className="mt-1 text-[11px] text-amber-900/70 dark:text-amber-200/70">
+                Or paste the report text directly into the upload card
+                (open the &ldquo;Paste text instead&rdquo; option) — works
+                anytime you can see the report on screen.
+              </p>
             </div>
 
             <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center">

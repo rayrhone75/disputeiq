@@ -312,7 +312,7 @@ export function ManualUploadCard() {
           How to get the file from MyScoreIQ
         </p>
         <Step n={1}>
-          Sign in to your MyScoreIQ account at{" "}
+          Sign in to{" "}
           <a
             href="https://member.myscoreiq.com/"
             target="_blank"
@@ -320,17 +320,153 @@ export function ManualUploadCard() {
             className="font-semibold text-fg underline"
           >
             member.myscoreiq.com
-          </a>
+          </a>{" "}
+          and open your credit report.
+        </Step>
+        <Step n={2}>
+          Press{" "}
+          <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
+            Ctrl+P
+          </kbd>{" "}
+          /{" "}
+          <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
+            ⌘+P
+          </kbd>
           .
         </Step>
-        <Step n={2}>Open your most recent credit report.</Step>
         <Step n={3}>
-          Click <span className="font-semibold text-fg">Download this report</span>{" "}
-          (or use Print → <span className="font-semibold text-fg">Save as PDF</span>).
+          Set destination to{" "}
+          <span className="font-semibold text-fg">Save as PDF</span>{" "}
+          and save it.
         </Step>
-        <Step n={4}>Drag the saved file onto the box above.</Step>
+        <Step n={4}>Drop that PDF onto the box above.</Step>
+        <p className="mt-1 text-[11px] text-fg-subtle sm:col-span-2">
+          Print → Save as PDF works on every browser and captures
+          everything visible — that&apos;s why we recommend it. If your
+          browser supports it, the &ldquo;Download this report&rdquo;
+          button on MyScoreIQ also produces a usable file.
+        </p>
       </div>
+
+      <PasteFallback />
     </section>
+  );
+}
+
+function PasteFallback() {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function submit() {
+    if (text.trim().length < 100) {
+      setErr("Paste at least a hundred characters of your report.");
+      return;
+    }
+    setSubmitting(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/reports/paste", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        reportId?: string | null;
+        parsedCount?: number;
+        parseStatus?: string;
+        redirectTo?: string;
+        message?: string;
+        error?: string;
+      };
+      if (!res.ok) {
+        setErr(data.message ?? data.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      router.push(data.redirectTo ?? "/dashboard/get-report?imported=1");
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <details
+      className="mt-3 rounded-2xl border border-violet-200/60 bg-white/40 px-4 py-3 text-[12px] leading-5 text-fg-muted dark:border-violet-500/20 dark:bg-surface/30"
+      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
+    >
+      <summary className="cursor-pointer list-none">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
+              Or paste your report text instead
+            </p>
+            <p className="mt-0.5 text-[12px] text-fg-muted">
+              No download needed — copy the report from your MyScoreIQ
+              tab and paste it here.
+            </p>
+          </div>
+          <svg
+            viewBox="0 0 16 16"
+            className={`h-4 w-4 text-fg-muted transition ${open ? "rotate-180" : ""}`}
+            fill="none"
+          >
+            <path
+              d="M4 6l4 4 4-4"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+      </summary>
+      <div className="mt-3 space-y-3">
+        <ol className="ml-4 list-decimal space-y-1 text-[12px]">
+          <li>Open your credit report on MyScoreIQ.</li>
+          <li>
+            Press{" "}
+            <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
+              Ctrl+A
+            </kbd>{" "}
+            to select everything, then{" "}
+            <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
+              Ctrl+C
+            </kbd>{" "}
+            to copy.
+          </li>
+          <li>Click in the box below and paste with Ctrl+V.</li>
+        </ol>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={8}
+          placeholder="Paste your full MyScoreIQ report here…"
+          className="w-full resize-y rounded-xl border border-border bg-surface p-3 font-mono text-[12px] text-fg placeholder:text-fg-subtle focus:border-violet-400 focus:outline-none"
+        />
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[11px] text-fg-subtle">
+            {text.trim().length.toLocaleString()} characters
+          </p>
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={submitting || text.trim().length < 100}
+            className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submitting ? "Importing…" : "Import pasted text"}
+          </button>
+        </div>
+        {err && (
+          <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-[12px] text-rose-900 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+            {err}
+          </p>
+        )}
+      </div>
+    </details>
   );
 }
 
