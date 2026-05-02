@@ -384,9 +384,42 @@ async function runUploadAny(
 
   // Low-confidence PDF — capture for admin review, write any tradelines
   // the legacy heuristic could find to creditReports for /dashboard/
-  // reports visibility, and surface the friendly customer message.
+  // reports visibility.
   const legacyId = await writeLegacyText(token, parsedPdf, pdfRef);
-  await captureForReview(token, parsedPdf.text || "", "MYSCOREIQ_PDF_LOW_CONFIDENCE");
+  await captureForReview(token, parsedPdf.text || "", "MYSCOREIQ_PDF_LOW_CONFIDENCE", ctx);
+
+  // Empty extraction (image-based PDF, encrypted PDF, pdf-parse failed
+  // to load on Vercel) → outcome:"failed" so the customer sees a
+  // retry message pointing them at the JSON download. Otherwise the
+  // page would silently land on StepResults with all zeros.
+  if (parsedPdf.tradelines.length === 0) {
+    const isEmptyText = !parsedPdf.text || !parsedPdf.text.trim();
+    recordEvent(ctx, {
+      parserPath: "pdf-heuristic",
+      ok: false,
+      parseStatus: "failed",
+      tradelineCount: 0,
+      errorMessage: isEmptyText
+        ? "PDF_EMPTY_TEXT_EXTRACTION"
+        : `PDF_NO_TRADELINES: ${parsedPdf.reviewFlags.join(",")}`,
+    });
+    return jsonResponse({
+      outcome: "failed",
+      confidence: "low",
+      tradelineCount: 0,
+      candidateCount: null,
+      importId: null,
+      reportId: legacyId,
+      parsedCount: 0,
+      parseStatus: "needs_manual_review",
+      reviewFlags: parsedPdf.reviewFlags,
+      bureauGuess: null,
+      detectedFormat: "pdf",
+      message: isEmptyText
+        ? "We couldn't read any text from this PDF — it may be image-based or encrypted. The most reliable option is to download the JSON version from MyScoreIQ. If you only have a PDF, try opening it and re-saving via Print → Save as PDF."
+        : "We couldn't find tradelines in this PDF. The best option is to download the JSON version from MyScoreIQ — that always works.",
+    });
+  }
 
   recordEvent(ctx, {
     parserPath: "pdf-heuristic",
@@ -791,7 +824,44 @@ async function runTextOrEmbeddedJson(
     },
     undefined,
   );
-  await captureForReview(token, text, "MYSCOREIQ_TEXT_LOW_CONFIDENCE");
+  await captureForReview(token, text, "MYSCOREIQ_TEXT_LOW_CONFIDENCE", ctx);
+
+  // If the legacy heuristic ALSO produced zero tradelines, the file
+  // was effectively unreadable (whitespace-only after stripHtml, a
+  // SPA save with no rendered content, a binary mis-detected as text,
+  // etc.) — return outcome:"failed" so the customer sees an
+  // actionable retry message that points them at the JSON download
+  // (the canonical best path) instead of being silently funneled to
+  // a results page with zero numbers. If we DID extract some
+  // tradelines from the heuristic, fall through to needs_review so
+  // support can verify what we got.
+  const allZeros = result.tradelines.length === 0;
+  if (allZeros) {
+    recordEvent(ctx, {
+      parserPath: fallbackParserPath,
+      ok: false,
+      parseStatus: "failed",
+      tradelineCount: 0,
+      errorMessage: `EMPTY_EXTRACTION ${detectedFormat.toUpperCase()}: ${myscore.reasonCodes.concat(result.reviewFlags).join(",")}`,
+    });
+    return jsonResponse({
+      outcome: "failed",
+      confidence: "low",
+      tradelineCount: 0,
+      candidateCount: null,
+      importId: null,
+      reportId: legacyId,
+      parsedCount: 0,
+      parseStatus: "needs_manual_review",
+      reviewFlags: result.reviewFlags.concat(myscore.reasonCodes),
+      bureauGuess: null,
+      detectedFormat,
+      message:
+        detectedFormat === "html"
+          ? "We couldn't read tradelines from this saved web page. MyScoreIQ renders the report with JavaScript, so the saved HTML is empty. Please download the JSON version from MyScoreIQ instead — it's the most reliable option."
+          : "We couldn't read tradelines from this file. The best option is to download the JSON version from MyScoreIQ — that always works. As a backup, save the page as PDF (Print → Save as PDF) and try uploading that.",
+    });
+  }
 
   recordEvent(ctx, {
     parserPath: fallbackParserPath,
@@ -873,13 +943,17 @@ async function writeLegacyText(
 }
 
 // Best-effort capture into the new pipeline so admins can see the file
-// even when normalization can't run. Failures here are non-fatal — the
-// legacy creditReports row is still the source of truth for parsed
-// tradelines in this branch.
+// even when normalization can't run. Failures here are non-fatal for
+// the customer (they still see the friendly message), but they are
+// fatal for our admin visibility — so we explicitly log to console and
+// to importHealth instead of silently swallowing the error. The most
+// common silent-failure cause we hit was a missing ENCRYPTION_KEY in
+// Vercel prod which makes captureRaw throw before persisting anything.
 async function captureForReview(
   token: string | null,
   bodyText: string,
   reasonTag: string,
+  ctx?: UploadCtx,
 ): Promise<void> {
   if (!bodyText) return;
   try {
@@ -897,8 +971,21 @@ async function captureForReview(
     // Don't run normalization — text isn't JSON, it would just FAIL the
     // import and pollute the snapshot. Leaving it in CAPTURED state is
     // the right signal for a human to look at.
-  } catch {
-    // Non-fatal.
+  } catch (err) {
+    const msg = (err as Error).message ?? String(err);
+    // eslint-disable-next-line no-console
+    console.error("[upload-any] captureForReview failed", {
+      reasonTag,
+      message: msg,
+    });
+    if (ctx) {
+      recordEvent(ctx, {
+        parserPath: "rejected",
+        ok: false,
+        parseStatus: "needs_manual_review",
+        errorMessage: `CAPTURE_FOR_REVIEW_FAILED(${reasonTag}): ${msg.slice(0, 300)}`,
+      });
+    }
   }
 }
 
