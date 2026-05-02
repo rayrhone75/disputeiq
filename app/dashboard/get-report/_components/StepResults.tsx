@@ -9,6 +9,14 @@ import type { CreditReportSnapshot } from "@/app/api/credit-report/snapshot/rout
 // Renders a stat grid summarizing the user's file plus a bureau-coverage
 // row and tradeline-overview pill list. No raw report data is exposed —
 // only headline counts. The big CTA is the natural next action.
+//
+// Empty-snapshot recovery: when all counts are zero (the customer's last
+// upload didn't actually extract anything — most often a saved HTML page
+// from MyScoreIQ that's empty after JS-rendered content is stripped, or
+// an image-only PDF), we render a recovery card instead of the zeros
+// dashboard. The card explains what happened and points the customer at
+// /dashboard/get-report so they can re-upload, with the JSON download
+// flagged as the most reliable option.
 
 const BUREAUS = ["EXPERIAN", "EQUIFAX", "TRANSUNION"] as const;
 type Bureau = (typeof BUREAUS)[number];
@@ -19,11 +27,25 @@ const BUREAU_LABEL: Record<Bureau, string> = {
   TRANSUNION: "TransUnion",
 };
 
+function isEmptySnapshot(s: CreditReportSnapshot): boolean {
+  return (
+    s.tradelineCount === 0 &&
+    s.collectionCount === 0 &&
+    s.publicRecordCount === 0 &&
+    s.inquiryCount === 0 &&
+    s.candidateCount === 0
+  );
+}
+
 export function StepResults({
   snapshot,
 }: {
   snapshot: CreditReportSnapshot;
 }) {
+  if (isEmptySnapshot(snapshot)) {
+    return <EmptyResultsRecovery />;
+  }
+
   const detected = new Set(snapshot.bureausDetected);
   const remainingNegatives = Math.max(0, snapshot.negativeCount);
   const importedAt = snapshot.importedAt
@@ -214,6 +236,109 @@ export function StepResults({
                 />
               </svg>
             </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function EmptyResultsRecovery() {
+  return (
+    <section className="mx-auto w-full max-w-3xl">
+      <div className="rounded-3xl border-2 border-amber-300 bg-amber-50/70 p-8 shadow-[0_30px_80px_-20px_rgba(245,158,11,0.35)] dark:border-amber-500/30 dark:bg-amber-500/10 sm:p-10">
+        <div className="flex items-start gap-4">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-900 dark:bg-amber-500/30 dark:text-amber-100">
+            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none">
+              <path
+                d="M12 9v4m0 4h.01M5 19h14a2 2 0 001.7-3L13.7 4a2 2 0 00-3.4 0L3.3 16A2 2 0 005 19z"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-700 dark:text-amber-300">
+              Couldn&apos;t read your report
+            </p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-fg sm:text-3xl">
+              We didn&apos;t find any tradelines in your last upload.
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-fg-muted sm:text-base">
+              That usually means the file was a <em>saved HTML page</em>{" "}
+              (MyScoreIQ renders the report with JavaScript, so the saved
+              HTML is empty), an image-only PDF, or didn&apos;t finish
+              processing. Please try again — the JSON download from
+              MyScoreIQ is the most reliable option.
+            </p>
+
+            <div className="mt-6 grid gap-3 rounded-2xl border border-amber-200/60 bg-white/40 p-4 text-[13px] leading-5 text-fg-muted dark:border-amber-500/20 dark:bg-surface/30">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
+                Best option · Download the JSON
+              </p>
+              <ol className="ml-4 list-decimal space-y-1.5">
+                <li>
+                  Sign in to your MyScoreIQ account.
+                </li>
+                <li>
+                  Open your most recent credit report.
+                </li>
+                <li>
+                  In the URL bar add{" "}
+                  <code className="rounded bg-surface-muted/40 px-1 font-mono text-[12px]">
+                    ?view=json
+                  </code>
+                  {" "}and press Enter (full URL:{" "}
+                  <a
+                    href="https://member.myscoreiq.com/CreditReport.aspx?view=json"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-fg underline"
+                  >
+                    member.myscoreiq.com/CreditReport.aspx?view=json
+                  </a>
+                  ).
+                </li>
+                <li>
+                  Press{" "}
+                  <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
+                    Ctrl+S
+                  </kbd>{" "}
+                  (or{" "}
+                  <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
+                    ⌘+S
+                  </kbd>
+                  ) and save the JSON file.
+                </li>
+                <li>Drop the JSON file on the upload card below.</li>
+              </ol>
+            </div>
+
+            <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+              <Link
+                href="/dashboard/get-report"
+                className="inline-flex items-center gap-2 rounded-2xl bg-amber-600 px-6 py-3 text-base font-semibold text-white shadow-md transition hover:bg-amber-700"
+              >
+                Try uploading again
+                <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
+                  <path
+                    d="M7 5l5 5-5 5"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </Link>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 rounded-2xl border border-border-strong bg-surface px-5 py-3 text-sm font-semibold text-fg-muted hover:bg-surface-muted"
+              >
+                Back to dashboard
+              </Link>
+            </div>
           </div>
         </div>
       </div>

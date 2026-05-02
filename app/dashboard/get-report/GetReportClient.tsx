@@ -51,6 +51,11 @@ export function GetReportClient({
   const [resultsReached, setResultsReached] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // After 8 seconds with no real snapshot data (kind stays "none"),
+  // we drop the justImported pin and let the customer fall through to
+  // the upload card. Otherwise a stale ?imported=1 from a previous
+  // failed upload pins them on analyze→empty results forever.
+  const [importFlagStale, setImportFlagStale] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -86,39 +91,56 @@ export function GetReportClient({
     return () => window.clearInterval(id);
   }, [snapshot.kind, refresh]);
 
+  // Stale-flag timer: ?imported=1 pins the page to analyze so the
+  // customer doesn't see the upload card flash before snapshot lands.
+  // But if 8 seconds pass and snapshot is still "none", their previous
+  // upload didn't actually persist — drop the pin so they can re-upload.
+  useEffect(() => {
+    if (!justImported) {
+      setImportFlagStale(false);
+      return;
+    }
+    if (snapshot.kind === "in_progress" || snapshot.kind === "ready") {
+      // Real progress — never mark stale.
+      setImportFlagStale(false);
+      return;
+    }
+    const t = window.setTimeout(() => {
+      // After grace period, only mark stale if we still haven't seen
+      // any real evidence (kind: "none"). "failed" still pins.
+      setImportFlagStale(true);
+    }, 8000);
+    return () => window.clearTimeout(t);
+  }, [justImported, snapshot.kind]);
+
   // Auto-advance the perceived state. Once snapshot turns
   // "in_progress" the animated analyze screen takes over; once "ready"
   // we land on results. analyzeReached makes the transition sticky if
   // the snapshot briefly dips back to "none" between polls.
-  //
-  // `justImported` is the load-bearing escape hatch: the upload card
-  // sets ?imported=1 on every successful submission. The customer's
-  // file IS in our system at that point (creditReportImports row
-  // exists, even if normalization couldn't extract tradelines), so we
-  // pin them to the analyze screen until the snapshot catches up.
-  // Without this, snapshot.kind === "failed" or "none" would drop the
-  // customer back to the upload card — exactly the dead-end report we
-  // had to fix.
   useEffect(() => {
     if (!loaded) return;
-    if (justImported) setAnalyzeReached(true);
+    if (justImported && !importFlagStale) setAnalyzeReached(true);
     if (snapshot.kind === "in_progress") setAnalyzeReached(true);
     if (snapshot.kind === "failed") setAnalyzeReached(true);
     if (snapshot.kind === "ready") {
       setAnalyzeReached(true);
       setResultsReached(true);
     }
-  }, [loaded, snapshot.kind, justImported]);
+  }, [loaded, snapshot.kind, justImported, importFlagStale]);
+
+  const effectiveJustImported = justImported && !importFlagStale;
 
   const phase: "hero" | "analyze" | "results" =
-    resultsReached || snapshot.kind === "ready"
+    snapshot.kind === "ready"
       ? "results"
-      : analyzeReached ||
-          snapshot.kind === "in_progress" ||
-          snapshot.kind === "failed" ||
-          justImported
-        ? "analyze"
-        : "hero";
+      : resultsReached && snapshot.kind !== "none"
+        ? "results"
+        : analyzeReached ||
+            snapshot.kind === "in_progress" ||
+            snapshot.kind === "failed" ||
+            effectiveJustImported
+          ? "analyze"
+          : "hero";
 
   const handleConnect = useCallback(() => setModalOpen(true), []);
   const handleClose = useCallback(() => setModalOpen(false), []);
