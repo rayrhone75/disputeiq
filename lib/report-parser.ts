@@ -476,15 +476,23 @@ export function parseReportText(rawText: string): ParseResult {
 
 export async function parseReportPdf(buf: Buffer): Promise<ParseResult> {
   let rawText = "";
+  let loadErr: string | null = null;
   try {
-    const mod: any = await (import("pdf-parse" as any) as Promise<any>).catch(() => null);
-    if (mod) {
-      const pdf = mod.default ?? mod;
-      const result = await pdf(buf);
-      rawText = String(result?.text ?? "");
-    }
-  } catch {
-    // fall through with empty text
+    // Import the inner lib path, not the package root. pdf-parse@1.1.x's
+    // index.js has historically tried to read a test PDF on first load
+    // when bundlers strip its `module.parent` check; the lib file is
+    // pure and safe under both Node and bundled runtimes. Pair this
+    // with `serverExternalPackages: ["pdf-parse"]` in next.config.mjs
+    // so Vercel keeps the real package in node_modules instead of
+    // bundling pdfjs-dist (whose worker resolution breaks the bundle).
+    const mod: any = await import("pdf-parse/lib/pdf-parse.js" as any);
+    const pdf = mod.default ?? mod;
+    const result = await pdf(buf);
+    rawText = String(result?.text ?? "");
+  } catch (err) {
+    loadErr = (err as Error).message ?? String(err);
+    // eslint-disable-next-line no-console
+    console.error("[report-parser] pdf-parse load/run failed", { message: loadErr });
   }
 
   if (!rawText) {
@@ -492,7 +500,9 @@ export async function parseReportPdf(buf: Buffer): Promise<ParseResult> {
       text: "",
       tradelines: [],
       bureauGuess: undefined,
-      reviewFlags: ["PDF_TEXT_EXTRACTION_FAILED"],
+      reviewFlags: loadErr
+        ? [`PDF_TEXT_EXTRACTION_FAILED: ${loadErr.slice(0, 200)}`]
+        : ["PDF_TEXT_EXTRACTION_FAILED"],
       accountCount: 0,
       signalCount: 0,
       bureausDetected: [],

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { CreditReportSnapshot } from "@/app/api/credit-report/snapshot/route";
+import { ManualUploadCard } from "./ManualUploadCard";
 
 // Step 4 — Results dashboard.
 // Step 5 — Big green "Start My Disputes" CTA.
@@ -311,21 +312,7 @@ function EmptyResultsRecovery() {
             </div>
 
             <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-              <Link
-                href="/dashboard/get-report"
-                className="inline-flex items-center gap-2 rounded-2xl bg-amber-600 px-6 py-3 text-base font-semibold text-white shadow-md transition hover:bg-amber-700"
-              >
-                Try uploading again
-                <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
-                  <path
-                    d="M7 5l5 5-5 5"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </Link>
+              <DiscardPreviousImportButton />
               <Link
                 href="/dashboard"
                 className="inline-flex items-center gap-2 rounded-2xl border border-border-strong bg-surface px-5 py-3 text-sm font-semibold text-fg-muted hover:bg-surface-muted"
@@ -336,7 +323,50 @@ function EmptyResultsRecovery() {
           </div>
         </div>
       </div>
+
+      {/*
+        Inline upload card. Linking back to /dashboard/get-report did
+        nothing — the snapshot still pointed at the stuck import, the
+        page funnelled right back here, and the customer was trapped.
+        Embedding the upload card means they can drop a fresh PDF (or
+        paste text) without leaving this view.
+      */}
+      <div className="mt-6">
+        <ManualUploadCard />
+      </div>
     </section>
+  );
+}
+
+function DiscardPreviousImportButton() {
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await fetch("/api/credit-report/discard-stuck", { method: "POST" });
+        } catch {
+          // Discard is best-effort — the latestForCurrentUser query
+          // will skip stale FETCHED/PENDING rows on its own after the
+          // 5-minute grace window, so even a failed discard is just
+          // "wait it out" rather than "permanently broken".
+        }
+        // Hard reload so the snapshot poll picks up a clean state.
+        window.location.href = "/dashboard/get-report";
+      }}
+      className="inline-flex items-center gap-2 rounded-2xl bg-amber-600 px-6 py-3 text-base font-semibold text-white shadow-md transition hover:bg-amber-700"
+    >
+      Discard previous import &amp; start over
+      <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
+        <path
+          d="M5 7h10M8 4h4M6 7l1 9h6l1-9"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
   );
 }
 

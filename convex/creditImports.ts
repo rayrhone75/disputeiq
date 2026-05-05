@@ -73,13 +73,21 @@ const disputeCandidateReason = v.union(
 /**
  * Latest import for the calling user (used by status derivation).
  */
-// Stuck PENDING imports without a captured raw payload are skipped
-// after 5 minutes — they happen when captureRaw threw (e.g. encryption
-// key missing, Convex blip mid-write) and would otherwise pin the
-// customer's snapshot in `kind: "in_progress"` indefinitely. The snapshot
-// endpoint reads the result of this query, so by skipping these we let
-// the customer fall through to the upload card / a fresh import without
-// any manual cleanup.
+// Stuck imports are skipped after 5 minutes so the customer's snapshot
+// recovers without any manual Convex surgery. Two shapes count as stuck:
+//
+//   - PENDING with no captured raw: createImport landed but captureRaw
+//     threw (encryption key missing, Convex blip mid-write).
+//   - FETCHED with no normalized row: captureRaw landed but
+//     runNormalization never produced a creditReportNormalized row
+//     (either the call errored after the raw was written, or the
+//     upload-any "captureForReview" path captured low-confidence text
+//     that never goes through the normalizer at all).
+//
+// Without this, the snapshot endpoint reports `kind: "in_progress"`
+// forever, the page progresses through analyze → results, lands on
+// EmptyResultsRecovery, and "Try uploading again" reloads to the same
+// stuck row — the customer can never reach the upload card again.
 const STALE_PENDING_MS = 5 * 60 * 1000;
 
 export const latestForCurrentUser = query({
@@ -95,16 +103,69 @@ export const latestForCurrentUser = query({
 
     const now = Date.now();
     for (const row of rows) {
-      if (row.status === "PENDING" && now - row.createdAt > STALE_PENDING_MS) {
+      const ageMs = now - row.createdAt;
+      if (row.status === "PENDING" && ageMs > STALE_PENDING_MS) {
         const raw = await ctx.db
           .query("creditReportRaws")
           .withIndex("by_import", (q) => q.eq("importId", row._id))
           .first();
-        if (!raw) continue; // stuck — skip to next-newest
+        if (!raw) continue; // stuck PENDING — never captured
+      }
+      if (row.status === "FETCHED" && ageMs > STALE_PENDING_MS) {
+        const normalized = await ctx.db
+          .query("creditReportNormalized")
+          .withIndex("by_import", (q) => q.eq("importId", row._id))
+          .first();
+        if (!normalized) continue; // stuck FETCHED — never normalized
       }
       return row;
     }
     return null;
+  },
+});
+
+/**
+ * Mark the calling user's latest non-NORMALIZED import as ARCHIVED.
+ * Used by the "Discard previous import & start over" button on the
+ * empty-results recovery card so a customer who got stuck on a
+ * FETCHED/PENDING import (no normalized row, no path forward through
+ * the snapshot endpoint) can immediately fall through to a fresh
+ * upload. Idempotent — returns `{ archived: false }` if there's
+ * nothing to archive.
+ */
+export const discardLatestStuckForCurrentUser = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireUser(ctx);
+    const rows = await ctx.db
+      .query("creditReportImports")
+      .filter((q) => q.eq(q.field("userId"), user._id))
+      .collect();
+    if (rows.length === 0) return { archived: false as const };
+    rows.sort((a, b) => b.createdAt - a.createdAt);
+    const latest = rows[0];
+    if (latest.status === "NORMALIZED" || latest.status === "ARCHIVED") {
+      return { archived: false as const };
+    }
+    const now = Date.now();
+    await ctx.db.patch(latest._id, {
+      status: "ARCHIVED" as const,
+      updatedAt: now,
+    });
+    await ctx.db.insert("auditLogs", {
+      targetUserId: user._id,
+      actorUserId: user._id,
+      action: "CREDIT_IMPORT_DISCARDED",
+      entityType: "CreditReportImport",
+      entityId: latest._id,
+      metadataJson: { previousStatus: latest.status },
+      createdAt: now,
+    });
+    return {
+      archived: true as const,
+      importId: latest._id,
+      previousStatus: latest.status,
+    };
   },
 });
 

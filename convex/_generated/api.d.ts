@@ -19,6 +19,7 @@ import type * as creditReports from "../creditReports.js";
 import type * as disputes from "../disputes.js";
 import type * as extensionPairings from "../extensionPairings.js";
 import type * as helpers from "../helpers.js";
+import type * as importHealth from "../importHealth.js";
 import type * as leads from "../leads.js";
 import type * as mailJobs from "../mailJobs.js";
 import type * as messages from "../messages.js";
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   disputes: typeof disputes;
   extensionPairings: typeof extensionPairings;
   helpers: typeof helpers;
+  importHealth: typeof importHealth;
   leads: typeof leads;
   mailJobs: typeof mailJobs;
   messages: typeof messages;
