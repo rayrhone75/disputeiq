@@ -134,6 +134,21 @@ type SuccessShape = {
   detectedFormat: DetectedFormat;
 };
 
+// Stage-by-stage logging. Every upload writes one structured log line
+// per stage (auth → mirror → form-parse → format-detect → parse →
+// capture → normalize). Vercel logs become a deterministic trace, so
+// when a customer says "upload failed" we can grep their requestId and
+// see exactly which stage threw. Cheap and load-bearing for
+// debuggability — DO NOT remove without putting an alternative in place.
+function logStage(
+  requestId: string,
+  stage: string,
+  data: Record<string, unknown> = {},
+): void {
+  // eslint-disable-next-line no-console
+  console.log(`[upload-any] ${stage}`, { requestId, ...data });
+}
+
 export async function POST(req: NextRequest) {
   // Hard rule: this endpoint must never return 5xx. Acceptance
   // criterion #5 ("failed parse never breaks customer experience") is
@@ -146,8 +161,10 @@ export async function POST(req: NextRequest) {
     fileSize: null,
     format: "unknown",
   };
+  const requestId = crypto.randomUUID();
+  logStage(requestId, "request:received");
   try {
-    return await runUploadAny(req, ctx);
+    return await runUploadAny(req, ctx, requestId);
   } catch (err) {
     recordEvent(ctx, {
       parserPath: ctx.format === "unknown" ? "rejected" : "rejected",
@@ -156,7 +173,11 @@ export async function POST(req: NextRequest) {
       errorMessage: `UNHANDLED: ${(err as Error).message.slice(0, 400)}`,
     });
     // eslint-disable-next-line no-console
-    console.error("[upload-any] unhandled error", err);
+    console.error("[upload-any] unhandled error", {
+      requestId,
+      message: (err as Error).message,
+      stack: (err as Error).stack?.slice(0, 1500),
+    });
     return jsonResponse({
       outcome: "needs_review",
       confidence: "low",
@@ -166,7 +187,7 @@ export async function POST(req: NextRequest) {
       reportId: null,
       parsedCount: 0,
       parseStatus: "needs_manual_review",
-      reviewFlags: ["UNHANDLED_ERROR"],
+      reviewFlags: [`UNHANDLED_ERROR: ${(err as Error).message.slice(0, 200)}`],
       bureauGuess: null,
       detectedFormat: ctx.format,
       message: "We received your report. Our support team is reviewing it.",
@@ -177,9 +198,11 @@ export async function POST(req: NextRequest) {
 async function runUploadAny(
   req: NextRequest,
   ctx: UploadCtx,
+  requestId: string,
 ): Promise<NextResponse> {
   const { userId, getToken } = await auth();
   ctx.clerkUserId = userId ?? null;
+  logStage(requestId, "auth:resolved", { userId: userId ?? null });
 
   if (!userId) {
     recordEvent(ctx, {
@@ -194,6 +217,39 @@ async function runUploadAny(
     );
   }
   const token = (await getToken({ template: "convex" })) ?? null;
+  logStage(requestId, "auth:token", { hasToken: !!token });
+
+  // Pre-flight: the captureRaw step encrypts the body via lib/encryption.ts
+  // which throws if ENCRYPTION_KEY is missing/short. If we don't catch
+  // that here, every JSON path silently lands in `needs_review` limbo.
+  // Detect early and surface a clear server-config error to the user
+  // (they can't fix it, but support sees the actual failure mode in
+  // the response, not a "support is reviewing" wallpaper).
+  const encKey = process.env.ENCRYPTION_KEY ?? "";
+  if (encKey.length < 32) {
+    logStage(requestId, "preflight:encryption_key_missing");
+    recordEvent(ctx, {
+      parserPath: "rejected",
+      ok: false,
+      parseStatus: "rejected",
+      errorMessage: "MISSING_ENCRYPTION_KEY",
+    });
+    return jsonResponse({
+      outcome: "failed",
+      confidence: "low",
+      tradelineCount: 0,
+      candidateCount: null,
+      importId: null,
+      reportId: null,
+      parsedCount: 0,
+      parseStatus: "needs_manual_review",
+      reviewFlags: ["MISSING_ENCRYPTION_KEY"],
+      bureauGuess: null,
+      detectedFormat: "unknown",
+      message:
+        "Server configuration error (ENCRYPTION_KEY missing). Please contact support — this isn't your file's fault.",
+    });
+  }
 
   // CRITICAL: ensure the customer's Convex `users` row exists before
   // any pipeline mutation runs. Convex `createImport` (and every other
@@ -288,6 +344,12 @@ async function runUploadAny(
   const lowerName = (file.name || "").toLowerCase();
   const detected = detectFormat(buf, lowerName, file.type);
   ctx.format = detected;
+  logStage(requestId, "format:detected", {
+    detected,
+    name: lowerName,
+    mime: file.type,
+    size: file.size,
+  });
 
   if (detected === "unknown") {
     recordEvent(ctx, {
@@ -349,10 +411,16 @@ async function runUploadAny(
   }
 
   const parsedPdf = await parseReportPdf(buf);
+  logStage(requestId, "pdf:extracted", {
+    textLength: parsedPdf.text.length,
+    reviewFlags: parsedPdf.reviewFlags,
+    legacyTradelines: parsedPdf.tradelines.length,
+  });
   // First try to find an embedded JSON blob (rare but possible).
   if (parsedPdf.text) {
     const embedded = sniffEmbeddedJson(parsedPdf.text);
     if (embedded) {
+      logStage(requestId, "pdf:embedded_json_found", { length: embedded.length });
       return await runJsonPipeline(
         token,
         embedded,
@@ -370,6 +438,11 @@ async function runUploadAny(
   // persistence code.
   if (parsedPdf.text) {
     const myscore = parseMyScoreIQText(parsedPdf.text);
+    logStage(requestId, "pdf:myscoreiq_parse", {
+      confidence: myscore.confidence,
+      counts: myscore.counts,
+      reasonCodes: myscore.reasonCodes,
+    });
     if (myscore.confidence !== "low" && myscore.counts.tradelines > 0) {
       return await runJsonPipeline(
         token,
@@ -622,6 +695,11 @@ async function runJsonPipeline(
     );
     importId =
       (created as { _id: Id<"creditReportImports"> } | null)?._id ?? null;
+    // eslint-disable-next-line no-console
+    console.log("[upload-any] capture:create_import", {
+      parserPath,
+      importId,
+    });
     if (!importId) {
       recordEvent(ctx, {
         parserPath,
@@ -648,7 +726,16 @@ async function runJsonPipeline(
       { token },
       { importId, bodyText: trimmed, onlyIfOwnedByMe: true },
     );
+    // eslint-disable-next-line no-console
+    console.log("[upload-any] capture:ok", { parserPath, importId });
   } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[upload-any] capture:failed", {
+      parserPath,
+      importId,
+      message: (err as Error).message,
+      code: err instanceof ImportRunnerError ? err.code : "UNKNOWN",
+    });
     if (err instanceof ImportRunnerError) {
       recordEvent(ctx, {
         parserPath,
@@ -665,7 +752,7 @@ async function runJsonPipeline(
         reportId: null,
         parsedCount: 0,
         parseStatus: "needs_manual_review",
-        reviewFlags: [`JSON_${err.code}`],
+        reviewFlags: [`JSON_${err.code}: ${err.message.slice(0, 200)}`],
         bureauGuess: null,
         detectedFormat,
         message: "We received your report. Our support team is reviewing it.",
@@ -686,7 +773,7 @@ async function runJsonPipeline(
       reportId: null,
       parsedCount: 0,
       parseStatus: "needs_manual_review",
-      reviewFlags: ["JSON_CAPTURE_ERROR"],
+      reviewFlags: [`JSON_CAPTURE_ERROR: ${(err as Error).message.slice(0, 200)}`],
       bureauGuess: null,
       detectedFormat,
       message: "We received your report. Our support team is reviewing it.",
@@ -701,6 +788,15 @@ async function runJsonPipeline(
       result.report.collections.length + result.report.publicRecords.length;
     const imported = tradelineCount > 0;
     const parseStatus = imported ? "parsed" : "needs_manual_review";
+    // eslint-disable-next-line no-console
+    console.log("[upload-any] normalize:ok", {
+      parserPath,
+      importId,
+      tradelineCount,
+      candidateCount,
+      bureaus: result.report.bureausDetected,
+      warnings: result.report.validationWarnings,
+    });
     // For sources where the caller already knows the parse confidence
     // (e.g. PDF/HTML/TXT going through the MyScoreIQ text parser),
     // honor that. Otherwise infer from the tradeline count: any
@@ -736,6 +832,13 @@ async function runJsonPipeline(
   } catch (err) {
     const code =
       err instanceof ImportRunnerError ? err.code : "JSON_NORMALIZE_ERROR";
+    // eslint-disable-next-line no-console
+    console.error("[upload-any] normalize:failed", {
+      parserPath,
+      importId,
+      code,
+      message: (err as Error).message,
+    });
     recordEvent(ctx, {
       parserPath,
       ok: false,
@@ -754,7 +857,7 @@ async function runJsonPipeline(
       reportId: importId as unknown as string,
       parsedCount: 0,
       parseStatus: "needs_manual_review",
-      reviewFlags: [code],
+      reviewFlags: [`${code}: ${(err as Error).message.slice(0, 200)}`],
       bureauGuess: null,
       detectedFormat,
       message: "We received your report. Our support team is reviewing it.",
