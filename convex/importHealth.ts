@@ -28,6 +28,11 @@ const formatLiteral = v.union(
 
 const parserPathLiteral = v.union(
   v.literal("json"),
+  v.literal("json-paralegal"),
+  v.literal("text-paralegal"),
+  v.literal("html-paralegal"),
+  v.literal("pdf-mistral-paralegal"),
+  // Legacy values kept for old importHealthEvents rows.
   v.literal("embedded-json"),
   v.literal("pdf-heuristic"),
   v.literal("html-heuristic"),

@@ -6,17 +6,17 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { storage } from "@/lib/storage";
 import {
-  parseReportPdf,
-  parseReportText,
-  type ParseResult,
-} from "@/lib/report-parser";
-import {
   createImport,
   captureRaw,
   runNormalization,
   ImportRunnerError,
 } from "@/lib/credit-import/runner";
-import { parseMyScoreIQText } from "@/lib/credit-import/myscoreiq-text";
+import {
+  processCreditReport,
+  MistralOcrError,
+  ParalegalExtractionError,
+  type ProcessInput,
+} from "@/lib/credit-import/process-report";
 
 // One endpoint to rule them all. Customers upload a credit report from
 // MyScoreIQ in any of four shapes:
@@ -55,10 +55,10 @@ type DetectedFormat = "json" | "pdf" | "html" | "txt" | "unknown";
 
 type ParserPath =
   | "json"
-  | "embedded-json"
-  | "pdf-heuristic"
-  | "html-heuristic"
-  | "txt-heuristic"
+  | "json-paralegal"
+  | "text-paralegal"
+  | "html-paralegal"
+  | "pdf-mistral-paralegal"
   | "rejected";
 
 // Context carried through every helper so the import-health log can
@@ -251,6 +251,37 @@ async function runUploadAny(
     });
   }
 
+  // The Mistral key powers OCR (PDF text extraction) and the paralegal
+  // LLM that emits the normalized JSON. Without it the entire processing
+  // pipeline fails, so surface the misconfiguration as a clear server
+  // error rather than letting Mistral 401s bubble out as a generic
+  // "needs_review."
+  const mistralKey = process.env.MISTRAL_API_KEY ?? "";
+  if (!mistralKey) {
+    logStage(requestId, "preflight:mistral_key_missing");
+    recordEvent(ctx, {
+      parserPath: "rejected",
+      ok: false,
+      parseStatus: "rejected",
+      errorMessage: "MISSING_MISTRAL_API_KEY",
+    });
+    return jsonResponse({
+      outcome: "failed",
+      confidence: "low",
+      tradelineCount: 0,
+      candidateCount: null,
+      importId: null,
+      reportId: null,
+      parsedCount: 0,
+      parseStatus: "needs_manual_review",
+      reviewFlags: ["MISSING_MISTRAL_API_KEY"],
+      bureauGuess: null,
+      detectedFormat: "unknown",
+      message:
+        "Server configuration error (MISTRAL_API_KEY missing). Please contact support — this isn't your file's fault.",
+    });
+  }
+
   // CRITICAL: ensure the customer's Convex `users` row exists before
   // any pipeline mutation runs. Convex `createImport` (and every other
   // user-scoped function) calls `requireUser(ctx)`, which throws
@@ -369,112 +400,71 @@ async function runUploadAny(
     );
   }
 
-  // ── JSON (or text that happens to start with `{`) ────────────────────
-  if (detected === "json") {
-    const text = buf.toString("utf8");
-    return await runJsonPipeline(token, text, "json", ctx, "json");
+  // PDF storage: best-effort persist the original bytes so admins can
+  // re-process or audit later. Storage layer may not be configured in
+  // dev; failures here shouldn't block the import. Done before
+  // processing so even a fully-failed run still has the source file.
+  if (detected === "pdf") {
+    try {
+      const hash = crypto.createHash("sha256").update(buf).digest("hex");
+      await storage.put(`reports/${userId}/${hash}.pdf`, buf, "application/pdf");
+    } catch {
+      // Non-fatal — original bytes archival only.
+    }
   }
 
-  // ── TXT ──────────────────────────────────────────────────────────────
-  if (detected === "txt") {
-    const text = buf.toString("utf8");
-    return await runTextOrEmbeddedJson(token, text, "txt", ctx, "txt-heuristic");
-  }
+  // Build the processing input. Every format converges on a single
+  // pipeline (Mistral OCR / HTML extract → AI paralegal → regex
+  // overrides → adapter) so we never drift between routes.
+  const processInput: ProcessInput =
+    detected === "pdf"
+      ? { format: "pdf", bytes: buf, filename: file.name || "report.pdf" }
+      : detected === "html"
+      ? { format: "html", bytes: buf }
+      : detected === "json"
+      ? { format: "json", text: buf.toString("utf8") }
+      : { format: "text", text: buf.toString("utf8") };
 
-  // ── HTML ─────────────────────────────────────────────────────────────
-  if (detected === "html") {
-    const html = buf.toString("utf8");
-    const text = stripHtml(html);
-    return await runTextOrEmbeddedJson(
-      token,
-      text,
-      "html",
-      ctx,
-      "html-heuristic",
-    );
-  }
+  const parserPath: ParserPath =
+    detected === "pdf"
+      ? "pdf-mistral-paralegal"
+      : detected === "html"
+      ? "html-paralegal"
+      : detected === "json"
+      ? "json-paralegal"
+      : "text-paralegal";
 
-  // ── PDF ──────────────────────────────────────────────────────────────
-  // Persist the original bytes so admins can re-parse if our heuristics
-  // miss something. Best-effort — storage.put backed by S3 may not be
-  // configured in dev; failures here shouldn't block the import.
-  let pdfRef: string | undefined;
+  let outcome:
+    | { kind: "ok"; result: Awaited<ReturnType<typeof processCreditReport>>["result"]; extractedText: string }
+    | { kind: "ocr_failed"; err: MistralOcrError }
+    | { kind: "paralegal_failed"; err: ParalegalExtractionError }
+    | { kind: "process_failed"; err: Error };
   try {
-    const hash = crypto.createHash("sha256").update(buf).digest("hex");
-    pdfRef = await storage.put(
-      `reports/${userId}/${hash}.pdf`,
-      buf,
-      "application/pdf",
-    );
-  } catch {
-    pdfRef = undefined;
-  }
-
-  const parsedPdf = await parseReportPdf(buf);
-  logStage(requestId, "pdf:extracted", {
-    textLength: parsedPdf.text.length,
-    reviewFlags: parsedPdf.reviewFlags,
-    legacyTradelines: parsedPdf.tradelines.length,
-  });
-  // First try to find an embedded JSON blob (rare but possible).
-  if (parsedPdf.text) {
-    const embedded = sniffEmbeddedJson(parsedPdf.text);
-    if (embedded) {
-      logStage(requestId, "pdf:embedded_json_found", { length: embedded.length });
-      return await runJsonPipeline(
-        token,
-        embedded,
-        "pdf",
-        ctx,
-        "embedded-json",
-      );
-    }
-  }
-
-  // Run the dedicated MyScoreIQ text parser on the extracted PDF text.
-  // When it lands ≥ medium confidence we feed its JSON output through
-  // the same pipeline as a real JSON upload — the customer sees real
-  // tradelines and dispute candidates from the PDF without any new
-  // persistence code.
-  if (parsedPdf.text) {
-    const myscore = parseMyScoreIQText(parsedPdf.text);
-    logStage(requestId, "pdf:myscoreiq_parse", {
-      confidence: myscore.confidence,
-      counts: myscore.counts,
-      reasonCodes: myscore.reasonCodes,
+    const processed = await processCreditReport(processInput, {
+      logStage: (e, d) => logStage(requestId, `process:${e}`, d),
     });
-    if (myscore.confidence !== "low" && myscore.counts.tradelines > 0) {
-      return await runJsonPipeline(
-        token,
-        JSON.stringify(myscore.json),
-        "pdf",
-        ctx,
-        "pdf-heuristic",
-        myscore.confidence,
-      );
+    outcome = {
+      kind: "ok",
+      result: processed.result,
+      extractedText: processed.extractedText,
+    };
+  } catch (err) {
+    if (err instanceof MistralOcrError) {
+      outcome = { kind: "ocr_failed", err };
+    } else if (err instanceof ParalegalExtractionError) {
+      outcome = { kind: "paralegal_failed", err };
+    } else {
+      outcome = { kind: "process_failed", err: err as Error };
     }
   }
 
-  // Low-confidence PDF — capture for admin review, write any tradelines
-  // the legacy heuristic could find to creditReports for /dashboard/
-  // reports visibility.
-  const legacyId = await writeLegacyText(token, parsedPdf, pdfRef);
-  await captureForReview(token, parsedPdf.text || "", "MYSCOREIQ_PDF_LOW_CONFIDENCE", ctx);
-
-  // Empty extraction (image-based PDF, encrypted PDF, pdf-parse failed
-  // to load on Vercel) → outcome:"failed" so the customer sees a
-  // retry message pointing them at the JSON download. Otherwise the
-  // page would silently land on StepResults with all zeros.
-  if (parsedPdf.tradelines.length === 0) {
-    const isEmptyText = !parsedPdf.text || !parsedPdf.text.trim();
+  if (outcome.kind === "ocr_failed") {
     recordEvent(ctx, {
-      parserPath: "pdf-heuristic",
+      parserPath,
       ok: false,
       parseStatus: "failed",
       tradelineCount: 0,
-      errorMessage: isEmptyText
-        ? "PDF_EMPTY_TEXT_EXTRACTION"
-        : `PDF_NO_TRADELINES: ${parsedPdf.reviewFlags.join(",")}`,
+      errorMessage: `MISTRAL_OCR_FAILED:${outcome.err.stage}:${outcome.err.status}: ${outcome.err.body.slice(0, 200)}`,
     });
     return jsonResponse({
       outcome: "failed",
@@ -482,38 +472,115 @@ async function runUploadAny(
       tradelineCount: 0,
       candidateCount: null,
       importId: null,
-      reportId: legacyId,
+      reportId: null,
       parsedCount: 0,
       parseStatus: "needs_manual_review",
-      reviewFlags: parsedPdf.reviewFlags,
+      reviewFlags: [`MISTRAL_OCR_${outcome.err.stage.toUpperCase()}_FAILED`],
       bureauGuess: null,
-      detectedFormat: "pdf",
-      message: isEmptyText
-        ? "We couldn't read any text from this PDF — it may be image-based or encrypted. The most reliable option is to download the JSON version from MyScoreIQ. If you only have a PDF, try opening it and re-saving via Print → Save as PDF."
-        : "We couldn't find tradelines in this PDF. The best option is to download the JSON version from MyScoreIQ — that always works.",
+      detectedFormat: detected,
+      message:
+        "We couldn't extract text from this PDF. Mistral OCR didn't accept it — please try uploading the JSON version of your report instead, or re-save the PDF using Print → Save as PDF.",
     });
   }
 
-  recordEvent(ctx, {
-    parserPath: "pdf-heuristic",
-    ok: true,
-    parseStatus: "needs_manual_review",
-    tradelineCount: parsedPdf.tradelines.length,
-  });
-  return jsonResponse({
-    outcome: "needs_review",
-    confidence: "low",
-    tradelineCount: parsedPdf.tradelines.length,
-    candidateCount: null,
-    importId: null,
-    reportId: legacyId,
-    parsedCount: parsedPdf.tradelines.length,
-    parseStatus: "needs_manual_review",
-    reviewFlags: parsedPdf.reviewFlags,
-    bureauGuess: parsedPdf.bureauGuess ?? null,
-    detectedFormat: "pdf",
-    message: "We received your report. Our support team is reviewing it.",
-  });
+  if (outcome.kind === "paralegal_failed") {
+    recordEvent(ctx, {
+      parserPath,
+      ok: false,
+      parseStatus: "failed",
+      tradelineCount: 0,
+      errorMessage: `PARALEGAL_FAILED:${outcome.err.status}: ${outcome.err.body.slice(0, 200)}`,
+    });
+    return jsonResponse({
+      outcome: "failed",
+      confidence: "low",
+      tradelineCount: 0,
+      candidateCount: null,
+      importId: null,
+      reportId: null,
+      parsedCount: 0,
+      parseStatus: "needs_manual_review",
+      reviewFlags: [`PARALEGAL_EXTRACTION_FAILED`],
+      bureauGuess: null,
+      detectedFormat: detected,
+      message:
+        "We extracted text from your report but couldn't structure the data. This usually means the report format is unfamiliar — please try the JSON version, or contact support.",
+    });
+  }
+
+  if (outcome.kind === "process_failed") {
+    recordEvent(ctx, {
+      parserPath,
+      ok: false,
+      parseStatus: "failed",
+      tradelineCount: 0,
+      errorMessage: `PROCESS_FAILED: ${outcome.err.message.slice(0, 200)}`,
+    });
+    return jsonResponse({
+      outcome: "failed",
+      confidence: "low",
+      tradelineCount: 0,
+      candidateCount: null,
+      importId: null,
+      reportId: null,
+      parsedCount: 0,
+      parseStatus: "needs_manual_review",
+      reviewFlags: [`PROCESS_FAILED: ${outcome.err.message.slice(0, 200)}`],
+      bureauGuess: null,
+      detectedFormat: detected,
+      message: "Something went wrong processing your report. Please try again or contact support.",
+    });
+  }
+
+  const { result, extractedText } = outcome;
+
+  // Paralegal returned no tradelines — file processed cleanly but
+  // doesn't look like a credit report (or is a layout we don't yet
+  // understand). Capture for admin review so we can debug; surface
+  // a clear "we didn't find a credit report" message instead of a
+  // silent zeros screen.
+  if (result.counts.tradelines === 0) {
+    await captureForReview(
+      token,
+      extractedText,
+      `PARALEGAL_EMPTY_RESULT:${detected}`,
+      ctx,
+    );
+    recordEvent(ctx, {
+      parserPath,
+      ok: false,
+      parseStatus: "failed",
+      tradelineCount: 0,
+      errorMessage: `PARALEGAL_EMPTY_RESULT: ${result.reasonCodes.join(",")}`,
+    });
+    return jsonResponse({
+      outcome: "failed",
+      confidence: "low",
+      tradelineCount: 0,
+      candidateCount: null,
+      importId: null,
+      reportId: null,
+      parsedCount: 0,
+      parseStatus: "needs_manual_review",
+      reviewFlags: result.reasonCodes,
+      bureauGuess: null,
+      detectedFormat: detected,
+      message:
+        detected === "html"
+          ? "We extracted text from this saved web page but couldn't find a credit report in it. MyScoreIQ renders the report with JavaScript, so the saved HTML is often empty. Please download the JSON or PDF version instead."
+          : "We couldn't find a credit report in this file. Try uploading the JSON version from MyScoreIQ — that always works.",
+    });
+  }
+
+  // Happy path — feed the normalized JSON through the existing pipeline.
+  return await runJsonPipeline(
+    token,
+    JSON.stringify(result.json),
+    detected,
+    ctx,
+    parserPath,
+    result.confidence === "low" ? undefined : result.confidence,
+  );
 }
 
 // ── Format detection ────────────────────────────────────────────────────
@@ -577,76 +644,6 @@ function looksLikeHtml(buf: Buffer, start: number): boolean {
     head.includes("<head") ||
     head.includes("<body")
   );
-}
-
-function stripHtml(html: string): string {
-  // Cheap-and-cheerful tag stripper. We don't need a DOM — MyScoreIQ's
-  // saved HTML is a flat report, and embedded scripts/styles are
-  // skipped before tag removal so they don't leak into the text.
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function sniffEmbeddedJson(text: string): string | null {
-  // MyScoreIQ "Print" / Webpage-Complete saves sometimes include the
-  // raw report JSON inline. Heuristic: find the first "{" that opens a
-  // braces-balanced block containing one of the known top-level keys.
-  const KNOWN_KEYS = [
-    '"creditReport"',
-    '"CreditReportType"',
-    '"Bureau"',
-    '"tradelines"',
-  ];
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] !== "{") continue;
-    let depth = 0;
-    let inString = false;
-    let escape = false;
-    for (let j = i; j < text.length; j++) {
-      const ch = text[j];
-      if (escape) {
-        escape = false;
-        continue;
-      }
-      if (ch === "\\") {
-        escape = true;
-        continue;
-      }
-      if (ch === '"') {
-        inString = !inString;
-        continue;
-      }
-      if (inString) continue;
-      if (ch === "{") depth++;
-      else if (ch === "}") {
-        depth--;
-        if (depth === 0) {
-          const candidate = text.slice(i, j + 1);
-          if (KNOWN_KEYS.some((k) => candidate.includes(k))) {
-            try {
-              JSON.parse(candidate);
-              return candidate;
-            } catch {
-              // bad JSON; keep scanning
-            }
-          }
-          break;
-        }
-      }
-    }
-  }
-  return null;
 }
 
 // ── JSON pipeline (mirrors /api/reports/paste) ───────────────────────────
@@ -862,186 +859,6 @@ async function runJsonPipeline(
       detectedFormat,
       message: "We received your report. Our support team is reviewing it.",
     });
-  }
-}
-
-// ── Text path ────────────────────────────────────────────────────────────
-//
-// Three-step ladder, applied in order:
-//   1. If the text contains an embedded MyScoreIQ JSON blob (rare —
-//      some Print views inline it), pull it out and run the full JSON
-//      pipeline. Cleanest possible outcome.
-//   2. Otherwise run the dedicated MyScoreIQ text parser
-//      (lib/credit-import/myscoreiq-text.ts). When it returns
-//      confidence ≥ "medium", build a JSON payload in the adapter's
-//      shape and feed it through the SAME JSON pipeline — the
-//      customer sees real tradelines and dispute candidates without
-//      any new persistence code on our side.
-//   3. Confidence "low" means the parser couldn't find a tri-merge
-//      structure. Capture the raw text into the new pipeline so
-//      admins can review, write a legacy creditReports row for any
-//      tradelines the heuristic found, and return the friendly
-//      "We received your report. Our support team is reviewing it."
-//      message — never an error.
-async function runTextOrEmbeddedJson(
-  token: string | null,
-  text: string,
-  detectedFormat: DetectedFormat,
-  ctx: UploadCtx,
-  fallbackParserPath: ParserPath,
-): Promise<NextResponse> {
-  const embedded = sniffEmbeddedJson(text);
-  if (embedded) {
-    return await runJsonPipeline(
-      token,
-      embedded,
-      detectedFormat,
-      ctx,
-      "embedded-json",
-    );
-  }
-
-  // Dedicated MyScoreIQ text parser.
-  const myscore = parseMyScoreIQText(text);
-  if (myscore.confidence !== "low" && myscore.counts.tradelines > 0) {
-    return await runJsonPipeline(
-      token,
-      JSON.stringify(myscore.json),
-      detectedFormat,
-      ctx,
-      fallbackParserPath,
-      myscore.confidence,
-    );
-  }
-
-  // Low-confidence fallback. Capture the raw text into the new
-  // pipeline so admins can review, and run the legacy heuristic so
-  // anything we can extract still lands in /dashboard/reports.
-  const result = parseReportText(text);
-  const legacyId = await writeLegacyText(
-    token,
-    {
-      tradelines: result.tradelines,
-      reviewFlags: result.reviewFlags,
-      bureauGuess: result.bureauGuess,
-    },
-    undefined,
-  );
-  await captureForReview(token, text, "MYSCOREIQ_TEXT_LOW_CONFIDENCE", ctx);
-
-  // If the legacy heuristic ALSO produced zero tradelines, the file
-  // was effectively unreadable (whitespace-only after stripHtml, a
-  // SPA save with no rendered content, a binary mis-detected as text,
-  // etc.) — return outcome:"failed" so the customer sees an
-  // actionable retry message that points them at the JSON download
-  // (the canonical best path) instead of being silently funneled to
-  // a results page with zero numbers. If we DID extract some
-  // tradelines from the heuristic, fall through to needs_review so
-  // support can verify what we got.
-  const allZeros = result.tradelines.length === 0;
-  if (allZeros) {
-    recordEvent(ctx, {
-      parserPath: fallbackParserPath,
-      ok: false,
-      parseStatus: "failed",
-      tradelineCount: 0,
-      errorMessage: `EMPTY_EXTRACTION ${detectedFormat.toUpperCase()}: ${myscore.reasonCodes.concat(result.reviewFlags).join(",")}`,
-    });
-    return jsonResponse({
-      outcome: "failed",
-      confidence: "low",
-      tradelineCount: 0,
-      candidateCount: null,
-      importId: null,
-      reportId: legacyId,
-      parsedCount: 0,
-      parseStatus: "needs_manual_review",
-      reviewFlags: result.reviewFlags.concat(myscore.reasonCodes),
-      bureauGuess: null,
-      detectedFormat,
-      message:
-        detectedFormat === "html"
-          ? "We couldn't read tradelines from this saved web page. MyScoreIQ renders the report with JavaScript, so the saved HTML is empty. Please download the JSON version from MyScoreIQ instead — it's the most reliable option."
-          : "We couldn't read tradelines from this file. The best option is to download the JSON version from MyScoreIQ — that always works. As a backup, save the page as PDF (Print → Save as PDF) and try uploading that.",
-    });
-  }
-
-  recordEvent(ctx, {
-    parserPath: fallbackParserPath,
-    ok: true,
-    parseStatus: "needs_manual_review",
-    tradelineCount: result.tradelines.length,
-    errorMessage:
-      myscore.reasonCodes.length > 0
-        ? `LOW_CONFIDENCE: ${myscore.reasonCodes.join(",")}`
-        : undefined,
-  });
-  return jsonResponse({
-    outcome: "needs_review",
-    confidence: "low",
-    tradelineCount: result.tradelines.length,
-    candidateCount: null,
-    importId: null,
-    reportId: legacyId,
-    parsedCount: result.tradelines.length,
-    parseStatus: "needs_manual_review",
-    reviewFlags: result.reviewFlags.concat(myscore.reasonCodes),
-    bureauGuess: result.bureauGuess ?? null,
-    detectedFormat,
-    message: "We received your report. Our support team is reviewing it.",
-  });
-}
-
-// ── Legacy creditReports writer ─────────────────────────────────────────
-async function writeLegacyText(
-  token: string | null,
-  parsed: Pick<ParseResult, "tradelines" | "reviewFlags" | "bureauGuess">,
-  rawSecureRef: string | undefined,
-): Promise<string | null> {
-  // Returns null on any failure — legacy creditReports may reject the
-  // call (USER_NOT_MIRRORED for very-new accounts, schema drift, token
-  // expiry, transient blip). The new pipeline's captureRaw stub still
-  // gives admins a copy to review, so we never want this to throw all
-  // the way out and turn into a 500 for the customer.
-  try {
-    const created = await fetchMutation(
-      api.creditReports.createReport,
-      {
-      source: "MANUAL_UPLOAD",
-      snapshotHash: crypto.randomBytes(16).toString("hex"),
-      rawSecureRef,
-      tradelines: parsed.tradelines.map((t) => ({
-        bureau: t.bureau,
-        creditorName: t.creditorName,
-        accountRefMasked: t.accountRefMasked,
-        balanceCents: t.balanceCents,
-        pastDueCents: t.pastDueCents,
-        statusLabel: t.statusLabel,
-        openedAtMs:
-          t.openedAt instanceof Date ? t.openedAt.getTime() : undefined,
-        lastReportedAtMs:
-          t.lastReportedAt instanceof Date
-            ? t.lastReportedAt.getTime()
-            : undefined,
-        lastActivityAtMs:
-          t.lastActivityAt instanceof Date
-            ? t.lastActivityAt.getTime()
-            : undefined,
-        isCollection: t.isCollection ?? false,
-        isMedical: t.isMedical ?? false,
-      })),
-      auditAction: "REPORT_UPLOADED",
-      auditMetadataJson: {
-        parsedCount: parsed.tradelines.length,
-        reviewFlags: parsed.reviewFlags,
-        bureauGuess: parsed.bureauGuess,
-      },
-    },
-    { token: token ?? undefined },
-  );
-    return (created?.id as string) ?? null;
-  } catch {
-    return null;
   }
 }
 

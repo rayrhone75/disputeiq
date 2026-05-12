@@ -12,6 +12,11 @@ import {
   runNormalization,
   ImportRunnerError,
 } from "@/lib/credit-import/runner";
+import {
+  processCreditReport,
+  MistralOcrError,
+  ParalegalExtractionError,
+} from "@/lib/credit-import/process-report";
 import { writeAuditLog } from "@/lib/audit";
 
 // Chrome-extension JSON import endpoint.
@@ -124,6 +129,57 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Same canonical processing pipeline as the manual upload path.
+  // Even though the extension delivers clean MyScoreIQ JSON, running it
+  // through the paralegal gives us one normalized output shape across
+  // all entry points and catches malformed payloads early.
+  if (!process.env.MISTRAL_API_KEY) {
+    return jsonResponse(
+      {
+        ok: false,
+        code: "MISTRAL_API_KEY_MISSING",
+        message:
+          "Server configuration error (MISTRAL_API_KEY missing). Please contact support.",
+      },
+      503,
+    );
+  }
+  let processed;
+  try {
+    processed = await processCreditReport(
+      { format: "json", text: trimmed },
+      {
+        logStage: (event, data) => {
+          // eslint-disable-next-line no-console
+          console.log(`[ext-import] process:${event}`, data ?? {});
+        },
+      },
+    );
+  } catch (err) {
+    const code =
+      err instanceof MistralOcrError
+        ? "OCR_FAILED"
+        : err instanceof ParalegalExtractionError
+        ? "PARALEGAL_FAILED"
+        : "PROCESS_FAILED";
+    return jsonResponse(
+      { ok: false, code, message: (err as Error).message },
+      502,
+    );
+  }
+  if (processed.result.counts.tradelines === 0) {
+    return jsonResponse(
+      {
+        ok: false,
+        code: "EMPTY_REPORT",
+        message: "The extension JSON did not contain a recognizable report.",
+        reasonCodes: processed.result.reasonCodes,
+      },
+      422,
+    );
+  }
+  const normalizedJson = JSON.stringify(processed.result.json);
+
   await writeAuditLog({
     targetUserId: clerkUserId,
     actorUserId: clerkUserId,
@@ -173,7 +229,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await captureRaw(ctx, { importId, bodyText: trimmed });
+    await captureRaw(ctx, { importId, bodyText: normalizedJson });
   } catch (err) {
     const code = err instanceof ImportRunnerError ? err.code : "CAPTURE_FAILED";
     await fetchMutation(api.extensionPairings.recordFailure, {

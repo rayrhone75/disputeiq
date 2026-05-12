@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { fetchQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
@@ -10,11 +10,10 @@ import { api } from "@/convex/_generated/api";
 // log surface that tells us which knob is wrong — so this endpoint
 // reports the exact set of preconditions in one round-trip:
 //
-//   - Env-var presence (ENCRYPTION_KEY / INTERNAL_SERVICE_SECRET /
-//     storage creds) without leaking values.
-//   - pdf-parse load test (does the dynamic require resolve at runtime
-//     on this Vercel build, or does it fail because the function
-//     bundle stripped the vendored pdfjs-dist?).
+//   - Env-var presence (ENCRYPTION_KEY / MISTRAL_API_KEY /
+//     INTERNAL_SERVICE_SECRET / storage creds) without leaking values.
+//   - Mistral health probe (behind ?mistralPing=1): does the chat
+//     completion endpoint accept our key and return JSON?
 //   - Convex connectivity (does latestForCurrentUser respond).
 //   - Whether the calling user has a stuck import that would pin them
 //     on the EmptyResultsRecovery card.
@@ -41,38 +40,50 @@ async function isAdmin(): Promise<boolean> {
   return role === "OWNER" || role === "ADMIN";
 }
 
-async function pdfParseLoadTest(): Promise<{
+async function mistralPing(): Promise<{
   ok: boolean;
-  importPath: string;
+  latencyMs?: number;
   error?: string;
 }> {
-  // Mirrors the exact import lib/report-parser.ts uses. A failure here
-  // tells us the serverExternalPackages config or the vendored pdfjs
-  // worker still isn't resolving on Vercel — i.e. the production fix
-  // isn't deployed yet, or the build externalization regressed.
-  const importPath = "pdf-parse/lib/pdf-parse.js";
+  const apiKey = process.env.MISTRAL_API_KEY;
+  if (!apiKey) return { ok: false, error: "MISTRAL_API_KEY not set" };
+  const start = Date.now();
   try {
-    const mod: unknown = await import(importPath as unknown as string);
-    const fn =
-      (mod as { default?: unknown }).default ?? (mod as unknown as () => unknown);
-    if (typeof fn !== "function") {
+    // Cheapest possible call: 1-token completion that just verifies auth.
+    const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model:
+          process.env.MISTRAL_PARALEGAL_MODEL ?? "mistral-large-latest",
+        max_tokens: 1,
+        temperature: 0,
+        messages: [{ role: "user", content: "ok" }],
+      }),
+    });
+    const latencyMs = Date.now() - start;
+    if (!res.ok) {
+      const body = await res.text();
       return {
         ok: false,
-        importPath,
-        error: `Imported module is not callable (typeof=${typeof fn}).`,
+        latencyMs,
+        error: `${res.status}: ${body.slice(0, 200)}`,
       };
     }
-    return { ok: true, importPath };
+    return { ok: true, latencyMs };
   } catch (err) {
     return {
       ok: false,
-      importPath,
+      latencyMs: Date.now() - start,
       error: (err as Error).message?.slice(0, 400) ?? String(err),
     };
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   if (!(await isAdmin())) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
@@ -82,6 +93,10 @@ export async function GET() {
       present: (process.env.ENCRYPTION_KEY ?? "").length > 0,
       length: (process.env.ENCRYPTION_KEY ?? "").length,
       meetsMinimum: (process.env.ENCRYPTION_KEY ?? "").length >= 32,
+    },
+    MISTRAL_API_KEY: {
+      present: (process.env.MISTRAL_API_KEY ?? "").length > 0,
+      length: (process.env.MISTRAL_API_KEY ?? "").length,
     },
     INTERNAL_SERVICE_SECRET: {
       present: (process.env.INTERNAL_SERVICE_SECRET ?? "").length > 0,
@@ -98,7 +113,10 @@ export async function GET() {
     },
   };
 
-  const pdfParse = await pdfParseLoadTest();
+  const url = new URL(req.url);
+  const mistral = url.searchParams.get("mistralPing") === "1"
+    ? await mistralPing()
+    : { ok: undefined, skipped: true };
 
   // Best-effort Convex check — calls latestForCurrentUser as the calling
   // (admin) user. If Convex cloud isn't reachable or schema is out of
@@ -148,7 +166,7 @@ export async function GET() {
     ok: true,
     timestamp: new Date().toISOString(),
     env,
-    pdfParse,
+    mistral,
     convex,
     nodeVersion: process.version,
     platform: process.platform,

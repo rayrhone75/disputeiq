@@ -686,13 +686,18 @@ export default defineSchema({
       v.literal("txt"),
       v.literal("unknown"),
     ),
-    // Which branch the route ultimately ran. "embedded-json" means we
-    // sniffed JSON inside a PDF/HTML/TXT body. "rejected" is the
-    // pre-parse rejection path (unsupported, oversized, malformed
-    // multipart). The five non-"rejected" values mirror the five paths
-    // the user asked us to track.
+    // Which branch the route ultimately ran. The "-paralegal" suffix
+    // marks the Mistral OCR + AI paralegal pipeline (the canonical
+    // processing path). "rejected" is the pre-parse rejection path
+    // (unsupported, oversized, malformed multipart). Legacy values
+    // (embedded-json, pdf-heuristic, html-heuristic, txt-heuristic)
+    // remain in the schema for historical rows.
     parserPath: v.union(
       v.literal("json"),
+      v.literal("json-paralegal"),
+      v.literal("text-paralegal"),
+      v.literal("html-paralegal"),
+      v.literal("pdf-mistral-paralegal"),
       v.literal("embedded-json"),
       v.literal("pdf-heuristic"),
       v.literal("html-heuristic"),
