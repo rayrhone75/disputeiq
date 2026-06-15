@@ -1,0 +1,39 @@
+# Fly.io config for the DisputeIQ connector worker.
+# Deploy from this directory:  fly deploy
+# Set the secret first:         fly secrets set CONNECTOR_WORKER_SECRET=<random>
+# (Rename `app` to your own unique Fly app name before first `fly launch`.)
+
+app = "disputeiq-connector"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8787"
+  DIAGNOSTICS_DIR = "/data/diagnostics"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    path = "/healthz"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
+
+# Chromium is memory-hungry — 512 MB will OOM under load.
+[[vm]]
+  memory = "2gb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# Persist diagnostic screenshots across restarts (optional).
+# Create with: fly volumes create connector_data --size 1
+[[mounts]]
+  source = "connector_data"
+  destination = "/data"

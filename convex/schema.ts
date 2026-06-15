@@ -739,4 +739,128 @@ export default defineSchema({
   })
     .index("by_import_bureau", ["importId", "bureau"])
     .index("by_tradeline", ["tradelineId"]),
+
+  // Raw VH-shape paralegal output for an import. Captured straight off
+  // the OpenAI paralegal call before vh-to-myscoreiq explodes accounts
+  // into per-bureau rows, so the UI can render account-level rows with
+  // Equifax / Experian / TransUnion columns (the format VH produces).
+  // One row per import; replaced if the same import is re-processed.
+  creditParalegalOutputs: defineTable({
+    importId: v.id("creditReportImports"),
+    userId: v.id("users"),
+    consumer: v.optional(v.any()),
+    accounts: v.array(v.any()),
+    collections: v.array(v.any()),
+    inquiries: v.array(v.any()),
+    publicRecords: v.array(v.any()),
+    consumerStatements: v.optional(v.array(v.any())),
+    extractedTextLength: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_import", ["importId"])
+    .index("by_user_createdAt", ["userId", "createdAt"]),
+
+  // VH-style FCRA violations emitted by the lawyer pipeline. Each row
+  // is one violation surfaced by the law-firm pipeline (specialist
+  // lawyer → adversarial review → senior partner). Field names match
+  // VH's snake_case shape so we can carry their UI patterns over.
+  disputeViolations: defineTable({
+    importId: v.id("creditReportImports"),
+    userId: v.id("users"),
+    fcra_section: v.string(),
+    account_name: v.string(),
+    violation_type: v.string(),
+    description: v.string(),
+    evidence: v.string(),
+    severity: v.union(
+      v.literal("critical"),
+      v.literal("high"),
+      v.literal("medium"),
+      v.literal("low"),
+    ),
+    confidence: v.optional(v.number()),
+    bureaus: v.optional(v.array(v.string())),
+    target_bureaus: v.optional(v.array(v.string())),
+    disputed_fields: v.optional(v.array(v.string())),
+    field_values: v.optional(v.any()),
+    dispute_argument: v.optional(v.string()),
+    dispute_strategy: v.optional(v.string()),
+    defense_strength: v.optional(
+      v.union(
+        v.literal("bulletproof"),
+        v.literal("strong"),
+        v.literal("vulnerable"),
+      ),
+    ),
+    defense_argument: v.optional(v.string()),
+    how_to_strengthen: v.optional(v.string()),
+    round_strategy: v.optional(
+      v.union(v.literal("round1"), v.literal("round2")),
+    ),
+    detected_by: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_import", ["importId"])
+    .index("by_user_createdAt", ["userId", "createdAt"]),
+
+  // Summary row per pipeline run (one per import). Stores the pipeline
+  // metadata + senior-partner summary + removed violations so the UI can
+  // show the same "case strength" header VH does.
+  disputeAnalysisRuns: defineTable({
+    importId: v.id("creditReportImports"),
+    userId: v.id("users"),
+    summary: v.string(),
+    removed: v.array(v.any()),
+    pipeline: v.any(),
+    modelsUsed: v.array(v.string()),
+    violationsCount: v.number(),
+    analyzedAt: v.number(),
+  }).index("by_import", ["importId"]),
+
+  // ── Credit Monitoring Connectors (FEATURE_CREDIT_CONNECTORS) ────────
+  // One row per credential-based auto-import attempt. The encryptedDraft
+  // holds the parsed report (MyScoreIQ-shape JSON + paralegal output),
+  // AES-256-GCM encrypted with ENCRYPTION_KEY, so the preview→save step
+  // doesn't re-run the browser/OCR. logJson is the REDACTED session log
+  // (no passwords / SSN / tokens — scrubbed before it ever arrives here).
+  creditConnectorSessions: defineTable({
+    userId: v.id("users"),
+    provider: v.string(), // ConnectorProviderId (kept as string — superset of creditProvider)
+    status: v.union(
+      v.literal("RUNNING"),
+      v.literal("NEEDS_MFA"),
+      v.literal("NEEDS_CAPTCHA"),
+      v.literal("PREVIEW_READY"),
+      v.literal("SAVED"),
+      v.literal("FAILED"),
+    ),
+    errorCode: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+    retryable: v.optional(v.boolean()),
+    rememberLogin: v.boolean(),
+    logJson: v.array(v.any()),
+    previewJson: v.optional(v.any()),
+    encryptedDraft: v.optional(v.string()),
+    draftBytes: v.optional(v.number()),
+    importId: v.optional(v.id("creditReportImports")),
+    startedAt: v.number(),
+    finishedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index("by_user_started", ["userId", "startedAt"])
+    .index("by_status_started", ["status", "startedAt"]),
+
+  // Encrypted, reusable provider login — ONLY written when the consumer
+  // checks "remember login". encryptedCredentials is sealed with
+  // CREDIT_CONNECTOR_VAULT_KEY (a key separate from ENCRYPTION_KEY).
+  // hints are non-sensitive (masked) for display only.
+  creditConnectorVault: defineTable({
+    userId: v.id("users"),
+    provider: v.string(),
+    encryptedCredentials: v.string(),
+    usernameHint: v.optional(v.string()),
+    ssnLast4Hint: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user_provider", ["userId", "provider"]),
 });
