@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { GetReportClient } from "./GetReportClient";
+import { connectorsEnabled } from "@/lib/credit-import/connectors/config";
 
 // Safe-fallback get-report page.
 //
@@ -43,6 +44,7 @@ export default async function GetReportPage({
       clerkUserId={userId}
       welcoming={welcoming}
       justImported={justImported}
+      connectEnabled={connectorsEnabled()}
     />
   );
 }

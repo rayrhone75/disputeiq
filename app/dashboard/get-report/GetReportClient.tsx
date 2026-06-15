@@ -39,12 +39,16 @@ const EMPTY_SNAPSHOT: CreditReportSnapshot = {
 export function GetReportClient({
   welcoming,
   justImported,
+  connectEnabled,
 }: {
   // clerkUserId reserved for future per-user CTAs; not used in this layout
   // since all token signing now flows through /api/bookmarklet/token.
   clerkUserId: string;
   welcoming: boolean;
   justImported: boolean;
+  // Whether the credential-based connector flow is live (server-gated by
+  // FEATURE_CREDIT_CONNECTORS). Drives the "Connect my account" card.
+  connectEnabled: boolean;
 }) {
   const [snapshot, setSnapshot] = useState<CreditReportSnapshot>(EMPTY_SNAPSHOT);
   const [analyzeReached, setAnalyzeReached] = useState(false);
@@ -161,6 +165,7 @@ export function GetReportClient({
         <div className="mt-8 pb-16">
           {phase === "hero" && (
             <div className="space-y-7">
+              {connectEnabled && <ConnectAccountCard />}
               <ManualUploadCard />
               <AdvancedAutoImport />
               <FallbackOptions onBookmarklet={handleConnect} />
@@ -172,6 +177,7 @@ export function GetReportClient({
           {phase === "analyze" && (
             <StepAnalyze
               imported={snapshot.kind === "ready"}
+              snapshot={snapshot}
               onDone={handleAnalyzeDone}
             />
           )}
@@ -188,6 +194,32 @@ export function GetReportClient({
         onContinueAnyway={handleContinueAnyway}
       />
     </div>
+  );
+}
+
+function ConnectAccountCard() {
+  return (
+    <section className="rounded-3xl border-2 border-emerald-300 bg-emerald-50/70 p-6 shadow-[0_30px_80px_-20px_rgba(16,185,129,0.4)] dark:border-emerald-500/30 dark:bg-emerald-500/10 sm:p-8">
+      <div className="flex flex-col gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-300">
+          Fastest · one click
+        </p>
+        <h2 className="text-2xl font-semibold tracking-tight text-fg sm:text-3xl">
+          Connect my account
+        </h2>
+        <p className="max-w-2xl text-sm leading-6 text-fg-muted sm:text-base">
+          Link your credit-monitoring login and we&apos;ll pull your latest
+          3-bureau report automatically — no downloading, no copy-paste. You
+          review everything before anything is saved.
+        </p>
+      </div>
+      <Link
+        href="/credit-import/connect"
+        className="mt-6 inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-700"
+      >
+        Connect my account
+      </Link>
+    </section>
   );
 }
 
