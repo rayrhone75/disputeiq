@@ -1,0 +1,55 @@
+# Auto-deploy the connector worker to Fly.io.
+#
+# Fires only when something under connector-worker/ changes on main (or
+# manually via the Actions tab). The rest of the repo (the Vercel app)
+# deploys through Vercel's own Git integration — this workflow is ONLY for
+# the Playwright worker.
+#
+# One-time setup:
+#   1. fly auth token            # generate a deploy token
+#   2. GitHub repo → Settings → Secrets and variables → Actions →
+#      New repository secret → name: FLY_API_TOKEN, value: <token>
+#   3. Make sure connector-worker/fly.toml has your real `app` name.
+
+name: Deploy connector worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "connector-worker/**"
+      - ".github/workflows/deploy-connector-worker.yml"
+  workflow_dispatch: {}
+
+# Don't pile up deploys; cancel an in-progress one if a newer push lands.
+concurrency:
+  group: deploy-connector-worker
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: fly deploy
+    runs-on: ubuntu-latest
+    # Skip gracefully on forks / when the token isn't configured.
+    if: ${{ github.repository_owner != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Guard — require FLY_API_TOKEN
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "::error::FLY_API_TOKEN secret is not set. Add it in repo Settings → Secrets → Actions."
+            exit 1
+          fi
+
+      - name: Deploy
+        working-directory: connector-worker
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: flyctl deploy --remote-only --config fly.toml
