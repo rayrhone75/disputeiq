@@ -20,3 +20,7 @@ test-results
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# local-only private files: passwords, notes, customer credit reports (PII).
+# Never commit these — moved here out of the repo root on 2026-06-15.
+/.private/
