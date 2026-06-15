@@ -6,6 +6,9 @@ MyFreeScoreNow). **This service must NOT be deployed to Vercel serverless**
 Fly.io / Railway / a long-running Node host. The Vercel app calls this
 worker's HTTP API.
 
+**Deploying?** See [DEPLOY.md](./DEPLOY.md) for Fly.io / Railway / Render /
+VPS guides and the exact Vercel wiring.
+
 ## Run locally
 ```bash
 cd connector-worker
