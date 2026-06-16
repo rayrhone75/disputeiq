@@ -7,6 +7,8 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { assertCompliantAction } from "@/lib/compliance";
 import { getUserPacketUsage } from "@/lib/billing/usage";
 import { createStripeCheckoutSession } from "@/lib/stripe-checkout";
+import { createSquareCheckout } from "@/lib/square";
+import { selectPaymentProvider } from "@/lib/payments/provider";
 import { writeAuditLog } from "@/lib/audit";
 import { CHECKOUT_CONSENT_ITEMS, TERMS_VERSION } from "@/lib/legal";
 
@@ -73,18 +75,26 @@ export async function POST(req: NextRequest) {
   }
 
   const description = `Letter action for dispute case ${body.disputeCaseId}`;
+
+  // Provider choice: Square primary, Stripe fallback (lib/payments/provider).
+  // A $0 charge (grace user / included packet) needs no provider at all.
+  const provider = selectPaymentProvider();
+  if (totalCents > 0 && !provider) {
+    return NextResponse.json({ error: "PAYMENTS_UNAVAILABLE" }, { status: 503 });
+  }
+
   const paymentIntentId = (await fetchMutation(
     api.payments.createForDispute,
     {
       disputeCaseId: body.disputeCaseId as Id<"disputeCases">,
-      provider: "STRIPE",
+      provider: totalCents === 0 ? "NONE" : (provider as string),
       amountCents: totalCents,
       description,
     },
     { token },
   )) as Id<"paymentIntents">;
 
-  // Persist a ConsentReceipt before issuing the Square checkout.
+  // Persist a ConsentReceipt before issuing the checkout.
   if (body.checkoutConsents) {
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? undefined;
     const ua = req.headers.get("user-agent") ?? undefined;
@@ -103,24 +113,51 @@ export async function POST(req: NextRequest) {
     ).catch(() => null);
   }
 
-  // Look up the user's existing Stripe customer (set when they subscribed)
-  // so the checkout session is attached to the same customer record. New
-  // signups without a subscription will have customerId undefined; Stripe
-  // creates an anonymous customer in that case.
-  const sub = await fetchQuery(api.subscriptions.getForUser, {}, { token });
-  const stripeCustomerId = sub?.stripeCustomerId ?? undefined;
-
-  let checkout: { checkoutUrl: string; sessionId: string };
-  try {
-    checkout = await createStripeCheckoutSession({
-      amountCents: totalCents,
-      referenceId: paymentIntentId as unknown as string,
-      description,
-      customerId: stripeCustomerId,
+  // $0 (grace user / included packet): settle immediately, no provider hop.
+  if (totalCents === 0) {
+    await fetchMutation(
+      api.payments.settleZeroAmount,
+      { paymentIntentId },
+      { token },
+    ).catch(() => null);
+    await writeAuditLog({
+      action: "CHECKOUT_CREATED",
+      entityType: "PaymentIntent",
+      entityId: paymentIntentId as unknown as string,
+      metadataJson: { amountCents: 0, provider: "NONE" },
+    }).catch(() => null);
+    return NextResponse.json({
+      paymentId: paymentIntentId,
+      totalCents: 0,
+      checkoutUrl: `/dashboard/disputes?paid=1&intent=${encodeURIComponent(paymentIntentId as unknown as string)}`,
     });
+  }
+
+  let checkoutUrl: string;
+  try {
+    if (provider === "SQUARE") {
+      const r = await createSquareCheckout({
+        amountCents: totalCents,
+        referenceId: paymentIntentId as unknown as string,
+        description,
+      });
+      checkoutUrl = r.checkoutUrl;
+    } else {
+      // Stripe fallback. Attach the user's existing Stripe customer (set when
+      // they subscribed) so the charge lands on the same customer record.
+      const sub = await fetchQuery(api.subscriptions.getForUser, {}, { token });
+      const stripeCustomerId = sub?.stripeCustomerId ?? undefined;
+      const r = await createStripeCheckoutSession({
+        amountCents: totalCents,
+        referenceId: paymentIntentId as unknown as string,
+        description,
+        customerId: stripeCustomerId,
+      });
+      checkoutUrl = r.checkoutUrl;
+    }
   } catch (err) {
     return NextResponse.json(
-      { error: "STRIPE_CHECKOUT_FAILED", message: (err as Error).message },
+      { error: "CHECKOUT_FAILED", provider, message: (err as Error).message },
       { status: 502 },
     );
   }
@@ -129,12 +166,12 @@ export async function POST(req: NextRequest) {
     action: "CHECKOUT_CREATED",
     entityType: "PaymentIntent",
     entityId: paymentIntentId as unknown as string,
-    metadataJson: { amountCents: totalCents, provider: "STRIPE" },
+    metadataJson: { amountCents: totalCents, provider },
   }).catch(() => null);
 
   return NextResponse.json({
     paymentId: paymentIntentId,
     totalCents,
-    checkoutUrl: checkout.checkoutUrl,
+    checkoutUrl,
   });
 }

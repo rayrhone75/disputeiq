@@ -2,6 +2,10 @@
 const nextConfig = {
   reactStrictMode: true,
   experimental: { serverActions: { bodySizeLimit: "10mb" } },
+  // Keep pdf-parse out of the bundle so Vercel uses the real package in
+  // node_modules. Bundling pulls in pdfjs-dist, whose worker resolution
+  // breaks the lambda (see lib/report-parser.ts:parseReportPdf).
+  serverExternalPackages: ["pdf-parse"],
   // The lawyer pipeline reads its system prompts from .txt files via `fs`
   // at runtime (lib/credit-import/lawyer-pipeline.ts). Next can't trace a
   // computed `process.cwd()` path automatically, so without this include

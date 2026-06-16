@@ -59,13 +59,8 @@ export async function POST(req: NextRequest) {
 
   try {
     for (const [key, valueJson] of values) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const platformSettingsApi = (api as any).platformSettings;
-      if (!platformSettingsApi?.upsert) {
-        throw new Error("platformSettings.upsert not implemented yet");
-      }
       await fetchMutation(
-        platformSettingsApi.upsert,
+        api.platformSettings.upsert,
         { key, valueJson },
         { token },
       );
@@ -76,7 +71,7 @@ export async function POST(req: NextRequest) {
         error: "PLATFORM_SETTINGS_UNAVAILABLE",
         message: (err as Error).message,
       },
-      { status: 501 },
+      { status: 500 },
     );
   }
 
