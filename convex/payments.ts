@@ -96,6 +96,39 @@ export const recordCheckoutConsent = mutation({
   },
 });
 
+// Settle a $0 checkout (grace users / included-packet subscribers) without
+// sending the customer to a payment provider — Stripe and Square both reject
+// $0 charges. Authenticated + ownership-checked; only flips a PENDING $0
+// intent so it can't be abused to mark a real charge paid.
+export const settleZeroAmount = mutation({
+  args: { paymentIntentId: v.id("paymentIntents") },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const payment = await ctx.db.get(args.paymentIntentId);
+    if (!payment || payment.userId !== user._id) throw new Error("FORBIDDEN");
+    if (payment.amountCents !== 0) throw new Error("NOT_ZERO_AMOUNT");
+    if (payment.status === "SUCCEEDED") {
+      return { disputeCaseId: payment.disputeCaseId ?? null, idempotent: true };
+    }
+    const now = Date.now();
+    await ctx.db.patch(payment._id, { status: "SUCCEEDED", updatedAt: now });
+    if (payment.disputeCaseId) {
+      const dc = await ctx.db.get(payment.disputeCaseId);
+      if (dc) await ctx.db.patch(dc._id, { status: "PAID" });
+    }
+    await ctx.db.insert("auditLogs", {
+      actorUserId: user._id,
+      targetUserId: payment.userId,
+      action: "PAYMENT_SUCCEEDED",
+      entityType: "PaymentIntent",
+      entityId: payment._id as unknown as string,
+      metadataJson: { amountCents: 0, provider: "NONE", reason: "ZERO_AMOUNT" },
+      createdAt: now,
+    });
+    return { disputeCaseId: payment.disputeCaseId ?? null };
+  },
+});
+
 // Stripe webhook hook for one-time payment events (packet charge).
 export const recordStripePayment = mutation({
   args: {
@@ -175,6 +208,32 @@ export const recordSquarePayment = mutation({
       createdAt: now,
     });
     return { matched: true, disputeCaseId: payment.disputeCaseId ?? null };
+  },
+});
+
+// Read-only status read-back for the Square sandbox smoke test. Guarded by
+// the Square webhook signing secret (a server-only value) so it can't be
+// called from the browser. Lets the smoke script confirm a webhook actually
+// flipped the intent to SUCCEEDED + the case to PAID. No writes.
+export const statusForSmoke = query({
+  args: { secret: v.string(), paymentIntentId: v.id("paymentIntents") },
+  handler: async (ctx, args) => {
+    const expected = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY ?? "";
+    if (!expected || args.secret !== expected) throw new Error("FORBIDDEN");
+    const p = await ctx.db.get(args.paymentIntentId);
+    if (!p) return null;
+    let disputeStatus: string | null = null;
+    if (p.disputeCaseId) {
+      const dc = await ctx.db.get(p.disputeCaseId);
+      disputeStatus = dc?.status ?? null;
+    }
+    return {
+      status: p.status,
+      amountCents: p.amountCents,
+      provider: p.provider,
+      providerPaymentId: p.providerPaymentId ?? null,
+      disputeStatus,
+    };
   },
 });
 

@@ -259,6 +259,22 @@ export abstract class BaseConnector {
   }
 
   protected async captureReport(page: Page): Promise<FetchedReport> {
+    // 3-bureau reports are JS-rendered and frequently lazy-load tradeline rows
+    // as the user scrolls. Nudge the page to the bottom so the full list is in
+    // the DOM before we serialize it — capturing too early yields a near-empty
+    // shell, the #1 cause of "imported but zero tradelines". Best-effort: any
+    // failure here just falls through to capturing whatever has rendered.
+    try {
+      for (let i = 0; i < 12; i++) {
+        await page.mouse.wheel(0, 1200);
+        await page.waitForTimeout(200);
+      }
+      await page
+        .waitForLoadState("networkidle", { timeout: 15_000 })
+        .catch(() => {});
+    } catch {
+      /* fall through and capture whatever rendered */
+    }
     const html = await page.content();
     return { kind: "html", html };
   }
