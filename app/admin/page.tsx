@@ -37,6 +37,7 @@ export default async function AdminHome() {
           { href: "/admin/mail-jobs", label: "Mail jobs", desc: "Certified mail" },
           { href: "/admin/audit-logs", label: "Audit log", desc: "Every event" },
           { href: "/admin/settings", label: "Settings", desc: "Platform config" },
+          { href: "/admin/diagnostics", label: "Diagnostics", desc: "Launch readiness" },
         ].map((l) => (
           <Link
             key={l.href}
